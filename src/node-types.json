@@ -16,7 +16,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -33,6 +49,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -50,7 +70,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -68,6 +104,10 @@
           {
             "type": "seq_list",
             "named": true
+          },
+          {
+            "type": "set_statement",
+            "named": true
           }
         ]
       }
@@ -79,7 +119,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "all_arguments",
@@ -152,7 +192,23 @@
           "named": true
         },
         {
+          "type": "call_statement",
+          "named": true
+        },
+        {
           "type": "command",
+          "named": true
+        },
+        {
+          "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "goto_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
           "named": true
         },
         {
@@ -170,8 +226,28 @@
         {
           "type": "seq_list",
           "named": true
+        },
+        {
+          "type": "set_statement",
+          "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "call_statement",
+    "named": true,
+    "fields": {
+      "argument": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -292,6 +368,292 @@
     "fields": {}
   },
   {
+    "type": "comparison",
+    "named": true,
+    "fields": {
+      "left": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      },
+      "operator": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "comparison_operator",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "comparison_operator",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "for_option",
+    "named": true,
+    "fields": {
+      "options": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string",
+            "named": true
+          }
+        ]
+      },
+      "path": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "for_set",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "argument",
+          "named": true
+        },
+        {
+          "type": "backquote_string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "for_statement",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "set_statement",
+            "named": true
+          }
+        ]
+      },
+      "option": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "for_option",
+            "named": true
+          }
+        ]
+      },
+      "set": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "for_set",
+            "named": true
+          }
+        ]
+      },
+      "variable": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "loop_variable",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "goto_statement",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "if_statement",
+    "named": true,
+    "fields": {
+      "alternative": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "set_statement",
+            "named": true
+          }
+        ]
+      },
+      "condition": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
+            "type": "unary_condition",
+            "named": true
+          }
+        ]
+      },
+      "consequence": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "set_statement",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "if_flag",
+          "named": true
+        },
+        {
+          "type": "not",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "label",
     "named": true,
     "fields": {
@@ -334,7 +696,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -351,6 +729,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -368,7 +750,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -385,6 +783,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -408,7 +810,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -425,6 +843,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -442,7 +864,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -459,6 +897,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -483,11 +925,27 @@
           "named": true
         },
         {
+          "type": "call_statement",
+          "named": true
+        },
+        {
           "type": "colon_comment",
           "named": true
         },
         {
           "type": "command",
+          "named": true
+        },
+        {
+          "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "goto_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
           "named": true
         },
         {
@@ -508,6 +966,10 @@
         },
         {
           "type": "seq_list",
+          "named": true
+        },
+        {
+          "type": "set_statement",
           "named": true
         }
       ]
@@ -616,7 +1078,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -633,6 +1111,10 @@
           },
           {
             "type": "seq_list",
+            "named": true
+          },
+          {
+            "type": "set_statement",
             "named": true
           }
         ]
@@ -650,7 +1132,23 @@
             "named": true
           },
           {
+            "type": "call_statement",
+            "named": true
+          },
+          {
             "type": "command",
+            "named": true
+          },
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "goto_statement",
+            "named": true
+          },
+          {
+            "type": "if_statement",
             "named": true
           },
           {
@@ -668,10 +1166,159 @@
           {
             "type": "seq_list",
             "named": true
+          },
+          {
+            "type": "set_statement",
+            "named": true
           }
         ]
       }
     }
+  },
+  {
+    "type": "set_arith",
+    "named": true,
+    "fields": {
+      "expression": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "set_assignment",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "set_display",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "variable_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "set_prompt",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_name",
+            "named": true
+          }
+        ]
+      },
+      "prompt": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "set_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "set_arith",
+          "named": true
+        },
+        {
+          "type": "set_assignment",
+          "named": true
+        },
+        {
+          "type": "set_display",
+          "named": true
+        },
+        {
+          "type": "set_prompt",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "unary_condition",
+    "named": true,
+    "fields": {
+      "arg": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      },
+      "kind": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "condition_keyword",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "variable_name",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "&",
@@ -690,7 +1337,23 @@
     "named": false
   },
   {
+    "type": "=",
+    "named": false
+  },
+  {
+    "type": "==",
+    "named": false
+  },
+  {
     "type": "all_arguments",
+    "named": true
+  },
+  {
+    "type": "backquote_string",
+    "named": true
+  },
+  {
+    "type": "condition_keyword",
     "named": true
   },
   {
@@ -703,6 +1366,10 @@
   },
   {
     "type": "file_descriptor",
+    "named": true
+  },
+  {
+    "type": "if_flag",
     "named": true
   },
   {
@@ -720,6 +1387,10 @@
   },
   {
     "type": "loop_variable",
+    "named": true
+  },
+  {
+    "type": "not",
     "named": true
   },
   {

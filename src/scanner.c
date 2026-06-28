@@ -35,8 +35,13 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
 }
 
 // Characters that terminate a word: whitespace, newlines, the command
-// operators and parentheses. Everything else (letters, digits, `"`, `%`, `!`,
-// `^`, `:`, `,`, `;`, `=`, path separators, ...) continues the current word.
+// operators, parentheses and `=`. `=` is a separator in cmd and, crucially,
+// must not be joined onto the previous fragment or the zero-width CONCAT token
+// would starve the `==` / `name=value` operators (external tokens take lexing
+// priority). Plain text still includes `=` within a single token, so only
+// fragment-to-fragment joins across `=` are affected. Everything else
+// (letters, digits, `"`, `%`, `!`, `^`, `:`, `,`, `;`, path separators, ...)
+// continues the current word.
 static bool is_word_boundary(int32_t c) {
   switch (c) {
     case ' ':
@@ -49,6 +54,7 @@ static bool is_word_boundary(int32_t c) {
     case '>':
     case '(':
     case ')':
+    case '=':
       return true;
     default:
       return false;

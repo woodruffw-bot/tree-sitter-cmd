@@ -67,7 +67,7 @@ module.exports = grammar({
 
   extras: ($) => [/[ \t]/, $.line_continuation],
 
-  conflicts: ($) => [],
+  conflicts: ($) => [[$.for_option]],
 
   rules: {
     // A batch file is a sequence of physical lines. Every line is terminated by
@@ -117,7 +117,17 @@ module.exports = grammar({
         seq(field('left', $._statement), '|', field('right', $._statement)),
       ),
 
-    _unit: ($) => choice($.command, $.block, $.rem_comment),
+    _unit: ($) =>
+      choice(
+        $.command,
+        $.block,
+        $.rem_comment,
+        $.if_statement,
+        $.for_statement,
+        $.goto_statement,
+        $.call_statement,
+        $.set_statement,
+      ),
 
     // A parenthesised compound. Newlines inside act like `&`.
     block: ($) =>
@@ -152,6 +162,155 @@ module.exports = grammar({
 
     // The `@` echo-suppress prefix.
     quiet: ($) => '@',
+
+    // ---------------------------------------------------------------------
+    // Control flow — IF
+    // ---------------------------------------------------------------------
+    // IF [/I] [NOT] <condition> <command> [ELSE <command>]
+    if_statement: ($) =>
+      prec.right(
+        seq(
+          ci('if'),
+          optional(alias(ci('/i'), $.if_flag)),
+          optional(alias(ci('not'), $.not)),
+          field('condition', $._if_condition),
+          field('consequence', $._if_body),
+          optional(seq(ci('else'), field('alternative', $._if_body))),
+        ),
+      ),
+
+    _if_condition: ($) => choice($.comparison, $.unary_condition),
+
+    comparison: ($) =>
+      seq(
+        field('left', $._if_operand),
+        field('operator', $.comparison_operator),
+        field('right', $._if_operand),
+      ),
+    comparison_operator: ($) =>
+      choice(
+        '==',
+        ci('equ'),
+        ci('neq'),
+        ci('lss'),
+        ci('leq'),
+        ci('gtr'),
+        ci('geq'),
+      ),
+
+    unary_condition: ($) =>
+      seq(
+        field(
+          'kind',
+          alias(
+            choice(ci('exist'), ci('defined'), ci('errorlevel'), ci('cmdextversion')),
+            $.condition_keyword,
+          ),
+        ),
+        field('arg', $._if_operand),
+      ),
+
+    // An IF operand is a word whose bare text stops at `=` so that `a==b`
+    // tokenises as `a`, `==`, `b`.
+    _if_operand: ($) => alias($._if_word, $.argument),
+    _if_word: ($) => seq($._if_fragment, repeat(seq($._concat, $._if_fragment))),
+    _if_fragment: ($) =>
+      choice(
+        $._if_text,
+        $.string,
+        $.escape_sequence,
+        $._expansion,
+        alias($._stray_sigil, $.text),
+      ),
+    _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
+
+    _if_body: ($) => $._unit,
+
+    // ---------------------------------------------------------------------
+    // Control flow — FOR
+    // ---------------------------------------------------------------------
+    // FOR [/D | /R [path] | /L | /F ["opts"]] %%v IN (set) DO <command>
+    for_statement: ($) =>
+      prec.right(
+        seq(
+          ci('for'),
+          optional(field('option', $.for_option)),
+          field('variable', $.loop_variable),
+          ci('in'),
+          '(',
+          field('set', optional($.for_set)),
+          ')',
+          ci('do'),
+          field('body', $._if_body),
+        ),
+      ),
+
+    for_option: ($) =>
+      choice(
+        ci('/d'),
+        seq(ci('/r'), optional(field('path', $.argument))),
+        ci('/l'),
+        seq(ci('/f'), optional(field('options', $.string))),
+      ),
+
+    for_set: ($) =>
+      repeat1(choice($.argument, $.backquote_string, $._newline)),
+
+    // `command` source for FOR /F.
+    backquote_string: ($) => token(/`[^`\r\n]*`?/),
+
+    // ---------------------------------------------------------------------
+    // GOTO / CALL
+    // ---------------------------------------------------------------------
+    // GOTO label  /  GOTO :EOF
+    goto_statement: ($) =>
+      seq(ci('goto'), optional(field('target', $.argument))),
+
+    // CALL :label args  /  CALL file args  /  CALL command
+    call_statement: ($) =>
+      prec.right(seq(ci('call'), repeat(field('argument', $.argument)))),
+
+    // ---------------------------------------------------------------------
+    // SET family
+    // ---------------------------------------------------------------------
+    set_statement: ($) =>
+      prec.right(
+        seq(
+          ci('set'),
+          optional(
+            choice(
+              $.set_prompt,
+              $.set_arith,
+              $.set_assignment,
+              $.string,
+              $.set_display,
+            ),
+          ),
+        ),
+      ),
+
+    // SET name=value  (the value is the rest of the logical line)
+    set_assignment: ($) =>
+      seq(
+        field('name', alias($._set_name, $.variable_name)),
+        '=',
+        repeat(field('value', $.argument)),
+      ),
+    // SET /P name=prompt
+    set_prompt: ($) =>
+      seq(
+        ci('/p'),
+        field('name', alias($._set_name, $.variable_name)),
+        '=',
+        repeat(field('prompt', $.argument)),
+      ),
+    // SET /A expression  (refined to an arithmetic sub-grammar in M7)
+    set_arith: ($) => seq(ci('/a'), repeat(field('expression', $.argument))),
+    // SET  /  SET prefix  (display)
+    set_display: ($) => alias($._set_name, $.variable_name),
+
+    // A SET variable name stops at `=`.
+    _set_name: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
 
     // ---------------------------------------------------------------------
     // Redirections
