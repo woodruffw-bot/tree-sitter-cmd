@@ -171,9 +171,9 @@ module.exports = grammar({
     block: ($) =>
       prec.right(
         seq(
-          $._block_open,
+          alias($._block_open, '('),
           optional($._block_body),
-          $._block_close,
+          alias($._block_close, ')'),
           repeat(field('redirect', $.redirection)),
         ),
       ),
@@ -279,9 +279,9 @@ module.exports = grammar({
           optional(field('option', $.for_option)),
           field('variable', $.loop_variable),
           kw('in'),
-          $._block_open,
+          alias($._block_open, '('),
           field('set', optional($.for_set)),
-          $._block_close,
+          alias($._block_close, ')'),
           kw('do'),
           field('body', $._if_body),
         ),

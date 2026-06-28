@@ -203,8 +203,8 @@ static const char * const ts_symbol_names[] = {
   [aux_sym_colon_comment_token1] = "colon_comment_token1",
   [sym__concat] = "_concat",
   [sym__rem] = "keyword",
-  [sym__block_open] = "_block_open",
-  [sym__block_close] = "_block_close",
+  [sym__block_open] = "(",
+  [sym__block_close] = ")",
   [sym__lparen] = "argument",
   [sym__rparen] = "argument",
   [sym_program] = "program",
@@ -631,12 +631,12 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .named = true,
   },
   [sym__block_open] = {
-    .visible = false,
-    .named = true,
+    .visible = true,
+    .named = false,
   },
   [sym__block_close] = {
-    .visible = false,
-    .named = true,
+    .visible = true,
+    .named = false,
   },
   [sym__lparen] = {
     .visible = true,
