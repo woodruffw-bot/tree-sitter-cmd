@@ -1,0 +1,769 @@
+[
+  {
+    "type": "and_list",
+    "named": true,
+    "fields": {
+      "left": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "argument",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "all_arguments",
+          "named": true
+        },
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "loop_variable",
+          "named": true
+        },
+        {
+          "type": "parameter",
+          "named": true
+        },
+        {
+          "type": "parameter_tilde",
+          "named": true
+        },
+        {
+          "type": "percent_literal",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block",
+    "named": true,
+    "fields": {
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "redirection",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "and_list",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "command",
+          "named": true
+        },
+        {
+          "type": "or_list",
+          "named": true
+        },
+        {
+          "type": "pipeline",
+          "named": true
+        },
+        {
+          "type": "rem_comment",
+          "named": true
+        },
+        {
+          "type": "seq_list",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "colon_comment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "comment_text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "command",
+    "named": true,
+    "fields": {
+      "argument": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "command_name",
+            "named": true
+          }
+        ]
+      },
+      "quiet": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      },
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "redirection",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "command_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "all_arguments",
+          "named": true
+        },
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "loop_variable",
+          "named": true
+        },
+        {
+          "type": "parameter",
+          "named": true
+        },
+        {
+          "type": "parameter_tilde",
+          "named": true
+        },
+        {
+          "type": "percent_literal",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "comment_text",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "label",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "label_name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "label_text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "or_list",
+    "named": true,
+    "fields": {
+      "left": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipeline",
+    "named": true,
+    "fields": {
+      "left": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "program",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "and_list",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "colon_comment",
+          "named": true
+        },
+        {
+          "type": "command",
+          "named": true
+        },
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "or_list",
+          "named": true
+        },
+        {
+          "type": "pipeline",
+          "named": true
+        },
+        {
+          "type": "rem_comment",
+          "named": true
+        },
+        {
+          "type": "seq_list",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "redirect_dup",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "redirect_dup_operator",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "file_descriptor",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "redirect_file",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "redirect_operator",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "redirection",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "redirect_dup",
+          "named": true
+        },
+        {
+          "type": "redirect_file",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "rem_comment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "comment_text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "seq_list",
+    "named": true,
+    "fields": {
+      "left": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "and_list",
+            "named": true
+          },
+          {
+            "type": "block",
+            "named": true
+          },
+          {
+            "type": "command",
+            "named": true
+          },
+          {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "&",
+    "named": false
+  },
+  {
+    "type": "&&",
+    "named": false
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
+    "type": "all_arguments",
+    "named": true
+  },
+  {
+    "type": "delayed_variable",
+    "named": true
+  },
+  {
+    "type": "escape_sequence",
+    "named": true
+  },
+  {
+    "type": "file_descriptor",
+    "named": true
+  },
+  {
+    "type": "label_name",
+    "named": true
+  },
+  {
+    "type": "label_text",
+    "named": true
+  },
+  {
+    "type": "line_continuation",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "loop_variable",
+    "named": true
+  },
+  {
+    "type": "parameter",
+    "named": true
+  },
+  {
+    "type": "parameter_tilde",
+    "named": true
+  },
+  {
+    "type": "percent_literal",
+    "named": true
+  },
+  {
+    "type": "quiet",
+    "named": true
+  },
+  {
+    "type": "redirect_dup_operator",
+    "named": true
+  },
+  {
+    "type": "redirect_operator",
+    "named": true
+  },
+  {
+    "type": "string",
+    "named": true
+  },
+  {
+    "type": "text",
+    "named": true
+  },
+  {
+    "type": "variable",
+    "named": true
+  },
+  {
+    "type": "|",
+    "named": false
+  },
+  {
+    "type": "||",
+    "named": false
+  }
+]
