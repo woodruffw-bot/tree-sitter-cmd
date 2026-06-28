@@ -26,8 +26,10 @@
 
 /* eslint-disable no-undef */
 
-// Keyword tokens win ties against barewords (but not longer maximal munches).
-const KW_PREC = 2;
+// Keyword/bareword disambiguation is handled by the `word` directive
+// (keyword extraction): a keyword only matches when it is the whole word, so
+// `set` is a keyword but `setlocal` is a command. No token precedence needed.
+const KW_PREC = 0;
 
 // Operator precedences, lowest to highest binding.
 const PREC = {
@@ -60,10 +62,32 @@ function ci(word) {
   return token(prec(KW_PREC, new RegExp(ciSource(word))));
 }
 
+/**
+ * Case-insensitive keyword aliased to a named `keyword` node so it can be
+ * targeted by highlight queries (regex tokens are otherwise anonymous and have
+ * no fixed text to match on).
+ */
+function kw(word) {
+  return alias(ci(word), 'keyword');
+}
+
+/**
+ * A `/x` option flag (e.g. `/p`, `/a`, `/i`, `/f`). These appear only right
+ * after their statement keyword and must win against a bareword in that slot
+ * (e.g. `set /p` is the prompt flag, not a display of a variable named `/p`),
+ * so they carry elevated token precedence.
+ */
+function opt(word) {
+  return token(prec(3, new RegExp(ciSource(word))));
+}
+
 module.exports = grammar({
   name: 'cmd',
 
-  externals: ($) => [$._concat],
+  externals: ($) => [$._concat, $._rem],
+
+  // Keyword extraction: a keyword only matches when it spans an entire word.
+  word: ($) => $._cmd_text,
 
   extras: ($) => [/[ \t]/, $.line_continuation],
 
@@ -117,16 +141,21 @@ module.exports = grammar({
         seq(field('left', $._statement), '|', field('right', $._statement)),
       ),
 
+    // A `@` echo-suppress prefix may precede any command form, not just a
+    // plain command (e.g. `@rem`, `@if`, `@echo off`).
     _unit: ($) =>
-      choice(
-        $.command,
-        $.block,
-        $.rem_comment,
-        $.if_statement,
-        $.for_statement,
-        $.goto_statement,
-        $.call_statement,
-        $.set_statement,
+      seq(
+        optional(field('quiet', $.quiet)),
+        choice(
+          $.command,
+          $.block,
+          $.rem_comment,
+          $.if_statement,
+          $.for_statement,
+          $.goto_statement,
+          $.call_statement,
+          $.set_statement,
+        ),
       ),
 
     // A parenthesised compound. Newlines inside act like `&`.
@@ -142,8 +171,8 @@ module.exports = grammar({
     _block_body: ($) =>
       seq(
         repeat($._newline),
-        $._statement,
-        repeat(seq(repeat1($._newline), $._statement)),
+        $._line_content,
+        repeat(seq(repeat1($._newline), $._line_content)),
         repeat($._newline),
       ),
 
@@ -151,7 +180,6 @@ module.exports = grammar({
       prec.right(
         PREC.COMMAND,
         seq(
-          optional(field('quiet', $.quiet)),
           repeat(field('redirect', $.redirection)),
           field('name', $.command_name),
           repeat(
@@ -170,12 +198,12 @@ module.exports = grammar({
     if_statement: ($) =>
       prec.right(
         seq(
-          ci('if'),
-          optional(alias(ci('/i'), $.if_flag)),
+          kw('if'),
+          optional(alias(opt('/i'), $.if_flag)),
           optional(alias(ci('not'), $.not)),
           field('condition', $._if_condition),
           field('consequence', $._if_body),
-          optional(seq(ci('else'), field('alternative', $._if_body))),
+          optional(seq(kw('else'), field('alternative', $._if_body))),
         ),
       ),
 
@@ -211,8 +239,13 @@ module.exports = grammar({
       ),
 
     // An IF operand is a word whose bare text stops at `=` so that `a==b`
-    // tokenises as `a`, `==`, `b`.
-    _if_operand: ($) => alias($._if_word, $.argument),
+    // tokenises as `a`, `==`, `b`. It may also be wrapped in parentheses, the
+    // classic `if (%1)==()` idiom for tolerating empty/odd arguments.
+    _if_operand: ($) =>
+      choice(
+        alias($._if_word, $.argument),
+        alias(seq('(', optional($._if_word), ')'), $.argument),
+      ),
     _if_word: ($) => seq($._if_fragment, repeat(seq($._concat, $._if_fragment))),
     _if_fragment: ($) =>
       choice(
@@ -233,24 +266,24 @@ module.exports = grammar({
     for_statement: ($) =>
       prec.right(
         seq(
-          ci('for'),
+          kw('for'),
           optional(field('option', $.for_option)),
           field('variable', $.loop_variable),
-          ci('in'),
+          kw('in'),
           '(',
           field('set', optional($.for_set)),
           ')',
-          ci('do'),
+          kw('do'),
           field('body', $._if_body),
         ),
       ),
 
     for_option: ($) =>
       choice(
-        ci('/d'),
-        seq(ci('/r'), optional(field('path', $.argument))),
-        ci('/l'),
-        seq(ci('/f'), optional(field('options', $.string))),
+        opt('/d'),
+        seq(opt('/r'), optional(field('path', $.argument))),
+        opt('/l'),
+        seq(opt('/f'), optional(field('options', $.string))),
       ),
 
     for_set: ($) =>
@@ -264,11 +297,11 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // GOTO label  /  GOTO :EOF
     goto_statement: ($) =>
-      seq(ci('goto'), optional(field('target', $.argument))),
+      seq(kw('goto'), optional(field('target', $.argument))),
 
     // CALL :label args  /  CALL file args  /  CALL command
     call_statement: ($) =>
-      prec.right(seq(ci('call'), repeat(field('argument', $.argument)))),
+      prec.right(seq(kw('call'), repeat(field('argument', $.argument)))),
 
     // ---------------------------------------------------------------------
     // SET family
@@ -276,7 +309,7 @@ module.exports = grammar({
     set_statement: ($) =>
       prec.right(
         seq(
-          ci('set'),
+          kw('set'),
           optional(
             choice(
               $.set_prompt,
@@ -286,6 +319,7 @@ module.exports = grammar({
               $.set_display,
             ),
           ),
+          repeat(field('redirect', $.redirection)),
         ),
       ),
 
@@ -299,13 +333,13 @@ module.exports = grammar({
     // SET /P name=prompt
     set_prompt: ($) =>
       seq(
-        ci('/p'),
+        opt('/p'),
         field('name', alias($._set_name, $.variable_name)),
         '=',
         repeat(field('prompt', $.argument)),
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
-    set_arith: ($) => seq(ci('/a'), repeat(field('expression', $.argument))),
+    set_arith: ($) => seq(opt('/a'), repeat(field('expression', $.argument))),
     // SET  /  SET prefix  (display)
     set_display: ($) => alias($._set_name, $.variable_name),
 
@@ -411,7 +445,10 @@ module.exports = grammar({
     _label_tail: ($) => alias(token(/[^\r\n]+/), $.label_text),
 
     rem_comment: ($) =>
-      seq(ci('rem'), optional(alias($._line_text, $.comment_text))),
+      seq(
+        alias($._rem, $.keyword),
+        optional(alias($._line_text, $.comment_text)),
+      ),
     colon_comment: ($) =>
       seq(token(/::/), optional(alias($._line_text, $.comment_text))),
     _line_text: ($) => token(/[^\r\n]+/),

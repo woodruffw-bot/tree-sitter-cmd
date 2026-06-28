@@ -8,6 +8,7 @@ rem this is a comment
 
 (program
   (rem_comment
+    (keyword)
     (comment_text)))
 
 ================================
@@ -20,6 +21,7 @@ rem build & deploy | step
 
 (program
   (rem_comment
+    (keyword)
     (comment_text)))
 
 ====================
@@ -44,6 +46,7 @@ REM upper
 
 (program
   (rem_comment
+    (keyword)
     (comment_text)))
 
 =========================
@@ -61,4 +64,5 @@ echo hi & rem trailing
       argument: (argument
         (text)))
     right: (rem_comment
+      (keyword)
       (comment_text))))
