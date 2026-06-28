@@ -1,0 +1,33 @@
+# Rust / cargo
+/target
+.toolchain/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# tree-sitter build artifacts
+/build
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.wasm
+/log.html
+
+# tree-sitter generated test/parse artifacts (the parser itself in src/ IS committed)
+/parser.c.bak
+
+# Editor / OS cruft
+.DS_Store
+*.swp
+*~
+
+# Python (used only for tooling/scripts)
+__pycache__/
+*.pyc

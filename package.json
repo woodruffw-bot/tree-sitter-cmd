@@ -1,0 +1,34 @@
+{
+  "name": "tree-sitter-cmd",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for Windows cmd.exe / batch (.bat, .cmd) scripts",
+  "license": "MIT",
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "cmd",
+    "batch",
+    "bat",
+    "windows",
+    "cmd.exe"
+  ],
+  "main": "bindings/node",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test",
+    "parse": "tree-sitter parse"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.dosbatch",
+      "file-types": [
+        "bat",
+        "cmd"
+      ],
+      "injection-regex": "^(bat|batch|cmd|dosbatch)$"
+    }
+  ],
+  "devDependencies": {
+    "tree-sitter-cli": "^0.25.10"
+  }
+}
