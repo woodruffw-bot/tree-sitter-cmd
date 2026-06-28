@@ -151,3 +151,65 @@ echo if for set rem
       (text))
     argument: (argument
       (text))))
+
+==========================
+literal parens in argument
+==========================
+
+echo (see readme.txt)
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+================================
+echo-dot with parenthesised text
+================================
+
+echo.version(s) of the tool
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+================================
+literal parens nested in a block
+================================
+
+(
+  echo (note)
+)
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (text))
+      argument: (argument
+        (text)))))

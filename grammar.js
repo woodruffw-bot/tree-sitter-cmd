@@ -84,7 +84,14 @@ function opt(word) {
 module.exports = grammar({
   name: 'cmd',
 
-  externals: ($) => [$._concat, $._rem],
+  externals: ($) => [
+    $._concat,
+    $._rem,
+    $._block_open,
+    $._block_close,
+    $._lparen,
+    $._rparen,
+  ],
 
   // Keyword extraction: a keyword only matches when it spans an entire word.
   word: ($) => $._cmd_text,
@@ -158,13 +165,15 @@ module.exports = grammar({
         ),
       ),
 
-    // A parenthesised compound. Newlines inside act like `&`.
+    // A parenthesised compound. Newlines inside act like `&`. The parentheses
+    // are supplied by the external scanner (which tracks block vs literal-paren
+    // nesting), so `echo (text)` is literal but `( echo a )` is a block.
     block: ($) =>
       prec.right(
         seq(
-          '(',
+          $._block_open,
           optional($._block_body),
-          ')',
+          $._block_close,
           repeat(field('redirect', $.redirection)),
         ),
       ),
@@ -239,12 +248,12 @@ module.exports = grammar({
       ),
 
     // An IF operand is a word whose bare text stops at `=` so that `a==b`
-    // tokenises as `a`, `==`, `b`. It may also be wrapped in parentheses, the
-    // classic `if (%1)==()` idiom for tolerating empty/odd arguments.
+    // tokenises as `a`, `==`, `b`. It may also be fully wrapped in parentheses,
+    // the classic `if (%1)==()` idiom for tolerating empty/odd arguments.
     _if_operand: ($) =>
       choice(
         alias($._if_word, $.argument),
-        alias(seq('(', optional($._if_word), ')'), $.argument),
+        alias(seq($._lparen, optional($._if_word), $._rparen), $.argument),
       ),
     _if_word: ($) => seq($._if_fragment, repeat(seq($._concat, $._if_fragment))),
     _if_fragment: ($) =>
@@ -270,9 +279,9 @@ module.exports = grammar({
           optional(field('option', $.for_option)),
           field('variable', $.loop_variable),
           kw('in'),
-          '(',
+          $._block_open,
           field('set', optional($.for_set)),
-          ')',
+          $._block_close,
           kw('do'),
           field('body', $._if_body),
         ),
@@ -385,6 +394,10 @@ module.exports = grammar({
         $._expansion,
         // A `%` or `!` that is not part of an expansion is literal text.
         alias($._stray_sigil, $.text),
+        // Literal parentheses in argument position (the scanner only emits
+        // these where a block cannot begin), e.g. `echo (text)`.
+        alias($._lparen, $.text),
+        alias($._rparen, $.text),
       ),
 
     text: ($) => token(/[^ \t\r\n&|<>()^"%!]+/),

@@ -12,7 +12,7 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 
 ## Status
 
-Validated against a suite of well-known real-world batch scripts. **11 of 12
+Validated against a suite of well-known real-world batch scripts. **All 12
 parse with zero error nodes**, including the notoriously tricky `gradlew.bat`,
 the 333-line `mvn.cmd`, and a 579-line LLVM release script:
 
@@ -21,13 +21,10 @@ the 333-line `mvn.cmd`, and a 579-line LLVM release script:
 | `gradlew.bat` (Gradle) | 82 | 0 |
 | `mvn.cmd` (Maven) | 333 | 0 |
 | `build_llvm_release.bat` (LLVM) | 579 | 0 |
-| `build.bat` (CPython) | 234 | 6¹ |
+| `build.bat` (CPython) | 234 | 0 |
 | `razzle.cmd` (Windows Terminal) | 126 | 0 |
 | `conda.bat`, `activate.bat` (conda / virtualenv) | — | 0 |
 | `npm.cmd`, `build.cmd` (.NET), `bootstrap-vcpkg.bat`, … | — | 0 |
-
-¹ CPython's `build.bat` uses the `echo.message (parenthesised)` idiom — a
-documented limitation (literal unquoted parentheses in arguments).
 
 ## Features
 
@@ -53,6 +50,10 @@ The grammar models:
 - **Comments** — `REM` (rest-of-line, including special characters) and `::`.
 - **Escaping** — the caret `^x` escape and `^`-newline line continuation,
   double-quoted strings (quotes group; cmd does not strip them).
+- **Context-sensitive parentheses** — `(` opens a block where a command is
+  expected but is literal in an argument (`echo (text)`), and `)` closes a
+  block only at the matching nesting depth, so literal parens balance even
+  inside blocks (`( echo (x) )`). Tracked by the external scanner.
 
 Keyword/command disambiguation uses tree-sitter keyword extraction, so
 `set` is the keyword but `setlocal` is a command, `rem` is a comment but
@@ -107,8 +108,6 @@ These follow from `cmd.exe` being phased and context-sensitive in ways a
 single context-free pass cannot fully reproduce. None cause cascading failures
 on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
 
-- **Literal unquoted parentheses in arguments** (`echo (text)`,
-  `echo.msg (note)`) are parsed as blocks. Quote or `^`-escape them.
 - **Delayed expansion `!VAR!`** is always parsed as a reference, even where
   `SETLOCAL ENABLEDELAYEDEXPANSION` is not active (it is literal at runtime
   there).

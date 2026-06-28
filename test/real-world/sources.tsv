@@ -6,8 +6,9 @@
 # allowed. They are NOT committed — they belong to their respective upstream
 # projects under their own licenses.
 #
-# max-errors is 0 for everything except scripts that exercise documented
-# grammar limitations (see ../../GRAMMAR_DESIGN.md "Known limitations").
+# All listed scripts currently parse with zero ERROR nodes (max-errors 0). The
+# column exists so a script exercising a documented limitation can be tracked
+# with a non-zero budget rather than removed.
 0	gradlew.bat	https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
 0	mvn.cmd	https://raw.githubusercontent.com/apache/maven/master/apache-maven/src/assembly/maven/bin/mvn.cmd
 0	npm.cmd	https://raw.githubusercontent.com/nodejs/node/main/deps/npm/bin/npm.cmd
@@ -19,6 +20,6 @@
 0	conda.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/conda.bat
 0	venv-activate.bat	https://raw.githubusercontent.com/pypa/virtualenv/main/src/virtualenv/activation/batch/activate.bat
 0	gfw-vcpkg-copy-dlls.bat	https://raw.githubusercontent.com/git-for-windows/git/main/compat/vcbuild/vcpkg_copy_dlls.bat
-# cpython's build.bat uses the `echo.message (parenthesised)` idiom, a documented
-# grammar limitation (literal unquoted parentheses in arguments).
-6	cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat
+# cpython's build.bat exercises the `echo.message (parenthesised)` idiom
+# (literal parentheses in arguments) — now supported.
+0	cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat

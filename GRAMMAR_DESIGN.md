@@ -15,9 +15,14 @@ decided during implementation:
   keyword but declines `rem`).
 - `=` is a word boundary in the scanner so `_concat` cannot starve `==` /
   `name=value`.
+- **Parentheses are resolved in the external scanner** with a per-level stack
+  (block vs literal). `(` is a block-open where the grammar allows it
+  (`valid_symbols`) and a literal paren otherwise; `)` is matched against the
+  stack top, so a literal `(…)` in an argument balances even when nested inside
+  a block. This is the paren-depth design anticipated in §8 / §4.5.
 
-Validated against 12 real-world scripts (11 parse error-free). See `README.md`
-for the conformance table and the live limitation list.
+Validated against 12 real-world scripts — **all parse error-free**. See
+`README.md` for the conformance table and the live limitation list.
 
 Target package: `tree-sitter-cmd` (`scope: source.dosbatch`, file types
 `.bat`, `.cmd`). License: MIT.
