@@ -1,7 +1,26 @@
 # tree-sitter-cmd — Grammar Design Document
 
-Status: design / pre-implementation. Target package: `tree-sitter-cmd`
-(`scope: source.dosbatch`, file types `.bat`, `.cmd`). License: MIT.
+Status: **implemented**. This document was written pre-implementation as the
+guide; the shipped grammar follows it closely, with these notable divergences
+decided during implementation:
+
+- Expansions (`%VAR%`, `!VAR!`, `%1`, `%*`, `%~…`, `%%i`, `%%`) are **single
+  tokens** rather than sub-noded `seq`s — maximal munch then cleanly prefers a
+  real expansion over a stray `%`/`!`, with no GLR ambiguity. Substring/
+  substitution operators are therefore not sub-noded (see §8 limitations).
+- Strings are a **single opaque token** (`"…"`), avoiding the empty-string /
+  outside-fragment ambiguity; interiors are not sub-noded.
+- Word concatenation uses the external `_concat` token (as planned); `rem` is
+  also an external token (tree-sitter's keyword extraction handles every other
+  keyword but declines `rem`).
+- `=` is a word boundary in the scanner so `_concat` cannot starve `==` /
+  `name=value`.
+
+Validated against 12 real-world scripts (11 parse error-free). See `README.md`
+for the conformance table and the live limitation list.
+
+Target package: `tree-sitter-cmd` (`scope: source.dosbatch`, file types
+`.bat`, `.cmd`). License: MIT.
 
 This document guides implementation of `grammar.js` and (where unavoidable)
 `src/scanner.c`. It is grounded in the ReactOS cmd.exe reimplementation
