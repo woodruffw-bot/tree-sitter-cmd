@@ -8,6 +8,7 @@ npm-debug.log*
 
 # tree-sitter build artifacts
 /build
+/prebuilds
 *.o
 *.obj
 *.a
@@ -17,8 +18,15 @@ npm-debug.log*
 *.dylib
 *.dll
 *.exe
+*.node
 *.wasm
 /log.html
+
+# Language-binding build outputs
+/Cargo.lock
+/dist
+*.egg-info
+.build/
 
 # tree-sitter generated test/parse artifacts (the parser itself in src/ IS committed)
 /parser.c.bak

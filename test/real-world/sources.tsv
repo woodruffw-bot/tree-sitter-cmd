@@ -1,0 +1,24 @@
+# Known-good, real-world Windows batch/cmd scripts used as a parse-regression
+# suite. Format: <max-allowed-errors>\t<filename>\t<url>
+#
+# These files are fetched on demand by fetch.sh (into ./fixtures/, gitignored)
+# and parsed by check.sh, which fails if a file produces more ERROR nodes than
+# allowed. They are NOT committed — they belong to their respective upstream
+# projects under their own licenses.
+#
+# max-errors is 0 for everything except scripts that exercise documented
+# grammar limitations (see ../../GRAMMAR_DESIGN.md "Known limitations").
+0	gradlew.bat	https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
+0	mvn.cmd	https://raw.githubusercontent.com/apache/maven/master/apache-maven/src/assembly/maven/bin/mvn.cmd
+0	npm.cmd	https://raw.githubusercontent.com/nodejs/node/main/deps/npm/bin/npm.cmd
+0	vcpkg-bootstrap.bat	https://raw.githubusercontent.com/microsoft/vcpkg/master/bootstrap-vcpkg.bat
+0	razzle.cmd	https://raw.githubusercontent.com/microsoft/terminal/main/tools/razzle.cmd
+0	dotnet-build.cmd	https://raw.githubusercontent.com/dotnet/runtime/main/build.cmd
+0	llvm-release.bat	https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/utils/release/build_llvm_release.bat
+0	conda-activate.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/activate.bat
+0	conda.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/conda.bat
+0	venv-activate.bat	https://raw.githubusercontent.com/pypa/virtualenv/main/src/virtualenv/activation/batch/activate.bat
+0	gfw-vcpkg-copy-dlls.bat	https://raw.githubusercontent.com/git-for-windows/git/main/compat/vcbuild/vcpkg_copy_dlls.bat
+# cpython's build.bat uses the `echo.message (parenthesised)` idiom, a documented
+# grammar limitation (literal unquoted parentheses in arguments).
+6	cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat
