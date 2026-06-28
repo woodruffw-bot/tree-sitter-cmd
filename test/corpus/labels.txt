@@ -1,0 +1,36 @@
+====================
+simple label
+====================
+
+:start
+
+---
+
+(program
+  (label
+    name: (label_name)))
+
+=============================
+label with leading colon name
+=============================
+
+:my_label
+
+---
+
+(program
+  (label
+    name: (label_name)))
+
+========================
+eof label as goto target
+========================
+
+goto :eof
+
+---
+
+(program
+  (goto_statement
+    target: (argument
+      (text))))

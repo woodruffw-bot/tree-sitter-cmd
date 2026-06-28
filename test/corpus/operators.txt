@@ -1,0 +1,106 @@
+====================
+sequence
+====================
+
+echo a & echo b
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+====================
+and list
+====================
+
+build && test
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name))))
+
+====================
+or list
+====================
+
+test || echo failed
+
+---
+
+(program
+  (or_list
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+====================
+pipeline
+====================
+
+dir | findstr txt
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+==============================
+precedence pipe binds tightest
+==============================
+
+a | b && c || d & e
+
+---
+
+(program
+  (seq_list
+    left: (or_list
+      left: (and_list
+        left: (pipeline
+          left: (command
+            name: (command_name))
+          right: (command
+            name: (command_name)))
+        right: (command
+          name: (command_name)))
+      right: (command
+        name: (command_name)))
+    right: (command
+      name: (command_name))))
+
+============================
+trailing ampersand empty rhs
+============================
+
+echo a &
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))

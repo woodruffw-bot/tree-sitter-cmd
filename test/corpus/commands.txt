@@ -1,0 +1,93 @@
+====================
+simple command
+====================
+
+echo hello world
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+====================
+quiet prefix
+====================
+
+@echo off
+
+---
+
+(program
+  (command
+    quiet: (quiet)
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+====================
+path command name
+====================
+
+C:\Windows\System32\cmd.exe /c dir
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+====================
+quoted argument
+====================
+
+copy "a b.txt" dest
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))
+    argument: (argument
+      (text))))
+
+======================
+concatenated fragments
+======================
+
+echo C:\%ROOT%\bin\app.exe
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (variable)
+      (text))))
+
+=======================
+blank line then command
+=======================
+
+
+echo hi
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))

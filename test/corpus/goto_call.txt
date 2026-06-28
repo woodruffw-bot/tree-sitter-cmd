@@ -1,0 +1,57 @@
+====================
+goto label
+====================
+
+goto end
+
+---
+
+(program
+  (goto_statement
+    target: (argument
+      (text))))
+
+====================
+goto eof
+====================
+
+goto :eof
+
+---
+
+(program
+  (goto_statement
+    target: (argument
+      (text))))
+
+====================
+call label with args
+====================
+
+call :subroutine arg1 arg2
+
+---
+
+(program
+  (call_statement
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+====================
+call batch file
+====================
+
+call other.bat %*
+
+---
+
+(program
+  (call_statement
+    argument: (argument
+      (text))
+    argument: (argument
+      (all_arguments))))

@@ -1,0 +1,135 @@
+====================
+environment variable
+====================
+
+echo %PATH%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable))))
+
+====================
+substring
+====================
+
+echo %VAR:~0,3%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable))))
+
+====================
+substitution
+====================
+
+echo %VAR:old=new%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable))))
+
+====================
+delayed expansion
+====================
+
+echo !count!
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (delayed_variable))))
+
+=====================
+positional parameters
+=====================
+
+echo %0 %1 %*
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (parameter))
+    argument: (argument
+      (parameter))
+    argument: (argument
+      (all_arguments))))
+
+====================
+tilde modifiers
+====================
+
+echo %~dp0 %~nx1
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (parameter_tilde))
+    argument: (argument
+      (parameter_tilde))))
+
+=======================
+loop variable reference
+=======================
+
+echo %%i
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (loop_variable))))
+
+====================
+literal percent
+====================
+
+echo 100%% done
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (percent_literal))
+    argument: (argument
+      (text))))
+
+====================
+variable inside path
+====================
+
+cd %USERPROFILE%\Desktop
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable)
+      (text))))

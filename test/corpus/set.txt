@@ -1,0 +1,98 @@
+====================
+assignment
+====================
+
+set x=1
+
+---
+
+(program
+  (set_statement
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)))))
+
+===============================
+assignment with spaces in value
+===============================
+
+set msg=hello world
+
+---
+
+(program
+  (set_statement
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text))
+      value: (argument
+        (text)))))
+
+====================
+quoted assignment
+====================
+
+set "PATH=%PATH%;C:\bin"
+
+---
+
+(program
+  (set_statement
+    (string)))
+
+====================
+arithmetic
+====================
+
+set /a count=count+1
+
+---
+
+(program
+  (set_statement
+    (set_arith
+      expression: (argument
+        (text)))))
+
+====================
+prompt
+====================
+
+set /p name=Enter name:
+
+---
+
+(program
+  (set_statement
+    (set_prompt
+      name: (variable_name)
+      prompt: (argument
+        (text))
+      prompt: (argument
+        (text)))))
+
+====================
+display all
+====================
+
+set
+
+---
+
+(program
+  (set_statement))
+
+====================
+display prefix
+====================
+
+set PATH
+
+---
+
+(program
+  (set_statement
+    (set_display
+      (variable_name))))

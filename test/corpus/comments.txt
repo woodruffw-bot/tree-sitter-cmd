@@ -1,0 +1,64 @@
+====================
+rem comment
+====================
+
+rem this is a comment
+
+---
+
+(program
+  (rem_comment
+    (comment_text)))
+
+================================
+rem with operators stays literal
+================================
+
+rem build & deploy | step
+
+---
+
+(program
+  (rem_comment
+    (comment_text)))
+
+====================
+colon-colon comment
+====================
+
+:: a double-colon comment
+
+---
+
+(program
+  (colon_comment
+    (comment_text)))
+
+=======================
+rem is case insensitive
+=======================
+
+REM upper
+
+---
+
+(program
+  (rem_comment
+    (comment_text)))
+
+=========================
+inline rem after operator
+=========================
+
+echo hi & rem trailing
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (rem_comment
+      (comment_text))))

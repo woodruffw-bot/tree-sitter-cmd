@@ -1,0 +1,149 @@
+====================
+plain for
+====================
+
+for %%i in (*.txt *.log) do echo %%i
+
+---
+
+(program
+  (for_statement
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
+for /l range
+====================
+
+for /l %%n in (1,1,10) do echo %%n
+
+---
+
+(program
+  (for_statement
+    option: (for_option)
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
+for /r with path
+====================
+
+for /r C:\src %%f in (*.c) do echo %%f
+
+---
+
+(program
+  (for_statement
+    option: (for_option
+      path: (argument
+        (text)))
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
+for /d directories
+====================
+
+for /d %%d in (*) do echo %%d
+
+---
+
+(program
+  (for_statement
+    option: (for_option)
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
+for /f with options
+====================
+
+for /f "tokens=1,2 delims=," %%a in (data.csv) do echo %%a %%b
+
+---
+
+(program
+  (for_statement
+    option: (for_option
+      options: (string))
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))
+      argument: (argument
+        (loop_variable)))))
+
+========================
+for /f backquote command
+========================
+
+for /f "usebackq" %%L in (`dir /b`) do echo %%L
+
+---
+
+(program
+  (for_statement
+    option: (for_option
+      options: (string))
+    variable: (loop_variable)
+    set: (for_set
+      (backquote_string))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
+for with block body
+====================
+
+for %%g in (a b) do (
+  echo %%g
+)
+
+---
+
+(program
+  (for_statement
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text)))
+    body: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (loop_variable))))))

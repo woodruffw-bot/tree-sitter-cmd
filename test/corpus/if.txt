@@ -1,0 +1,155 @@
+===========================
+string equality single line
+===========================
+
+if "%x%"=="yes" echo matched
+
+---
+
+(program
+  (if_statement
+    condition: (comparison
+      left: (argument
+        (string))
+      operator: (comparison_operator)
+      right: (argument
+        (string)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+================================
+case-insensitive with else block
+================================
+
+if /i "%a%"=="b" (echo eq) else (echo ne)
+
+---
+
+(program
+  (if_statement
+    (if_flag)
+    condition: (comparison
+      left: (argument
+        (string))
+      operator: (comparison_operator)
+      right: (argument
+        (string)))
+    consequence: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (text))))
+    alternative: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
+====================
+not exist
+====================
+
+if not exist "file.txt" echo missing
+
+---
+
+(program
+  (if_statement
+    (not)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      arg: (argument
+        (string)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+====================
+defined
+====================
+
+if defined VAR echo set
+
+---
+
+(program
+  (if_statement
+    condition: (unary_condition
+      kind: (condition_keyword)
+      arg: (argument))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+====================
+errorlevel
+====================
+
+if errorlevel 1 goto error
+
+---
+
+(program
+  (if_statement
+    condition: (unary_condition
+      kind: (condition_keyword)
+      arg: (argument))
+    consequence: (goto_statement
+      target: (argument
+        (text)))))
+
+========================
+numeric comparison block
+========================
+
+if %n% GEQ 10 (
+  echo big
+) else (
+  echo small
+)
+
+---
+
+(program
+  (if_statement
+    condition: (comparison
+      left: (argument
+        (variable))
+      operator: (comparison_operator)
+      right: (argument))
+    consequence: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (text))))
+    alternative: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
+====================
+nested if
+====================
+
+if exist a if exist b echo both
+
+---
+
+(program
+  (if_statement
+    condition: (unary_condition
+      kind: (condition_keyword)
+      arg: (argument))
+    consequence: (if_statement
+      condition: (unary_condition
+        kind: (condition_keyword)
+        arg: (argument))
+      consequence: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))

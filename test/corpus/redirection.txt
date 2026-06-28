@@ -1,0 +1,136 @@
+====================
+stdout overwrite
+====================
+
+echo hi > out.txt
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))))
+
+====================
+stdout append
+====================
+
+echo hi >> log.txt
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))))
+
+====================
+stdin
+====================
+
+sort < in.txt
+
+---
+
+(program
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))))
+
+====================
+stderr to file
+====================
+
+cmd 2> err.txt
+
+---
+
+(program
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))))
+
+========================
+merge stderr into stdout
+========================
+
+cmd > out.txt 2>&1
+
+---
+
+(program
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))
+    redirect: (redirection
+      (redirect_dup
+        op: (redirect_dup_operator)
+        target: (file_descriptor)))))
+
+====================
+leading redirection
+====================
+
+2>nul del x
+
+---
+
+(program
+  (command
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+======================
+block with redirection
+======================
+
+(echo a
+echo b) > combined.txt
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (text))))))

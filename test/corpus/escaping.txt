@@ -1,0 +1,48 @@
+========================
+caret escape of operator
+========================
+
+echo a^&b
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (escape_sequence)
+      (text))))
+
+====================
+line continuation
+====================
+
+echo first ^
+second
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (line_continuation)
+      (text))))
+
+====================
+caret escape of pipe
+====================
+
+echo a^|b
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (escape_sequence)
+      (text))))
