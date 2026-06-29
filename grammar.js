@@ -32,7 +32,6 @@
 // Keyword/bareword disambiguation is handled by the `word` directive
 // (keyword extraction): a keyword only matches when it is the whole word, so
 // `set` is a keyword but `setlocal` is a command. No token precedence needed.
-const KW_PREC = 0;
 
 // Operator precedences, lowest to highest binding.
 const PREC = {
@@ -64,18 +63,19 @@ function ciSource(word) {
     .join('');
 }
 
-/** Case-insensitive keyword as a single elevated-precedence token. */
+/** Case-insensitive keyword as a single token. */
 function ci(word) {
-  return token(prec(KW_PREC, new RegExp(ciSource(word))));
+  return token(new RegExp(ciSource(word)));
 }
 
 /**
- * Case-insensitive keyword aliased to a named `keyword` node so it can be
- * targeted by highlight queries (regex tokens are otherwise anonymous and have
- * no fixed text to match on).
+ * Case-insensitive keyword aliased to the named `keyword` node so it appears in
+ * the tree and is targetable by `(keyword)` highlight queries. Aliasing to the
+ * *symbol* `$.keyword` (not the string `'keyword'`) is what makes it a named
+ * node — hence `kw` takes `$`. (`rem` shares the same node via `$._rem`.)
  */
-function kw(word) {
-  return alias(ci(word), 'keyword');
+function kw($, word) {
+  return alias(ci(word), $.keyword);
 }
 
 /**
@@ -103,6 +103,12 @@ module.exports = grammar({
 
   // Keyword extraction: a keyword only matches when it spans an entire word.
   word: ($) => $._cmd_text,
+
+  // `_expansion` is exposed as a supertype so queries can target any %…%/!…!
+  // form with `(_expansion)` instead of enumerating every concrete node. (It is
+  // transparent — it adds no nodes.) `_statement` can't be a supertype: its
+  // hidden `_unit` member resolves to multiple visible nodes.
+  supertypes: ($) => [$._expansion],
 
   // Whitespace and caret line-continuations interleave anywhere. The
   // continuation `^\n` is an anonymous, invisible extra (tree-sitter-bash treats
@@ -219,12 +225,12 @@ module.exports = grammar({
     if_statement: ($) =>
       prec.right(
         seq(
-          kw('if'),
+          kw($, 'if'),
           optional(alias(opt('/i'), $.if_flag)),
           optional(alias(ci('not'), $.not)),
           field('condition', $._if_condition),
           field('consequence', $._if_body),
-          optional(seq(kw('else'), field('alternative', $._if_body))),
+          optional(seq(kw($, 'else'), field('alternative', $._if_body))),
         ),
       ),
 
@@ -256,9 +262,12 @@ module.exports = grammar({
             $.condition_keyword,
           ),
         ),
-        field('arg', $._if_operand),
+        field('argument', $._if_operand),
       ),
 
+    // An IF operand is a word whose bare text stops at `=` so that `a==b`
+    // tokenises as `a`, `==`, `b`. It may also be fully wrapped in parentheses,
+    // the classic `if (%1)==()` idiom for tolerating empty/odd arguments.
     // An IF operand is a word whose bare text stops at `=` so that `a==b`
     // tokenises as `a`, `==`, `b`. It may also be fully wrapped in parentheses,
     // the classic `if (%1)==()` idiom for tolerating empty/odd arguments.
@@ -289,14 +298,14 @@ module.exports = grammar({
     for_statement: ($) =>
       prec.right(
         seq(
-          kw('for'),
+          kw($, 'for'),
           optional(field('option', $.for_option)),
           field('variable', $.loop_variable),
-          kw('in'),
+          kw($, 'in'),
           alias($._block_open, '('),
           field('set', optional($.for_set)),
           alias($._block_close, ')'),
-          kw('do'),
+          kw($, 'do'),
           field('body', $._if_body),
         ),
       ),
@@ -324,10 +333,22 @@ module.exports = grammar({
       ),
 
     for_set: ($) =>
-      repeat1(choice($.argument, $.backquote_string, $._newline)),
+      repeat1(
+        choice(
+          $.argument,
+          $.backquote_string,
+          $.single_quote_string,
+          $._newline,
+        ),
+      ),
 
-    // `command` source for FOR /F.
+    // `command` source for FOR /F (backquoted). May be unterminated.
     backquote_string: ($) => token(/`[^`\r\n]*`?/),
+    // 'command' source for FOR /F (single-quoted). The closing quote is required
+    // so a stray apostrophe in a plain FOR set (`for %%a in (it's)`) stays text;
+    // a properly quoted command keeps its inner parens/operators literal, e.g.
+    // `for /f %%a in ('wmic … where (x=1) …') do …`.
+    single_quote_string: ($) => token(/'[^'\r\n]*'/),
 
     // ---------------------------------------------------------------------
     // GOTO / CALL
@@ -337,7 +358,7 @@ module.exports = grammar({
     goto_statement: ($) =>
       prec.right(
         seq(
-          kw('goto'),
+          kw($, 'goto'),
           optional(
             seq(
               field('target', $.argument),
@@ -353,7 +374,7 @@ module.exports = grammar({
     call_statement: ($) =>
       prec.right(
         seq(
-          kw('call'),
+          kw($, 'call'),
           repeat(
             choice(field('argument', $.argument), field('redirect', $.redirection)),
           ),
@@ -366,7 +387,7 @@ module.exports = grammar({
     set_statement: ($) =>
       prec.right(
         seq(
-          kw('set'),
+          kw($, 'set'),
           optional(
             choice(
               $.set_prompt,
@@ -430,13 +451,13 @@ module.exports = grammar({
 
     // `>`, `>>`, `<`, with an optional immediately-preceding fd digit.
     redirect_file: ($) =>
-      seq(field('op', $.redirect_operator), field('target', $.argument)),
+      seq(field('operator', $.redirect_operator), field('target', $.argument)),
     redirect_operator: ($) => token(/[0-9]?(?:>>|>|<)/),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`.
     redirect_dup: ($) =>
       seq(
-        field('op', $.redirect_dup_operator),
+        field('operator', $.redirect_dup_operator),
         field('target', alias(token.immediate(/[0-9]/), $.file_descriptor)),
       ),
     redirect_dup_operator: ($) => token(/[0-9]?[<>]&/),
@@ -448,13 +469,22 @@ module.exports = grammar({
       seq($._cmd_lead, repeat(seq($._concat, $._fragment))),
 
     // The first fragment of a command name may not begin with `@` (quiet) or
-    // `:` (label), but may otherwise contain `:` (drive letters, `c:\...`). A
-    // lone `%`/`!` sigil can also lead a name: cmd happily parses `! echo ...`
-    // as a command named `!` (it fails at runtime — a common debug-disable
-    // trick), and `%`/`!` only form an expansion when they actually pair up.
+    // `:` (label). A lone `%`/`!` sigil can also lead a name: cmd happily parses
+    // `! echo ...` as a command named `!` (it fails at runtime — a common
+    // debug-disable trick), and `%`/`!` only form an expansion when they pair up.
     _cmd_lead: ($) =>
       choice($._cmd_text, $.string, $._expansion, alias($._stray_sigil, $.text)),
-    _cmd_text: ($) => token(/[^ \t\r\n&|<>()^"%!@:][^ \t\r\n&|<>()^"%!]*/),
+    // cmd ends an internal-command name at `:` (and `.\,/;=[]`), so `goto:eof`
+    // is `goto` + `:eof` and `call:sub` is `call` + `:sub`. We honour the `:`
+    // break: a bareword stops at `:`, EXCEPT a leading drive letter keeps it
+    // (`C:`, `C:\tools\foo.exe`), so drive-relative command paths still parse.
+    _cmd_text: ($) =>
+      token(
+        choice(
+          /[A-Za-z]:[^ \t\r\n&|<>()^"%!]*/,
+          /[^ \t\r\n&|<>()^"%!@:][^ \t\r\n&|<>()^"%!:]*/,
+        ),
+      ),
 
     argument: ($) => seq($._fragment, repeat(seq($._concat, $._fragment))),
 

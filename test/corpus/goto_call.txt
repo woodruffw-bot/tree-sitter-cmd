@@ -8,6 +8,7 @@ goto end
 
 (program
   (goto_statement
+    (keyword)
     target: (argument
       (text))))
 
@@ -21,6 +22,7 @@ goto :eof
 
 (program
   (goto_statement
+    (keyword)
     target: (argument
       (text))))
 
@@ -34,6 +36,7 @@ call :subroutine arg1 arg2
 
 (program
   (call_statement
+    (keyword)
     argument: (argument
       (text))
     argument: (argument
@@ -51,7 +54,40 @@ call other.bat %*
 
 (program
   (call_statement
+    (keyword)
     argument: (argument
       (text))
     argument: (argument
       (all_arguments))))
+
+================================
+goto with colon glued to keyword
+================================
+
+goto:eof
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (argument
+      (text))))
+
+================================
+call with colon glued to keyword
+================================
+
+call:sub arg1 arg2
+
+---
+
+(program
+  (call_statement
+    (keyword)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))

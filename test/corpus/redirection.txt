@@ -13,7 +13,7 @@ echo hi > out.txt
       (text))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
 
@@ -32,7 +32,7 @@ echo hi >> log.txt
       (text))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
 
@@ -49,7 +49,7 @@ sort < in.txt
     name: (command_name)
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
 
@@ -66,7 +66,7 @@ cmd 2> err.txt
     name: (command_name)
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
 
@@ -83,12 +83,12 @@ cmd > out.txt 2>&1
     name: (command_name)
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))
     redirect: (redirection
       (redirect_dup
-        op: (redirect_dup_operator)
+        operator: (redirect_dup_operator)
         target: (file_descriptor)))))
 
 ====================
@@ -103,7 +103,7 @@ leading redirection
   (command
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))
     name: (command_name)
@@ -131,6 +131,6 @@ echo b) > combined.txt
         (text)))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
