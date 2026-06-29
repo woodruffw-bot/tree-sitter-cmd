@@ -54,6 +54,10 @@
             "named": true
           },
           {
+            "type": "colon_comment",
+            "named": true
+          },
+          {
             "type": "command",
             "named": true
           },
@@ -119,6 +123,10 @@
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -812,6 +820,10 @@
             "named": true
           },
           {
+            "type": "colon_comment",
+            "named": true
+          },
+          {
             "type": "command",
             "named": true
           },
@@ -877,6 +889,10 @@
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -944,6 +960,10 @@
             "named": true
           },
           {
+            "type": "colon_comment",
+            "named": true
+          },
+          {
             "type": "command",
             "named": true
           },
@@ -1009,6 +1029,10 @@
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -1245,6 +1269,10 @@
             "named": true
           },
           {
+            "type": "colon_comment",
+            "named": true
+          },
+          {
             "type": "command",
             "named": true
           },
@@ -1310,6 +1338,10 @@
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {

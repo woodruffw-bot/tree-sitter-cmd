@@ -128,15 +128,27 @@ module.exports = grammar({
 
     _line: ($) => seq(optional($._line_content), $._newline),
 
-    _line_content: ($) => choice($._statement, $.label, $.colon_comment),
+    // `colon_comment` reaches here through `_statement`, so it must not also be
+    // a direct alternative (that would be two paths to the same node).
+    _line_content: ($) => choice($._statement, $.label),
 
     _newline: ($) => token(/\r?\n/),
 
     // ---------------------------------------------------------------------
     // Statements and the command-operator ladder.
     // ---------------------------------------------------------------------
+    // `colon_comment` is a statement so a `::` comment is accepted after an
+    // operator, like the `& rem` form. cmd treats `::` as an inline comment that
+    // runs to end of line, so `dir &:: note` is `dir` then a trailing comment.
     _statement: ($) =>
-      choice($._unit, $.seq_list, $.or_list, $.and_list, $.pipeline),
+      choice(
+        $._unit,
+        $.seq_list,
+        $.or_list,
+        $.and_list,
+        $.pipeline,
+        $.colon_comment,
+      ),
 
     seq_list: ($) =>
       prec.left(
