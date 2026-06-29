@@ -28,7 +28,8 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
   `%*`, `%~` modifiers (`%~dp0`, `%~$PATH:1`), FOR variables `%%i`, and `%%`.
 - **Comments**: `REM` and `::`.
 - **Escaping**: the caret `^x` escape, caret line continuation, and
-  double-quoted strings (quotes group; cmd does not strip them).
+  double-quoted strings (quotes group; cmd does not strip them). Expansions
+  inside a string are sub-noded, so a quoted `%PATH%` is a real `variable` node.
 
 Parentheses are context-sensitive: `(` opens a block only where a command is
 expected. In an argument it is a literal character that does not nest, so
@@ -87,7 +88,6 @@ cannot fully reproduce. None of these cascade on valid scripts. See
   `SETLOCAL ENABLEDELAYEDEXPANSION` is not active and it is literal at runtime.
 - **`SET /A` expressions** are captured as a generic argument tail, not a full
   arithmetic sub-grammar.
-- **String interiors are opaque**: `%VAR%` inside `"..."` is not sub-noded.
 - **Line continuation** joins a mid-word caret before an indented next line into
   one word, where cmd would keep two arguments. The common `arg ^` form (space
   before the caret) is unaffected. A *dangling* caret continuation onto a blank
@@ -99,7 +99,7 @@ cannot fully reproduce. None of these cascade on valid scripts. See
 
 ```
 grammar.js          the grammar
-src/scanner.c       external scanner (word-join, REM, block parens)
+src/scanner.c       external scanner (word-join, REM, block parens, string end)
 queries/            highlights.scm, injections.scm
 test/corpus/        unit test corpus
 test/real-world/    real-world regression harness

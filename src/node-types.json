@@ -1539,6 +1539,21 @@
     }
   },
   {
+    "type": "string",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_expansion",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "unary_condition",
     "named": true,
     "fields": {
@@ -1563,6 +1578,10 @@
         ]
       }
     }
+  },
+  {
+    "type": "\"",
+    "named": false
   },
   {
     "type": "&",
@@ -1666,10 +1685,6 @@
   },
   {
     "type": "single_quote_string",
-    "named": true
-  },
-  {
-    "type": "string",
     "named": true
   },
   {

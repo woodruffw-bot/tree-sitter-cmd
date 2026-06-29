@@ -281,7 +281,8 @@ call :sub <"%TEMP%\in.txt"
       (redirect_file
         operator: (redirect_operator)
         target: (argument
-          (string))))))
+          (string
+            (variable)))))))
 
 ===============================
 quoted set with embedded quotes

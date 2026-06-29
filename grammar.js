@@ -99,6 +99,7 @@ module.exports = grammar({
     $._lparen,
     $._rparen,
     $._caret_escape,
+    $._string_end,
   ],
 
   // Keyword extraction: a keyword only matches when it spans an entire word.
@@ -516,10 +517,23 @@ module.exports = grammar({
     // expansion, and `^`-newline is the line-continuation extra.
     escape_sequence: ($) => token(/\^[^\r\n%!]/),
 
-    // cmd does not strip quotes; they only group. An unterminated quote runs to
-    // end of line. Modelled as a single token (the interior is opaque for now —
-    // cmd does still expand %VAR% inside quotes, but we do not sub-node it yet).
-    string: ($) => token(/"[^"\r\n]*"?/),
+    // cmd does not strip quotes; they only group, and `%VAR%`/`!VAR!` still
+    // expand inside them, so the interior is sub-noded: literal text interleaved
+    // with the same expansion forms used elsewhere. A quoted `%PATH%` is a real
+    // `variable` node, while the surrounding literal text stays hidden (the
+    // `string` node covers it). The terminator is the external `_string_end`:
+    // the scanner consumes the closing `"`, or matches zero-width at end of line
+    // / end of input so an unterminated quote still closes (cmd runs it to EOL).
+    // Using an explicit terminator instead of an optional `"` avoids a lone `"`
+    // parsing as a degenerate empty string, which would let `"%PATH%"` split
+    // into two empty strings around a bare expansion. The literal-text and lone
+    // `%`/`!` sigil tokens are `token.immediate` so interior spaces stay part of
+    // the string rather than being skipped as whitespace extras.
+    string: ($) => seq('"', repeat($._string_part), $._string_end),
+    _string_part: ($) =>
+      choice($._string_text, $._expansion, $._string_sigil),
+    _string_text: ($) => token.immediate(/[^"%!\r\n]+/),
+    _string_sigil: ($) => token.immediate(/[%!]/),
 
     // ---------------------------------------------------------------------
     // Expansions (each is a single token; see header note)
