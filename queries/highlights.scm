@@ -43,7 +43,6 @@
 (string) @string
 (backquote_string) @string.special
 (escape_sequence) @string.escape
-(line_continuation) @string.escape
 (file_descriptor) @number
 
 ; ---------------------------------------------------------------------------

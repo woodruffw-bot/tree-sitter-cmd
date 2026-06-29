@@ -14,9 +14,9 @@ echo a^&b
       (escape_sequence)
       (text))))
 
-====================
-line continuation
-====================
+============================================
+line continuation between arguments
+============================================
 
 echo first ^
 second
@@ -27,9 +27,61 @@ second
   (command
     name: (command_name)
     argument: (argument
-      (text)
-      (line_continuation)
+      (text))
+    argument: (argument
       (text))))
+
+============================================
+line continuation joins a word (no space)
+============================================
+
+echo VERY^
+LONG
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (text))))
+
+============================================
+line continuation across a command name
+============================================
+
+ec^
+ho hi
+
+---
+
+(program
+  (command
+    name: (command_name
+      (text))
+    argument: (argument
+      (text))))
+
+============================================
+line continuation before an operator
+============================================
+
+echo a ^
+&& echo b
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
 
 ====================
 caret escape of pipe
