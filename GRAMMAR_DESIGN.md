@@ -150,8 +150,9 @@ Two distinct mechanisms:
   Residual imprecision: a mid-word caret before an indented next line
   (`echo a^\n   b`) joins to `ab`, where cmd would produce `a   b`. The common
   `arg ^\n   arg` form (space before the caret) is unaffected. A *dangling*
-  continuation — a caret onto a blank line or at end-of-file — is an error node,
-  since an invisible extra has nothing to splice onto.
+  continuation — a caret at the end of the file, with no following line to splice
+  onto — is an error node, since the invisible extra has nothing to splice onto.
+  Continuation onto a following line, blank or not, is fine.
 - **Mid-line escape `^x`** makes the following metacharacter literal. The common
   cases are a fixed token. A caret before a `%`/`!` expansion is the scanner's
   `CARET_ESCAPE`: in cmd `^%VAR%` expands `%VAR%` first and the caret escapes the
@@ -298,8 +299,9 @@ scripts.
 - **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
   fold multi-line code onto one logical line) are not supported. This is a
   torture-test trick rather than mainstream batch.
-- **Dangling caret continuation** (a caret onto a blank line or at end-of-file)
-  is an error node; the normal continuation-onto-content case is fine.
+- **Dangling caret continuation** (a caret at the end of the file, with no
+  following line to splice onto) is an error node; continuation onto a following
+  line, blank or not, is fine.
 - **Tree-shape imprecisions that still parse cleanly**: `%%` outside a FOR is
   noded as a `loop_variable` (the documented batch-`%%x` vs `%%`-literal
   ambiguity), and the `if (%1)==()` idiom emits the parens as sibling `argument`

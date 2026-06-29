@@ -90,8 +90,9 @@ cannot fully reproduce. None of these cascade on valid scripts. See
   arithmetic sub-grammar.
 - **Line continuation** joins a mid-word caret before an indented next line into
   one word, where cmd would keep two arguments. The common `arg ^` form (space
-  before the caret) is unaffected. A *dangling* caret continuation onto a blank
-  line or at end-of-file produces an error node (the splice has nothing to join).
+  before the caret) is unaffected. A *dangling* caret continuation at the end of
+  the file, with no following line to splice onto, produces an error node.
+  Continuation onto a following line, blank or not, is fine.
 - **Variables whose name is a literal newline** (`%LF%` macros) are not
   supported.
 
