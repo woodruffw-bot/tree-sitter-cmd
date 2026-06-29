@@ -1,14 +1,15 @@
-# Known-good, real-world Windows batch/cmd scripts used as a parse-regression
-# suite. Format: <max-allowed-errors>\t<filename>\t<url>
+# Manifest for the committed real-world parse-regression corpus in ./fixtures/.
+# Format: <max-allowed-errors>\t<filename>\t<source-url>
 #
-# These files are fetched on demand by fetch.sh (into ./fixtures/, gitignored)
-# and parsed by check.sh, which fails if a file produces more ERROR nodes than
-# allowed. They are NOT committed — they belong to their respective upstream
-# projects under their own licenses.
+# The fixtures themselves are checked in (see ./fixtures/) and parsed by
+# check.sh, which fails if a file produces more ERROR nodes than its budget.
+# Each fixture has a sibling <filename>.LICENSE recording its upstream project
+# and license; the files remain under those licenses (see ./README.md).
 #
-# All listed scripts currently parse with zero ERROR nodes (max-errors 0). The
+# All listed scripts currently parse with zero ERROR nodes (budget 0). The
 # column exists so a script exercising a documented limitation can be tracked
-# with a non-zero budget rather than removed.
+# with a non-zero budget rather than removed. Add new cases by dropping the
+# file in ./fixtures/, adding a .LICENSE sibling, and a row here.
 0	gradlew.bat	https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
 0	mvn.cmd	https://raw.githubusercontent.com/apache/maven/master/apache-maven/src/assembly/maven/bin/mvn.cmd
 0	npm.cmd	https://raw.githubusercontent.com/nodejs/node/main/deps/npm/bin/npm.cmd

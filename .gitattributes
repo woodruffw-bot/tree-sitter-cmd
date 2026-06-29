@@ -1,5 +1,9 @@
 * text=auto eol=lf
 
+# Real-world test fixtures are third-party files stored verbatim (preserving
+# original CRLF/LF and bytes); never normalize them.
+test/real-world/fixtures/** -text
+
 # Generated source files
 src/*.json linguist-generated
 src/parser.c linguist-generated

@@ -91,16 +91,17 @@ Two layers of tests:
 
 1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 72
    focused cases across every construct, each with an expected S-expression.
-2. **Real-world regression** — `test/real-world/` fetches a curated set of
-   known-good scripts from upstream projects and asserts the error budget:
+2. **Real-world regression** — `test/real-world/` is a committed corpus of
+   known-good upstream scripts, parsed against per-file ERROR-node budgets:
 
    ```sh
-   bash test/real-world/fetch.sh   # download fixtures (gitignored)
-   bash test/real-world/check.sh   # parse and check error counts
+   bash test/real-world/check.sh   # parse fixtures, fail if over budget
    ```
 
-   The fixtures are not committed; they belong to their upstream projects under
-   their own licenses (see `test/real-world/sources.tsv`).
+   The fixtures are third-party, included verbatim as test input only; each has
+   a sibling `<file>.LICENSE` recording its origin and license (the corpus
+   spans Apache-2.0, MIT, BSD-3, Artistic-2.0, PSF and GPL-2.0). See
+   `test/real-world/README.md`.
 
 ## Known limitations
 

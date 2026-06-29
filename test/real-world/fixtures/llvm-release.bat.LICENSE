@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           llvm-release.bat
+Upstream:       LLVM
+Source:         https://github.com/llvm/llvm-project/blob/main/llvm/utils/release/build_llvm_release.bat
+SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+Copyright (c) the LLVM contributors
+Full license:   https://github.com/llvm/llvm-project/blob/main/LICENSE.TXT

@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           conda.bat
+Upstream:       conda
+Source:         https://github.com/conda/conda/blob/main/conda/shell/condabin/conda.bat
+SPDX-License-Identifier: BSD-3-Clause
+Copyright (c) Anaconda, Inc. and contributors
+Full license:   https://github.com/conda/conda/blob/main/LICENSE

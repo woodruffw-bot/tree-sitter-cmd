@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           gfw-vcpkg-copy-dlls.bat
+Upstream:       Git for Windows (git)
+Source:         https://github.com/git-for-windows/git/blob/main/compat/vcbuild/vcpkg_copy_dlls.bat
+SPDX-License-Identifier: GPL-2.0-only
+Copyright (c) the Git contributors
+Full license:   https://github.com/git-for-windows/git/blob/main/COPYING

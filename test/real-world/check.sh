@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Parse every fetched real-world fixture and fail if any file produces more
-# ERROR nodes than allowed in sources.tsv. Run fetch.sh first.
+# Parse every committed real-world fixture in ./fixtures/ and fail if any file
+# produces more ERROR nodes than its budget in sources.tsv.
 set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,18 +12,17 @@ ts() {
   else npx --no-install tree-sitter "$@"; fi
 }
 
-if [ ! -d "$dest" ] || [ -z "$(ls -A "$dest" 2>/dev/null)" ]; then
-  echo "no fixtures found; run $here/fetch.sh first" >&2
-  exit 2
-fi
-
 cd "$root"
 status=0
 total=0
 while IFS=$'\t' read -r max name url; do
   case "$max" in '#'*|'') continue ;; esac
   file="$dest/$name"
-  [ -f "$file" ] || { printf 'SKIP %-28s (not fetched)\n' "$name"; continue; }
+  if [ ! -f "$file" ]; then
+    printf 'FAIL %-28s (missing fixture)\n' "$name"
+    status=1
+    continue
+  fi
   errs=$(ts parse "$file" 2>/dev/null | grep -c 'ERROR' || true)
   total=$((total + errs))
   if [ "$errs" -le "$max" ]; then

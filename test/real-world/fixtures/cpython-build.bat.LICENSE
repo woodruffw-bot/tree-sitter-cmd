@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           cpython-build.bat
+Upstream:       CPython
+Source:         https://github.com/python/cpython/blob/main/PCbuild/build.bat
+SPDX-License-Identifier: PSF-2.0
+Copyright (c) the Python Software Foundation
+Full license:   https://github.com/python/cpython/blob/main/LICENSE

@@ -26,6 +26,4 @@ jobs:
         run: npx tree-sitter test
 
       - name: Real-world parse regression
-        run: |
-          bash test/real-world/fetch.sh
-          bash test/real-world/check.sh
+        run: bash test/real-world/check.sh

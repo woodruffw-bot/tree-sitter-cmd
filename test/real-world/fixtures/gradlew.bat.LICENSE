@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           gradlew.bat
+Upstream:       Gradle
+Source:         https://github.com/gradle/gradle/blob/master/gradlew.bat
+SPDX-License-Identifier: Apache-2.0
+Copyright the Gradle authors
+Full license:   https://github.com/gradle/gradle/blob/master/LICENSE
