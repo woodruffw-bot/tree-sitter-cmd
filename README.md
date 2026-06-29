@@ -1,109 +1,52 @@
 # tree-sitter-cmd
 
 A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for the
-**Windows `cmd.exe` command interpreter** — i.e. batch scripts (`.bat`, `.cmd`).
+Windows `cmd.exe` command interpreter, i.e. batch scripts (`.bat`, `.cmd`).
 
-The grammar aims to be as conformant as practical with real `cmd.exe` behaviour.
-Since cmd has no formal or public grammar, it is grounded in the
-[ReactOS](https://github.com/reactos/reactos) reimplementation of `cmd.exe`
+`cmd.exe` has no formal or public grammar, so this one is grounded in the
+[ReactOS](https://github.com/reactos/reactos) reimplementation
 (`base/shell/cmd/parser.c`), the [ss64](https://ss64.com/nt/) and Microsoft
 Learn references, and the dBenham/jeb batch-line-parser phase model. See
-[`GRAMMAR_DESIGN.md`](GRAMMAR_DESIGN.md) for the full design rationale.
+[`GRAMMAR_DESIGN.md`](GRAMMAR_DESIGN.md) for the design rationale.
 
-## Status
+## What it parses
 
-Stress-tested against 600+ well-known real-world batch scripts from across the
-ecosystem — including a 34-repo sweep (Apache HBase/Cassandra/Storm/Flink/Groovy/
-Lucene/ZooKeeper/Tomcat/Ant, Qt's `configure.bat`, Hadoop, CMake, WiX, Inno
-Setup, Chocolatey, nvm-windows, Boost, curl, godot, dotnet/aspnetcore, and more)
-in which the grammar parsed every mainstream script cleanly; the only residual
-failures were a genuinely-quoted `SET /P` form (now fixed), OS/2 REXX files that
-merely share the `.cmd` extension, and a PowerShell polyglot. The committed
-regression corpus (`test/real-world/`) holds **38 of these — all parsing with
-zero error nodes**, including the notoriously tricky `gradlew.bat`, the 333-line
-`mvn.cmd`, a 579-line LLVM release script, Node's 989-line `vcbuild.bat`,
-classics from Apache Tomcat / Kafka / Spark / Ant, Go, Flutter, CPython,
-pyenv-win and .NET, and a curated slice of the
-[`npocmaka/batch.scripts`](https://github.com/npocmaka/batch.scripts) cmd
-torture-test collection:
-
-| Script | Lines | Errors |
-|--------|------:|-------:|
-| `vcbuild.bat` (Node.js) | 989 | 0 |
-| `build_llvm_release.bat` (LLVM) | 579 | 0 |
-| `kafka-run-class.bat` (Apache Kafka) | — | 0 |
-| `catalina.bat` (Apache Tomcat) | 330 | 0 |
-| `mvn.cmd` (Maven), `ant.bat` (Apache Ant) | — | 0 |
-| `make.bat` (Go), `flutter.bat` (Flutter) | — | 0 |
-| `gradlew.bat`, `build.bat` (CPython), `pyenv.bat`, … | — | 0 |
-
-The broader sweep surfaced (and fixed) several real edge cases — SET names
-containing expansions (`set err%%i=`), the `set /p=` print-without-newline
-idiom, redirections on `call`, quoted SET values with embedded quotes
-(`set "x="y" !z!"`), caret-escaped unquoted `FOR /F` options
-(`for /f tokens^=2-5^ delims^=.-_ %%j in (...)`), stacked `@@` quiet prefixes,
-non-comma `FOR /L` separators (`(1;1=5)`), single-character `FOR` variables of
-any kind (`%%#`, `%%1`), caret-escaped expansions (`^%VAR%`, where the caret
-escapes the *result* of the expansion rather than the `%`), `SET` names with
-spaces (`set sim salabim=x`), a lone `%`/`!` leading a command name (the
-`! echo …` debug-disable trick), and — most importantly — the cmd-accurate
-block-vs-literal parenthesis model that makes the `(echo()` robust blank-line
-idiom and `echo (parenthesised)` arguments parse the way cmd actually runs them.
-
-Where vendoring a script's license forbids checking it in (e.g. Elasticsearch
-is Elastic-2.0 / SSPL), the corpus instead carries an independent, hand-authored
-**MRE** (`fixtures/mre-*.bat`) that distills the same idioms without copying any
-third-party text.
-
-## Features
-
-The grammar models:
-
-- **Commands** — name + argument tail, the `@` echo-suppress prefix (before any
-  command form, e.g. `@rem`, `@if`, `@echo off`).
-- **Operators** — sequencing `&`, and-`&&`, or-`||`, and pipes `|`, with the
-  cmd precedence `&` < `||` < `&&` < `|`.
-- **Redirections** — `>`, `>>`, `<`, fd-prefixed (`2>`), and handle duplication
+- **Commands**: command name plus argument tail, and the `@` echo-suppress
+  prefix (`@echo off`, `@rem`, `@if`).
+- **Operators**: sequencing `&`, and `&&`, or `||`, and pipes `|`, with cmd
+  precedence (`&` < `||` < `&&` < `|`).
+- **Redirections**: `>`, `>>`, `<`, fd-prefixed (`2>`), and handle duplication
   (`2>&1`, `>&2`), including leading redirections.
-- **Parenthesised blocks** — multi-line `( … )` compounds with attached
-  redirections; `::`/labels inside blocks.
-- **Control flow** — `IF` (`/I`, `NOT`, `==`/`EQU`/`NEQ`/`LSS`/`LEQ`/`GTR`/`GEQ`,
-  `EXIST`/`DEFINED`/`ERRORLEVEL`/`CMDEXTVERSION`, single-line & block, `ELSE`,
-  nesting, the `if (%1)==()` idiom); `FOR` (`/D`, `/R [path]`, `/L`, `/F` with
-  options or a `` `command` ``); `GOTO`/`CALL` and labels.
-- **The SET family** — `SET name=value`, `SET /A`, `SET /P` (both `SET /P n=msg`
-  and the quoted `SET /P "n=msg"` prompt form), quoted `SET "x=y"`, display
-  forms, and trailing redirections.
-- **Expansions** — `%VAR%` and `%VAR:...%` (substring/substitution), delayed
-  `!VAR!`, positional `%0`–`%9`, `%*`, `%~`-modifiers (`%~dp0`, `%~$PATH:1`),
-  FOR variables `%%i`, and the `%%` literal.
-- **Comments** — `REM` (rest-of-line, including special characters) and `::`.
-- **Escaping** — the caret `^x` escape and `^`-newline line continuation,
+- **Blocks**: multi-line `( ... )` compounds with attached redirections.
+- **Control flow**: `IF` (`/I`, `NOT`, the comparison and `EXIST`/`DEFINED`/
+  `ERRORLEVEL`/`CMDEXTVERSION` tests, `ELSE`, nesting); `FOR` (`/D`, `/R`, `/L`,
+  `/F` with options or a `` `command` ``); `GOTO`, `CALL`, and labels.
+- **The SET family**: `SET name=value`, `SET /A`, `SET /P`, quoted `SET "x=y"`,
+  and display forms.
+- **Expansions**: `%VAR%` and `%VAR:...%`, delayed `!VAR!`, positional `%0`-`%9`,
+  `%*`, `%~` modifiers (`%~dp0`, `%~$PATH:1`), FOR variables `%%i`, and `%%`.
+- **Comments**: `REM` and `::`.
+- **Escaping**: the caret `^x` escape, caret line continuation, and
   double-quoted strings (quotes group; cmd does not strip them).
-- **Context-sensitive parentheses** — `(` opens a block only where a command is
-  expected; in an argument it is a literal character that does **not** nest
-  (`echo (text)`). While a block is open, the first unescaped `)` closes it — a
-  literal `(` in an argument never protects a later `)`, exactly as in cmd
-  (which is why cmd needs `^)` to echo a close-paren inside a block, and why the
-  `(echo()` blank-line idiom is a block whose body is the command `echo(`).
-  Tracked by the external scanner as a block-depth counter.
 
-Keyword/command disambiguation uses tree-sitter keyword extraction, so
-`set` is the keyword but `setlocal` is a command, `rem` is a comment but
-`remote` is a command, etc.
+Parentheses are context-sensitive: `(` opens a block only where a command is
+expected. In an argument it is a literal character that does not nest, so
+`echo (text)` parses as one command. While a block is open, the first unescaped
+`)` closes it, which is why cmd needs `^)` to echo a close-paren inside a block.
+This is tracked by the external scanner as a block-depth counter.
 
-## Installation & usage
+Keyword extraction handles command disambiguation, so `set` is a keyword but
+`setlocal` is a command, and `rem` is a comment but `remote` is a command.
 
-### Tree-sitter CLI
+## Usage
 
 ```sh
-npm install            # installs the CLI and builds the native binding
+npm install
 npx tree-sitter generate
 npx tree-sitter parse path/to/script.bat
-npx tree-sitter test   # run the corpus test suite
 ```
 
-### Node
+From Node:
 
 ```js
 const Parser = require('tree-sitter');
@@ -116,59 +59,48 @@ const tree = parser.parse('@echo off\r\nif exist x (echo y) else (echo z)\r\n');
 console.log(tree.rootNode.toString());
 ```
 
-Rust, Python, Go and Swift bindings are also generated under `bindings/`.
+Rust, Python, Go, and Swift bindings are generated under `bindings/`.
 
 ## Testing
 
-Two layers of tests:
+```sh
+npx tree-sitter test          # unit corpus (test/corpus/)
+bash test/real-world/check.sh # real-world regression (test/real-world/)
+```
 
-1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 93
-   focused cases across every construct, each with an expected S-expression.
-2. **Real-world regression** — `test/real-world/` is a committed corpus of
-   known-good upstream scripts, parsed against per-file ERROR-node budgets:
-
-   ```sh
-   bash test/real-world/check.sh   # parse fixtures, fail if over budget
-   ```
-
-   The fixtures are third-party, included verbatim as test input only; each has
-   a sibling `<file>.LICENSE` recording its origin and license (the corpus
-   spans Apache-2.0, MIT, BSD-3, Artistic-2.0, PSF and GPL-2.0). Scripts whose
-   licenses forbid vendoring are represented by original `mre-*.bat` MREs
-   instead. See `test/real-world/README.md`.
+The unit corpus holds focused cases with expected S-expressions, one file per
+construct. The real-world corpus parses whole upstream scripts (gradlew.bat,
+mvn.cmd, catalina.bat, Node's vcbuild.bat, and others) against per-file
+ERROR-node budgets. Those fixtures are third-party test input under their own
+licenses; see `test/real-world/README.md`.
 
 ## Known limitations
 
-These follow from `cmd.exe` being phased and context-sensitive in ways a
-single context-free pass cannot fully reproduce. None cause cascading failures
-on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
+`cmd.exe` is phased and context-sensitive in ways a single context-free pass
+cannot fully reproduce. None of these cascade on valid scripts. See
+`GRAMMAR_DESIGN.md` for detail.
 
-- **Delayed expansion `!VAR!`** is always parsed as a reference, even where
-  `SETLOCAL ENABLEDELAYEDEXPANSION` is not active (it is literal at runtime
-  there).
-- **`SET /A` expressions** are captured as a generic argument tail rather than a
-  full arithmetic sub-grammar.
-- **String interiors are opaque** — `%VAR%` inside `"…"` expands at runtime but
-  is not sub-noded.
-- **Line continuation** is an invisible `^`-newline splice (like Bash's
-  `\`-newline): a caret with no preceding space joins the two fragments into one
-  word, while a space before the caret keeps them as separate arguments. The lone
-  residual case is a mid-word caret before an *indented* next line
-  (`echo a^⏎   b`), which joins to `ab` rather than re-splitting on that indent.
-- **Variables whose name is a literal newline** (`%\n%` linefeed macros, built
-  via a caret/`%LF%` dance to fold multi-line code onto one logical line) are
-  not supported — a torture-test trick rather than mainstream batch.
+- **`!VAR!` is always parsed as a delayed reference**, even where
+  `SETLOCAL ENABLEDELAYEDEXPANSION` is not active and it is literal at runtime.
+- **`SET /A` expressions** are captured as a generic argument tail, not a full
+  arithmetic sub-grammar.
+- **String interiors are opaque**: `%VAR%` inside `"..."` is not sub-noded.
+- **Line continuation** joins a mid-word caret before an indented next line into
+  one word, where cmd would keep two arguments. The common `arg ^` form (space
+  before the caret) is unaffected.
+- **Variables whose name is a literal newline** (`%LF%` macros) are not
+  supported.
 
 ## Layout
 
 ```
-grammar.js              the grammar
-src/scanner.c           external scanner (CONCAT word-join, REM, block parens)
-queries/                highlights.scm, injections.scm
-test/corpus/            unit test corpus
-test/real-world/        real-world regression harness
-bindings/               node / rust / python / go / swift bindings
-GRAMMAR_DESIGN.md       design document
+grammar.js          the grammar
+src/scanner.c       external scanner (word-join, REM, block parens)
+queries/            highlights.scm, injections.scm
+test/corpus/        unit test corpus
+test/real-world/    real-world regression harness
+GRAMMAR_DESIGN.md   design document
+bindings/           node, rust, python, go, swift bindings
 ```
 
 ## License

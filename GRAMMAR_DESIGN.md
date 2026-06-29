@@ -1,774 +1,267 @@
-# tree-sitter-cmd — Grammar Design Document
+# tree-sitter-cmd grammar design
 
-Status: **implemented**. This document was written pre-implementation as the
-guide; the shipped grammar follows it closely, with these notable divergences
-decided during implementation:
+This document explains how the grammar is built and why. It is grounded in the
+ReactOS `cmd.exe` reimplementation (`base/shell/cmd/parser.c`, `cmd.c`,
+`batch.c`, `for.c`, `if.c`), the dBenham/jeb batch-line-parser phase model
+(DosTips t=3587), the ss64 and Microsoft Learn references, and prior tree-sitter
+work (wharflab/tree-sitter-batch, tree-sitter-bash).
 
-- Expansions (`%VAR%`, `!VAR!`, `%1`, `%*`, `%~…`, `%%i`, `%%`) are **single
-  tokens** rather than sub-noded `seq`s — maximal munch then cleanly prefers a
-  real expansion over a stray `%`/`!`, with no GLR ambiguity. Substring/
-  substitution operators are therefore not sub-noded (see §8 limitations).
-- Strings are a **single opaque token** (`"…"`), avoiding the empty-string /
-  outside-fragment ambiguity; interiors are not sub-noded.
-- Word concatenation uses the external `_concat` token (as planned); `rem` is
-  also an external token (tree-sitter's keyword extraction handles every other
-  keyword but declines `rem`).
-- `=` is a word boundary in the scanner so `_concat` cannot starve `==` /
-  `name=value`.
-- **Parentheses are resolved in the external scanner** with a single block-depth
-  counter. `(` is a block-open where the grammar allows it (`valid_symbols`) and
-  a literal paren otherwise — crucially, a literal `(` in an argument does **not**
-  increment the depth. While a block is open (`depth > 0`) the first unescaped
-  `)` closes it (BLOCK_CLOSE is preferred over a literal RPAREN), so a literal
-  `(` never protects a later `)` inside a block. This mirrors cmd exactly (see
-  ReactOS `parser.c`: `(` only begins a block at a token start, and
-  `InsideBlock && ')'` always ends the token), and is why cmd requires `^)` to
-  echo a close-paren inside a block and why `(echo()` is a block containing the
-  command `echo(`. (An earlier design balanced literal parens with a per-level
-  kind stack; that was wrong and is fixed.)
+The grammar targets the Windows `cmd.exe` batch dialect. It is a recognizer and
+a highlightable concrete syntax tree, not an executable AST. The target scope is
+`source.dosbatch`, file types `.bat` and `.cmd`. License: MIT.
 
-Validated against 37 vendored real-world scripts plus 160+ in the broader sweep
-— **all parse error-free**. See `README.md` for the conformance table and the
-live limitation list.
-
-Target package: `tree-sitter-cmd` (`scope: source.dosbatch`, file types
-`.bat`, `.cmd`). License: MIT.
-
-This document guides implementation of `grammar.js` and (where unavoidable)
-`src/scanner.c`. It is grounded in the ReactOS cmd.exe reimplementation
-(`base/shell/cmd/parser.c`, `cmd.c`, `batch.c`, `for.c`, `if.c`, `goto.c`,
-`call.c`), the dBenham/jeb "BatchLineParser" phase model (DosTips t=3587),
-ss64/MS-Learn documentation, and prior tree-sitter art (wharflab/tree-sitter-batch,
-tree-sitter-bash).
-
----
-
-## 1. Overview & scope
-
-### 1.1 What the grammar covers
-
-A `.bat`/`.cmd` file is a newline-separated sequence of physical lines. cmd.exe
-has **no whole-file grammar**: each logical line is read, expanded, parsed, and
-executed before the next is read (ReactOS `ParseCommand(NULL)` per line). We
-nonetheless model the whole file as one syntax tree because a *static* tool
-(editor, highlighter, linter) wants a tree for the entire buffer.
+## 1. Scope
 
 In scope:
 
-- Simple commands (command name + argument tail), the `@` quiet prefix.
-- Command sequencing / boolean operators: `&`, `&&`, `||`, and pipes `|`.
-- Redirections: `>`, `>>`, `<`, `N>`, `N>>`, `N<`, handle duplication `N>&M`/`N<&M`.
-- Parenthesized command blocks `( … )`, multi-line, with attached redirections.
-- Control flow: `IF`/`ELSE` (single-line and block), `FOR` (plain, `/D`, `/R`,
-  `/L`, `/F`), `GOTO`, `CALL`, labels.
-- Comments: `REM` and `::` (degenerate label), inline `& rem …`.
-- All three expansion sigils: `%VAR%` / `%N` / `%*` / `%~mods` immediate,
-  `!VAR!` delayed, and `%%x` FOR variables, plus the `:~off,len` substring and
-  `:search=replace` substitution operators.
-- `SET`, `SET /A` (arithmetic sub-language), `SET /P`.
-- Caret escaping `^x` and caret line continuation `^\n`.
-- Double-quoted strings (grouping only — cmd does not strip quotes).
-
-Out of scope (documented as runtime-only, not syntactic):
-
-- Actual variable *values*, environment state, file-system globbing results.
-- Receiving-program `argv` parsing (CommandLineToArgvW / MSVCRT backslash-quote
-  rules) — a **separate grammar** downstream of cmd; we stop at the cmd token boundary.
-- Runtime semantics of `&&`/`||` (exit-code gating), `GOTO` target resolution,
-  `SHIFT` renumbering, `SETLOCAL` scoping.
-
-### 1.2 Conformance philosophy
-
-We target **Windows cmd.exe** behavior (the batch-file dialect), not the
-interactive command line and not ReactOS quirks where they diverge. Concretely:
-
-- Assume **batch context** always (`%%` → `%`, positional `%1`, `%%x` FOR vars).
-  The interactive single-`%` FOR-var dialect is *not* a goal; if cheaply
-  accommodated, fine, but batch wins on conflict.
-- **Over-accept** runtime-gated constructs that cannot be tracked statically:
-  `!VAR!` is always parsed as a delayed reference even though it is literal text
-  unless `SETLOCAL ENABLEDELAYEDEXPANSION`/`cmd /V:ON` is active. Document this.
-- Keep the **label-vs-comment distinction** that Windows makes (`:name` is a jump
-  target, `::…` is a skipped/comment label). ReactOS collapses both into "comment";
-  we do *not* follow ReactOS here.
-- Goal is a **recognizer + highlightable CST**, not an executable AST. We do **not**
-  reproduce ReactOS's right-leaning operator AST shape (see §4.4); we use the
-  conventional left-associative tree-sitter shape, which preserves observable
-  left-to-right reading order and is what tooling expects.
-
-### 1.3 Known hard parts of cmd lexing (why this is not a normal language)
-
-1. **Phased, not single-pass.** cmd runs each line through an ordered pipeline
-   (percent → caret/tokenize → delayed `!`). The *same byte* (`^ % ! "`) means
-   different things in different phases. A tree-sitter grammar is a single
-   context-free pass and **cannot** reproduce phase ordering; it can only
-   approximate the surface syntax.
-2. **Context-sensitive tokenization.** The same characters lex differently
-   depending on quote state, parenthesis depth (`InsideBlock`), whether a digit
-   is at a token boundary (redirection vs text), and which FOR variables are in
-   scope (the `%~dpnxg` greedy-backtrack ambiguity). There is no regular
-   tokenization independent of parser state.
-3. **Separators are not universal whitespace.** `, ; =` act like spaces in most
-   contexts but **not** in IF's left operand (where `=` must survive for `==`) or
-   in a command's argument tail (read with *no* separators). A grammar cannot put
-   them in `extras`.
-4. **Caret rebinds the role of the next character**, including separators and
-   newlines (line continuation resolved *before* tokenization). This is the
-   single strongest motivation for an external scanner.
-5. **Expansion happens before parsing.** `%VAR%` content can introduce or destroy
-   operators/quotes invisibly to a syntactic grammar. We parse the *unexpanded*
-   source and accept this imprecision.
-
----
-
-## 2. Lexing strategy
-
-### 2.1 The cmd per-line parsing phases (reference model)
-
-Per dBenham's phase numbering (informative — we do **not** execute these, we
-just need to know which byte means what):
-
-| Phase | Action | Affects |
-|------:|--------|---------|
-| 1 | Percent (`%`) expansion (batch: `%%`→`%`, `%N`, `%*`, `%~`, `%VAR%`) | `%` |
-| 1.5 | Strip `\r` (CRs never separate tokens, never stored) | `\r` |
-| 2 | Caret/quote/special-char tokenization; `^` removed, `^\n` continuation; recognize `& && \| \|\| ( ) < > >>`; detect REM/IF/FOR | `^ " & \| < > ( )` |
-| 3 | ECHO if echo on | — |
-| 4 | FOR `%%x` loop-variable substitution (inside executing FOR) | `%%x` |
-| 5 | Delayed (`!`) expansion — **only if** enabled **and** line contains `!`; a *second* caret-removal pass that ignores quote state | `! ^` |
-| 6 | CALL extra pass (re-parse 1–2 with extra caret/percent doubling) | — |
-| 7 | Execute | — |
-
-Key consequences for the grammar: percent is resolved *before* caret; delayed `!`
-*after* caret, in a separate pass; `\r` is invisible.
-
-### 2.2 What goes in `grammar.js` vs `src/scanner.c`
-
-Prior art (wharflab/tree-sitter-batch) proves **most of cmd can be done with no
-external scanner**: `[ \t]`-only extras, significant newlines, `token.immediate`
-for tight expansion lexing, `ci()`/`kw()` case-insensitive helpers, and `prec`
-to resolve command/pipe/operator/control-flow ambiguity. We adopt that
-architecture as the baseline.
-
-**Plan: ship Milestones 1–6 with NO external scanner.** Introduce a scanner only
-if/when grammar-only token regexes prove brittle (Milestone 7+). The scanner is
-an optimization/fidelity tool, not a prerequisite.
-
-Handled by **plain `grammar.js`**:
-
-- Statement structure, operators, precedence (`prec.left`/`prec.right`).
-- Redirections (fixed lexical patterns; `token.immediate` binds the fd digit).
-- Variable references (`%VAR%`, `!VAR!`, `%N`, `%*`, `%~mods`, `%%x`,
-  `:~`/`:=` operators) as a `choice`, wrapped with `token.immediate` for
-  adjacency/concatenation.
-- Line continuation as an **anonymous, invisible** extra `token(/\^\r?\n/)`
-  (tree-sitter-bash models `\\\n` the same way). It produces no node and is
-  transparent to word adjacency, so `echo a ^\nb` is two arguments while
-  `echo a^\nb` is the single word `ab` (see §4.1).
-- Caret escapes of a single following metacharacter `^[&|<>()^"]` as a fixed
-  token.
-- Case-insensitive keywords via `ci()`.
-- REM / echo / label bodies as free-form-to-EOL token regexes.
-
-**Candidates for `src/scanner.c`** (only if needed), each gated on
-`valid_symbols[X]`:
-
-- `_concat` — general no-whitespace fragment concatenation into one `argument`
-  (mirror tree-sitter-bash). Needed only if `token.immediate` adjacency proves
-  insufficient for arbitrary `bareword%VAR%"q"!V!` runs.
-- `_line_continuation` — *not needed.* Making the continuation a **named**
-  (visible or `_`-hidden) extra makes tree-sitter re-offer the `_concat`
-  adjacency token across it, so `echo a ^\nb` wrongly glues into one word. The
-  fix is the tree-sitter-bash approach: an **anonymous** token in `extras`
-  (`token(/\^\r?\n/)`), which is transparent to adjacency, so a space before the
-  caret still splits and only a true mid-token splice joins. No scanner token.
-- `_caret_escape` — caret that rebinds the role of the *following separator*
-  (the genuinely context-sensitive case the regex `^[&|<>()^"]` does not cover,
-  e.g. `^ ` producing a non-delimiter space).
-- `_echo_body` / `_rem_body` / `_label_body` — free-form-to-unescaped-newline
-  capture if regexes are brittle (REM must stop before an unescaped `\n` but a
-  trailing `^\n` continues).
-- `__error_recovery` — sentinel external, true when **all** `valid_symbols` are
-  set, to bail during error recovery (exactly as tree-sitter-bash does).
-
-### 2.3 Anticipated external-scanner token list
-
-If/when a scanner is written, these are the tokens it would own (names are the
-`externals` array):
-
-```
-externals: $ => [
-  $._concat,            // adjacency join (no whitespace) of argument fragments
-  // NB: line continuation is NOT a scanner token — it is an anonymous,
-  // invisible extra `token(/\^\r?\n/)` (see §4.1), transparent to `_concat`.
-  $._caret_escape,      // ^ <char> where <char>'s ROLE changes (esp. separators)
-  $._echo_body,         // free text to unescaped EOL after ECHO
-  $._rem_body,          // free text to unescaped EOL after REM
-  $._label_body,        // label name + ignored tail
-  $._newline,           // significant statement terminator (if regex insufficient)
-  $.__error_recovery,   // sentinel: true iff every valid_symbol is set
-]
-```
-
-Scanner discipline (from tree-sitter-bash + docs): gate every token on
-`valid_symbols[X]`; call `eof()` inside every loop (docs warn externals "can
-easily create infinite loops"); use `lexer->mark_end` for lookahead; distinguish
-`advance(skip=true/false)`; keep `serialize()` within
-`TREE_SITTER_SERIALIZATION_BUFFER_SIZE` (~1024 bytes); the only state needed is
-parenthesis depth + quote flag (a couple of bytes).
-
-### 2.4 `extras`, `word`, `conflicts` config
-
-```js
-extras: $ => [ /[ \t]/ ],          // NOT newline (significant), NOT comments (statement-level)
-word:   $ => $._word,              // keyword extraction over the bareword token
-conflicts: $ => [
-  [$.command, $._argument],        // greedy arg consumption
-  [$.block, $.set_arith_paren],    // grouping paren vs SET /A paren
-],
-```
-
-- `extras` is `[ \t]` **only**. Newline is a statement terminator and must be
-  structural. Comments are full-line constructs, not free-floating extras.
-- `word` enables keyword extraction so `IF`/`FOR`/`REM`/`SET` are recognized
-  robustly against barewords (and so a file literally named `if` works as an arg).
-- `\r` is *not* in extras; instead every newline pattern is `/\r?\n/` so CRs are
-  swallowed at line ends (matching cmd's unconditional CR strip).
-
----
-
-## 3. Node taxonomy
-
-Named nodes (CST rules). `_`-prefixed = hidden/inline. Fields in `field(...)`.
-RHS sketches use tree-sitter DSL (`seq`/`choice`/`repeat`/`optional`/`prec`/
-`token`/`alias`).
-
-### 3.1 Top level & statements
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `program` | whole file: newline-separated lines | `repeat($._line)` |
-| `_line` (hidden) | one physical line of statements or blank | `choice(seq($._statement_list, $._newline), $._newline, $.label, $.comment)` |
-| `_statement_list` (hidden) | commands joined by separators on one logical line | recursion via operator rules below |
-| `_newline` (hidden) | significant terminator | `token(/\r?\n/)` |
-| `_separator` (hidden) | inline command separator inside blocks | `choice($._newline, '&', ...)` |
-
-### 3.2 Commands & prefixes
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `command` | a simple command: name + interleaved args/redirs | `prec.right(seq(optional($.quiet), field('name', $.command_name), repeat(choice($._argument, $.redirection))))` |
-| `quiet` | `@` echo-suppress prefix (stackable) | `repeat1('@')` (or `prec` unary; see §4) |
-| `command_name` | first token; larger break set | `alias($._word_cmdname, $.command_name)` |
-| `_argument` (hidden) | one whitespace-delimited argument = concat of fragments | `repeat1(choice($.string, $._variable, $._bareword_frag, $._caret_seq))` |
-| `string` | double-quoted span (cmd does not strip; we keep quotes) | `seq('"', repeat(choice($._variable, $._dq_text)), optional('"'))` (unbalanced tolerated) |
-| `_bareword_frag` (hidden) | run of ordinary chars, no metachars/ws | `token(/[^ \t\r\n&|<>()^"%!]+/)` |
-| `_caret_seq` (hidden) | escaped metachar `^x` | `token(/\^[\s\S]/)` |
-
-Note `command` uses `prec.right` so it greedily consumes its argument tail and
-trailing redirections before an operator at the enclosing level binds.
-
-### 3.3 Operators / sequencing (precedence ladder)
-
-cmd binding, LOWEST→HIGHEST: `&` < `||` < `&&` < `|`. We use left-assoc
-tree-sitter precedence (conventional shape; see §4.4 on AST shape vs ReactOS).
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `pipeline` | `cmd \| cmd` (tightest) | `prec.left(4, seq($._unit, '\|', $._unit))` |
-| `and_list` | `cmd && cmd` | `prec.left(3, seq($._unit, '&&', $._unit))` |
-| `or_list` | `cmd \|\| cmd` | `prec.left(2, seq($._unit, '\|\|', $._unit))` |
-| `seq_list` | `cmd & cmd` (loosest; empty RHS allowed) | `prec.left(1, seq($._unit, '&', optional($._unit)))` |
-| `_unit` (hidden) | operand of an operator | `choice($.command, $.block, $.if, $.for, ...)` |
-
-`&` allows an empty RHS (ReactOS `MSCMD_MULTI_EMPTY_RHS` default off → LHS alone),
-hence `optional` on its right. `&&`/`\|\|`/`\|` require both sides.
-
-### 3.4 Redirections
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `redirection` | one redirect bound to a command/block | `seq(choice($.redirect_file, $.redirect_dup))` |
-| `redirect_file` | `[N]( > \| >> \| < )target` | `seq(optional(field('fd', $.file_descriptor)), field('op', choice('>>','>','<')), field('target', $._argument))` |
-| `redirect_dup` | handle duplication `[N]>&M` / `[N]<&M` | `seq(optional(field('fd',$.file_descriptor)), field('op', choice('>&','<&')), field('target', $.file_descriptor))` |
-| `file_descriptor` | single digit fd, immediate-bound | `token.immediate(/[0-9]/)` (leading fd: see §4.5) |
-
-The fd digit must be `token.immediate` against the operator (no space). A
-*leading* fd at a token boundary (`2>file`) needs the boundary rule in §4.5.
-
-### 3.5 Blocks
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `block` | `( … )` compound, multi-line, optional trailing redirs | `seq('(', optional($._block_body), ')', repeat($.redirection))` |
-| `_block_body` (hidden) | commands separated by newline/`&`/`&&`/`\|\|`/`\|` | `seq(repeat($._newline), $._statement_list, repeat(seq($._sep_in_block, optional($._statement_list))))` |
-
-An empty `( )` is a ParseError in cmd; we may accept it leniently or mark it.
-Newlines inside `(…)` act like `&`. Closing `)` may be on a later line.
-
-### 3.6 Control flow — IF
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `if` | full IF with optional ELSE | `prec.right(8, seq(ci('if'), optional($.if_flag), optional($.not), field('cond', $._if_condition), field('then', $._body), optional($._else)))` |
-| `if_flag` | `/I` case-insensitive | `ci('/i')` |
-| `not` | `NOT` negation | `ci('not')` |
-| `_else` (hidden) | `ELSE` branch (same physical line as `)` ELSE `(`) | `seq(ci('else'), field('else', $._body))` |
-| `_if_condition` (hidden) | one condition form | `choice($.cond_compare, $.cond_exist, $.cond_defined, $.cond_errorlevel, $.cond_cmdextversion)` |
-| `cond_compare` | `lhs OP rhs` (`==` or EQU/NEQ/LSS/LEQ/GTR/GEQ) | `seq(field('left',$._if_operand), field('op',$.compare_op), field('right',$._if_operand))` |
-| `compare_op` | comparison operator | `choice('==', ci('equ'), ci('neq'), ci('lss'), ci('leq'), ci('gtr'), ci('geq'))` |
-| `cond_exist` | `EXIST filename` | `seq(ci('exist'), field('arg', $._argument))` |
-| `cond_defined` | `DEFINED name` (bare, no `%`) | `seq(ci('defined'), field('arg', $._argument))` |
-| `cond_errorlevel` | `ERRORLEVEL n` (>= test) | `seq(ci('errorlevel'), field('arg', $._argument))` |
-| `cond_cmdextversion` | `CMDEXTVERSION n` | `seq(ci('cmdextversion'), field('arg', $._argument))` |
-| `_if_operand` (hidden) | operand for `==`/relational | `$._argument` |
-| `_body` (hidden) | single command or block | `choice($.block, $._unit)` |
-
-`prec.right` on `if` attaches `else` to the nearest `if` (dangling-else). The
-`)` ELSE `(` same-physical-line rule (§4.3) is enforced by the grammar shape
-where `_else` follows `then` without an intervening `_newline`.
-
-### 3.7 Control flow — FOR
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `for` | any FOR variant | `prec(8, seq(ci('for'), optional($.for_option), field('var', $.for_variable), ci('in'), '(', field('set', $.for_set), ')', ci('do'), field('body', $._body)))` |
-| `for_option` | `/D`, `/R [path]`, `/L`, `/F ["opts"]` | `choice(ci('/d'), seq(ci('/r'), optional($._argument)), ci('/l'), seq(ci('/f'), optional($.for_f_options)))` |
-| `for_f_options` | the single quoted options string | `token(prec(10, /"(tokens|delims|skip|eol|usebackq|useback)[^"]*"/))` or a `string` |
-| `for_variable` | `%%x` (batch) / `%x` (cmdline); one char | `token(/%%?[?@A-Z\[\\\]_`a-z{0-9]/)` |
-| `for_set` | space/comma/semicolon-separated items, or backquote command, or quoted literal | `repeat(choice($._argument, $.backq_command, $.string, $._newline))` |
-| `backq_command` | `` `command` `` (FOR /F command source) | `seq('`', repeat($._argument), '`')` |
-
-The FOR variable must be `%`+exactly one char (post-substitution; source `%%x`
-in batch). The `/F` options string must be tokenized with high precedence so it
-is not mis-parsed as a generic quoted argument. FOR and IF may **not** have
-leading redirections (enforced by grammar shape).
-
-### 3.8 GOTO / CALL / labels
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `goto` | `GOTO label` / `GOTO :EOF` | `seq(ci('goto'), field('target', choice($.eof_label, $.label_ref)))` |
-| `call` | `CALL :label args` / `CALL file args` / `CALL command` | `seq(ci('call'), choice(seq(field('label',$.label_ref), repeat($._argument)), $.command))` |
-| `eof_label` | `:EOF` special target | `token(prec(1, /:[eE][oO][fF]/))` |
-| `label_ref` | a goto/call target | `seq(optional(':'), $._label_name)` |
-| `label` | label *definition* line `:name` | `seq(optional($._lead_delims), ':', field('name', $._label_name), optional($._label_tail))` |
-| `_label_name` (hidden) | name up to delimiter | `token(/[^ \t\r\n:,;=+&|<>]+/)` |
-| `_label_tail` (hidden) | ignored trailing text on label line | `/[^\r\n]*/` |
-
-Labels are statement-level (start of `_line`), with optional leading
-delimiters stripped (`;:label`, `   :label`). Distinguish `::…` (comment, §3.9)
-from `:name` (label) by what follows the first colon.
-
-### 3.9 Comments
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `comment` | REM line or `::` line | `choice($.rem_comment, $.colon_comment)` |
-| `rem_comment` | `REM <text>` | `seq(ci_word('rem'), optional($._rem_body))` |
-| `colon_comment` | `:: <text>` (degenerate label) | `seq(optional($._lead_delims), token(/::/), optional($._rem_body))` |
-| `_rem_body` (hidden) | free text to (unescaped) EOL, surfacing `%VAR%`/`!VAR!` for highlight | `repeat(choice($._variable, /[^\r\n]/))` or external `_rem_body` |
-
-`rem` requires a delimiter after it (`remxyz` is *not* a comment) — enforce with
-`token.immediate` boundary or by matching `rem` as a keyword via `word`.
-
-### 3.10 SET family
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `set` | dispatch on option | `prec(8, seq(ci('set'), choice($.set_assign, $.set_arith, $.set_prompt, $.set_display)))` |
-| `set_assign` | `[ "]NAME=VALUE[" ]` | `seq(optional('"'), field('name',$._set_name), '=', field('value', optional($._argument)), optional('"'))` |
-| `set_arith` | `/A expression` | `seq(ci('/a'), field('expr', $.arith_expr))` |
-| `set_prompt` | `/P NAME=prompt` | `seq(ci('/p'), field('name',$._set_name), '=', optional($._argument))` |
-| `set_display` | `SET` / `SET pfx` (no `=`) | `optional($._argument)` |
-| `arith_expr` | SET /A sub-language (see §4.7) | precedence-climbing expr of `arith_var`/`number`/ops |
-| `arith_var` | bare identifier = env var (NO `%`) | `/[A-Za-z_][A-Za-z0-9_]*/` |
-
-`SET /A`'s RHS is a **distinct expression sub-grammar**, not a generic argument.
-
-### 3.11 Literals & shared
-
-| Node | Description | RHS sketch |
-|------|-------------|-----------|
-| `_variable` (hidden) | any expansion reference | `choice($.var_immediate, $.var_delayed, $.param, $.param_tilde, $.all_params, $.for_var_ref)` |
-| `var_immediate` | `%NAME%` w/ optional operator | `seq('%', $.var_name, optional($._var_op), '%')` |
-| `var_delayed` | `!NAME!` w/ optional operator | `seq('!', $.var_name, optional($._var_op), '!')` |
-| `param` | `%0`–`%9` | `token(/%[0-9]/)` |
-| `all_params` | `%*` | `token(/%\*/)` |
-| `param_tilde` | `%~mods[$ENV:]N` | `seq(token(/%~/), optional($.tilde_mods), optional($.tilde_pathsearch), $._param_or_forvar)` |
-| `for_var_ref` | `%%x` reference in body | `token(/%%[?@A-Z\[\\\]_`a-z{0-9]/)` |
-| `var_name` | env var name | `token.immediate(/[^%!:\r\n]+/)` (name stops per §4.2) |
-| `_var_op` (hidden) | substring or substitution | `choice($.substring_op, $.substitute_op)` |
-| `substring_op` | `:~start[,len]` | `seq(token.immediate(':~'), $._signed_int, optional(seq(',', $._signed_int)))` |
-| `substitute_op` | `:[*]search=replace` | `seq(token.immediate(':'), optional('*'), $._search, '=', optional($._replace))` |
-| `tilde_mods` | run of `dpnxfsatz` (case-insens) | `token(/[dpnxfsatzDPNXFSATZ]+/)` |
-| `tilde_pathsearch` | `$ENV:` clause | `seq('$', $.var_name, ':')` |
-
----
-
-## 4. Tricky areas — concrete plans
-
-### 4.1 Caret escaping & line continuation
+- Simple commands (name plus argument tail) and the `@` quiet prefix.
+- Sequencing and boolean operators `&`, `&&`, `||`, and pipes `|`.
+- Redirections `>`, `>>`, `<`, `N>`, `N>>`, `N<`, and handle duplication `N>&M`.
+- Parenthesized command blocks, multi-line, with attached redirections.
+- Control flow: `IF`/`ELSE`, `FOR` (plain, `/D`, `/R`, `/L`, `/F`), `GOTO`,
+  `CALL`, and labels.
+- Comments: `REM` and `::`.
+- Expansions: `%VAR%`, `%N`, `%*`, `%~mods` (immediate), `!VAR!` (delayed),
+  `%%x` (FOR variables), and the `:~off,len` substring and `:search=replace`
+  substitution operators.
+- `SET`, `SET /A`, and `SET /P`.
+- Caret escaping `^x`, caret line continuation `^\n`, and double-quoted strings
+  (grouping only, since cmd does not strip quotes).
+
+Out of scope (runtime behavior, not syntax):
+
+- Variable values, environment state, and filesystem globbing results.
+- The receiving program's `argv` parsing (`CommandLineToArgvW`), which is a
+  separate grammar downstream of cmd.
+- Runtime semantics of `&&`/`||` gating, `GOTO` target resolution, `SHIFT`
+  renumbering, and `SETLOCAL` scoping.
+
+Two deliberate conformance choices:
+
+- **Batch dialect, not interactive.** `%%` collapses to `%`, positional
+  parameters are `%1`, and FOR variables are `%%x`. The interactive single-`%`
+  FOR-variable dialect is not a goal.
+- **Over-accept runtime-gated constructs.** `!VAR!` is always parsed as a
+  delayed reference even though it is literal text unless
+  `SETLOCAL ENABLEDELAYEDEXPANSION` is active, because that state cannot be
+  tracked statically.
+
+The grammar keeps the Windows label-vs-comment distinction: `:name` is a jump
+target and `::...` is a comment label. ReactOS collapses both into "comment";
+this grammar does not.
+
+## 2. Why cmd is hard to parse
+
+`cmd.exe` has no whole-file grammar. Each logical line is read, expanded,
+parsed, and executed before the next line is read. The grammar still models the
+whole file as one tree because a static tool wants a tree for the entire buffer.
+
+The deeper problem is that cmd runs each line through an ordered pipeline, and
+the same byte means different things in different phases:
+
+| Phase | Action |
+|------:|--------|
+| 1 | Percent (`%`) expansion: `%%`→`%`, `%N`, `%*`, `%~`, `%VAR%` |
+| 1.5 | Strip `\r` (CRs never separate or store) |
+| 2 | Caret/quote tokenization: `^` removed, `^\n` continuation, recognize operators, detect REM/IF/FOR |
+| 4 | FOR `%%x` loop-variable substitution |
+| 5 | Delayed (`!`) expansion, a second caret-removal pass that ignores quote state |
+
+The consequences that drive the grammar design: percent is resolved before
+caret, delayed `!` is resolved after caret in a separate pass, and `\r` is
+invisible.
+
+A tree-sitter grammar is a single context-free pass, so it cannot reproduce this
+phase ordering. It approximates the surface syntax and accepts the resulting
+imprecision (see Limitations). The specific difficulties:
+
+1. **Context-sensitive tokenization.** The same characters lex differently
+   depending on quote state, block depth, whether a digit sits at a token
+   boundary (redirection vs text), and which FOR variables are in scope.
+2. **Separators are not universal whitespace.** `, ; =` act like spaces in most
+   contexts but not in IF's left operand (where `=` must survive for `==`) or in
+   a command's argument tail. They cannot go in `extras`.
+3. **Caret rebinds the next character**, including separators and newlines, and
+   it does so before tokenization. This is the main reason an external scanner
+   is needed.
+4. **Expansion happens before parsing.** `%VAR%` content can introduce or
+   remove operators and quotes invisibly. The grammar parses the unexpanded
+   source.
+
+## 3. Lexing: grammar.js vs the external scanner
+
+Most of the grammar lives in `grammar.js` with `[ \t]`-only extras, significant
+newlines, `token.immediate` for tight expansion lexing, case-insensitive keyword
+helpers, and precedence to resolve command/operator/control-flow ambiguity.
+Keyword extraction (`word: $._cmd_text`) makes `IF`/`FOR`/`SET` match robustly
+against barewords, so a file named `if` still works as an argument.
+
+`extras` is `[/[ \t]/, token(/\^\r?\n/)]`. The line continuation is an anonymous,
+invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
+no node and is transparent to word adjacency, so `echo a^\nb` joins into one word
+while `echo a ^\nb` stays two arguments. Newline is a statement terminator and
+stays structural. `\r` is swallowed by matching every newline as `/\r?\n/`.
+
+The external scanner (`src/scanner.c`) owns the genuinely context-sensitive
+tokens. Its only state is a single block-depth counter:
+
+| Token | Role |
+|-------|------|
+| `CONCAT` | zero-width join of adjacent word fragments into one argument |
+| `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
+| `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
+| `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
+| `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
+
+`=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
+`name=value`.
+
+## 4. The parenthesis model
+
+This is the most distinctive part of the design. cmd does not balance
+parentheses with a stack of kinds; it tracks a single block-nesting depth.
+
+- `(` begins a block only at the start of a command or SET, where the grammar
+  offers `BLOCK_OPEN` through `valid_symbols`. In an argument, `(` is a literal
+  `LPAREN` that does not increase the depth.
+- While a block is open (`depth > 0`), the first unescaped `)` is `BLOCK_CLOSE`
+  and ends the block. A literal `(` in an argument never protects a later `)`.
+
+This mirrors ReactOS `parser.c`, where `(` only begins a block at a token start
+and an in-block `)` always ends the token. It is why cmd needs `^)` to echo a
+close-paren inside a block, and why `(echo()` is a block whose body is the
+command `echo(`. Concretely, this makes `echo (text)`, `echo.version(s)`, and
+the `(echo()` blank-line idiom all parse the way cmd runs them.
+
+## 5. Tricky areas
+
+### Caret escaping and line continuation
 
 Two distinct mechanisms:
 
-- **Line continuation** `^\n`: caret as last char before newline splices the
-  next physical line. cmd resolves this in phase 2 *before* tokenization, so it
-  is purely lexical: it must be transparent to word boundaries (a continued word
-  is one word; a continued separator still separates). We model it exactly like
-  tree-sitter-bash models `\\\n` — an **anonymous, invisible** extra
-  `token(/\^\r?\n/)`. Consequences:
-  - It produces **no** CST node, so it never litters `argument`, operator lists
-    or `program` with stray nodes (the earlier visible `line_continuation` node
-    did, and was the "not ergonomic" complaint).
-  - It is transparent to the `_concat` adjacency token: `echo a^\nsecond` joins
-    into the single word `asecond` (mid-token splice), while `echo a ^\nsecond`
-    stays two arguments because the space before the caret already ended the
-    first. A *named* extra (visible or `_`-hidden) breaks this — tree-sitter
-    re-offers `_concat` across the node and wrongly glues `a` to `second`.
-  - We deliberately drop the old `[ \t]*` tail: with the node gone its range is
-    invisible anyway, and leading whitespace on the continued line is left to the
-    ordinary `[ \t]` extra, which keeps argument splitting faithful.
-  - Residual imprecision: a *mid-word* caret followed by an indented next line
-    (`echo a^\n   b`) yields the single word `ab`, where cmd would produce
-    `a   b` (two arguments). Once `_concat` fires at the non-boundary `^`, the
-    join is committed before the next line's leading whitespace is seen. This
-    shape is rare; the common `arg ^\n   arg` form (space before the caret) is
-    unaffected.
-- **Mid-line escape** `^x`: makes the following metachar literal. Model the
-  common cases as a fixed token `token(/\^[&|<>()^"%!]/)` inside arguments. The
-  genuinely hard case — `^` before a **separator** (`^ `, `^,`) turning it into
-  non-splitting literal text — is context-sensitive and is the prime
-  external-scanner candidate (`_caret_escape`). Document that without the
-  scanner, `^ ` may be approximated as `^` + space.
+- **Line continuation `^\n`** splices the next physical line. cmd resolves this
+  before tokenization, so it is purely lexical and must be transparent to word
+  boundaries. It is modeled as the anonymous extra described in section 3.
+  Residual imprecision: a mid-word caret before an indented next line
+  (`echo a^\n   b`) joins to `ab`, where cmd would produce `a   b`. The common
+  `arg ^\n   arg` form (space before the caret) is unaffected.
+- **Mid-line escape `^x`** makes the following metacharacter literal. The common
+  cases are a fixed token. A caret before a `%`/`!` expansion is the scanner's
+  `CARET_ESCAPE`: in cmd `^%VAR%` expands `%VAR%` first and the caret escapes the
+  result, so the caret must not swallow the `%`/`!`.
 
-Caret-inside-quotes nuance (document as known imprecision): `^` is literal inside
-`"…"` in phase 2, but under delayed expansion with a `!` on the line, phase 5
-removes carets even inside quotes (the `^^!` idiom). A CF grammar cannot model
-the phase-5 conditional pass; we accept `^^!` as two caret-seqs + `!` token.
+Caret inside quotes is a known imprecision: `^` is literal inside `"..."` in
+phase 2, but phase 5 removes carets even inside quotes when the line contains a
+`!` (the `^^!` idiom). A context-free grammar cannot model that conditional pass.
 
-### 4.2 Expansions: `%VAR%`, `!VAR!`, `%~mods`, substring, substitution
+### Expansions
 
-- **`%VAR%`** — name runs from after `%` up to the next `%` **or** to a `:` that
-  is *not* immediately followed by the closing `%` (ReactOS scan). So `%VAR:%`
-  is the variable `VAR` (the `:` ends the name), **not** a modifier. Implement
-  `var_name` to stop at `%`, `!`, or `:` *unless* the char after `:` is the
-  closing delimiter — easiest as a single `token.immediate` regex with a
-  negative-lookahead-ish split, or two productions tried in order
-  (`%VAR:%` before `%VAR:op%`).
-- **`%%` collapse** — batch-context literal percent. Try `PERCENT_ESCAPE` (`%%`
-  → literal) *before* `var_immediate`. Since `%%x` is also a FOR var, ordering:
-  `param` (`%[0-9]`) → `all_params` (`%*`) → `param_tilde` (`%~`) →
-  `for_var_ref` (`%%` + one var char) → `var_immediate` (`%name%`) → literal `%%`.
-- **`!VAR!`** — same shape as `%VAR%` with `!` delimiters and the same operators.
-  Always parsed (over-accept; document).
-- **`%~mods[$ENV:]N`** — modifier letters `dpnxfsatz` (case-insensitive), optional
-  `$ENV:` path-search clause, terminated by the param digit (`%~dp1`) or FOR var
-  letter (`%%~fI`). The **greedy-then-backtrack ambiguity** (`%~dpnxg` depends on
-  which FOR vars are in scope) is *unresolvable statically* — we cannot know the
-  in-scope vars. Plan: lex modifiers greedily over `[dpnxfsatz]+`, then take the
-  final char as the param/var. Accept that `%~dpnxg` will be parsed one fixed way
-  regardless of scope; document the imprecision. `%~$PATH:1` handled by
-  `tilde_pathsearch`.
-- **Substring `:~start[,len]`** — `start`/`len` are signed ints (base-0). Model
-  as `token.immediate(':~')` + signed-int + optional `,` + signed-int. No need to
-  compute clamping (runtime).
-- **Substitution `:search=replace`** — `:` (not `:~`, not `:` before delimiter),
-  optional leading `*`, search (non-empty, no `=`), `=`, optional replace. `=`
-  is the hard delimiter.
+- **`%VAR%`** name runs from after `%` up to the next `%`, or to a `:` that is
+  not immediately followed by the closing `%`. So `%VAR:%` is the variable `VAR`
+  (the `:` ends the name), not a modifier.
+- **Ordering** of the percent forms is `%N` → `%*` → `%~` → `%%x` (FOR var) →
+  `%name%` → literal `%%`, so each maximal-munch form wins cleanly.
+- **`%~mods[$ENV:]N`** lexes the modifier letters `dpnxfsatz` greedily, then
+  takes the final character as the parameter or FOR variable. The
+  greedy-then-backtrack ambiguity (`%~dpnxg` depends on the in-scope FOR vars) is
+  statically unknowable, so the grammar picks one fixed parse.
+- **Substring `:~start[,len]`** and **substitution `:[*]search=replace`** are
+  modeled directly; `=` is the hard delimiter for substitution.
 
-### 4.3 IF / ELSE — single-line vs block
+### IF / ELSE
 
-- Single-line: `IF cond cmd` and `IF cond cmd ELSE cmd`.
-- Block: `IF cond ( … ) ELSE ( … )`.
-- **Hard rule**: the IF body's closing `)`, the `ELSE` keyword, and ELSE's
-  opening `(` must be on the **same physical line**. A `)` alone on a line then
-  `ELSE` next line is `ELSE was unexpected at this time.` Enforce by **not**
-  allowing a `_newline` between `then` and `_else` in the rule. Because `_body`
-  ends at `)` (no trailing newline consumed) and `_else` follows immediately,
-  newline between them naturally terminates the `if` without an else, matching
-  cmd's error surface (we accept the no-else form; an ELSE on the next line then
-  parses as a stray/error node).
-- `prec.right(8)` on `if` resolves dangling-else to nearest IF and lets
-  `IF c1 IF c2 cmd` chain (nested IF is a command).
-- IF may not carry leading redirections — not offered by the grammar (IF is a
-  `_unit`, redirs attach only to `command`/`block`).
+Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)
+forms are both supported. cmd requires the IF body's closing `)`, the `ELSE`
+keyword, and ELSE's opening `(` to be on the same physical line; a `)` alone on a
+line followed by `ELSE` on the next is an error. This is enforced by not allowing
+a newline between the `then` body and the `else` branch. `prec.right` resolves
+the dangling-else to the nearest IF and lets `IF c1 IF c2 cmd` chain. IF does not
+take leading redirections.
 
-### 4.4 FOR bodies, `%%` vars, and AST shape note
+### FOR
 
-- All variants share `FOR [opt] %%v IN (set) DO body`. Variants differ in
-  `for_option` and how `for_set` reads (plain glob list / `/F` source which may
-  be `(files)`, `("literal")`, or `` (`command`) ``).
-- The IN list is read with `InsideBlock` so `)` ends it and inner newlines are
-  skipped — model `for_set` as `repeat(choice($._argument, $.string,
-  $.backq_command, $._newline))` inside the literal `(` … `)`.
-- `for_variable` and `for_var_ref` are `%%`+one char in batch. Body references
-  use `for_var_ref` and `param_tilde` with a letter terminator.
-- **AST-shape note**: ReactOS builds a *right-leaning* operator tree (binary op
-  recurses at the same level). We deliberately use **left-associative**
-  tree-sitter precedence instead. Rationale: tree-sitter tooling and
-  highlighting expect conventional left-assoc; observable left-to-right reading
-  order is preserved; reproducing ReactOS's right-recursion would add complexity
-  with no benefit to a static tool. This is a conscious divergence, documented.
+All variants share `FOR [opt] %%v IN (set) DO body`. The IN list is read inside a
+block so `)` ends it and inner newlines are skipped. A FOR variable is `%%` plus
+any single non-separator character (`%%#`, `%%1` are valid). `FOR /L` accepts the
+non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F`
+share one optional-argument path because of a lexer-state constraint, so they are
+unified behind a single `for_flag` rule (this is the one declared conflict).
 
-### 4.5 Redirection binding & the leading-digit rule
+### Redirection
 
-- A leading digit is a redirection fd **only** at a token boundary **and**
-  immediately followed by `<`/`>`. Boundary = digit is first char of token, or
-  preceding char is a separator or one of `()&|"`. So `2>file` redirects,
-  `echo 2>file` splits (`echo`, then `2>`), `abc2>file`/`hello2>file` keep `2`
-  as text (modern cmd — do **not** swallow the trailing digit).
-- Implement with `token.immediate`: the fd digit in `redirect_file`/`redirect_dup`
-  is `token.immediate(/[0-9]/)` so it only binds when adjacent to the operator,
-  and a digit *preceded by bareword* is consumed by `_bareword_frag` first
-  (greedy), keeping it as text. A standalone `2` after whitespace followed
-  immediately by `>` is offered to `redirect_file` because the bareword frag
-  cannot include `>`.
-- Redirections are collected as a `repeat` on `command`/`block`; ordering is
-  preserved positionally in the tree (last-wins and stream-merge semantics are
-  runtime). `<<` is lexable but a cmd error — we may either not offer it or offer
-  it and let it be an error node.
+A leading digit is a redirection fd only at a token boundary and immediately
+followed by `<`/`>`. So `2>file` redirects, `echo 2>file` splits into `echo` then
+`2>`, and `abc2>file` keeps `2` as text. The fd digit is `token.immediate`
+against the operator, and a digit preceded by a bareword is consumed as text
+first. Redirection ordering is preserved positionally; last-wins and stream-merge
+semantics are runtime.
 
-### 4.6 REM and `::` comments
+### REM and ::
 
-- `REM`: keyword (via `word` extraction) + delimiter + free body. The body bears
-  `%VAR%`/`!VAR!` for highlighting but is otherwise opaque to EOL. A trailing
-  `^\n` does **not** splice in `ParseRem` (continuations off), and `^` is
-  consumed as literal — so `_rem_body` should *not* honor line continuation.
-- `::`: degenerate label, statement-start, allows leading delimiters. Mark it as
-  `colon_comment`. Document that `::` inside `(…)` blocks is unsafe in real cmd;
-  a linter layer (not the grammar) may warn. The grammar still parses it.
-- Inline `& rem …` falls out naturally: `&` separates, then `rem_comment` as the
-  RHS command-position.
-- Keep the Windows label-vs-comment distinction (not ReactOS's collapse).
+`REM` is a whole-word keyword followed by a delimiter and a free body to
+end-of-line. The body surfaces `%VAR%`/`!VAR!` for highlighting but is otherwise
+opaque, and does not honor line continuation (cmd's `ParseRem` does not splice).
+`::` is a degenerate label at statement start with optional leading delimiters.
+`::` inside a block is unsafe in real cmd, but the grammar parses it without
+cascading; a linter layer could warn.
 
-### 4.7 SET /A sub-language
+### SET /A
 
-`SET /A`'s RHS is its own expression grammar — **not** a generic argument:
+`SET /A`'s right-hand side is arithmetic, where `%` is the modulus operator
+(written `%%` in a batch file) and bitwise `& | ^ < >` collide with cmd's outer
+tokenizer (so source often caret-escapes or quotes them). The grammar captures
+the expression as a generic argument tail rather than a full arithmetic
+sub-grammar; see Limitations.
 
-- Bare identifiers are env var **names** (no `%`); `arith_var = /[A-Za-z_]\w*/`.
-- `%` is the **modulus** operator (written `%%` in a batch file) — must be a
-  distinct token here, not a variable sigil.
-- Operators (C-like): `= += -= *= /= %= &= |= ^= <<= >>=`, `+ - * / %`,
-  `& | ^ ~`, `<< >>`, unary `- ~ !`, grouping `( )`, comma sequences. Bitwise
-  `& | < > ^` collide with cmd's special-char tokenizer, so in raw source they
-  are often caret-escaped/quoted — accept both escaped and quoted forms.
-- Model with precedence climbing:
+## 6. Node taxonomy
 
-```js
-arith_expr: $ => $._arith_comma,
-_arith_comma: $ => choice(seq($._arith_assign, ',', $._arith_comma), $._arith_assign),
-_arith_assign: $ => prec.right(1, choice(
-  seq($.arith_var, choice('=','+=','-=','*=','/=','%%=','&=','|=','^=','<<=','>>='), $._arith_assign),
-  $._arith_bitor)),
-_arith_bitor:  $ => prec.left(2, ...),  // | ... down through ^, &, <<>>, +-, */%%, unary, primary
-arith_primary: $ => choice($.number, $.arith_var, seq('(', $._arith_comma, ')')),
-number: $ => token(/0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*/),  // base-0
-```
+The named nodes group into these families (see `src/node-types.json` for the
+full list):
 
-Declare the `[$.block, $.set_arith_paren]` conflict so the GLR parser
-distinguishes a grouping paren in a command block from an arithmetic paren.
+- **Top level**: `program`, `command`, `quiet`, `command_name`.
+- **Operators**: `pipeline`, `and_list`, `or_list`, `seq_list`.
+- **Redirection**: `redirection`, `redirect_file`, `redirect_dup`,
+  `file_descriptor`.
+- **Blocks**: `block`.
+- **Control flow**: `if` (with `if_flag`, `not`, the `cond_*` tests,
+  `compare_op`), `for` (with `for_option`, `for_variable`, `for_set`,
+  `backq_command`), `goto`, `call`, `label`.
+- **SET**: `set`, `set_assign`, `set_prompt`, `set_display`.
+- **Expansions**: `var_immediate`, `var_delayed`, `param`, `all_params`,
+  `param_tilde`, `for_var_ref`, with `substring_op` and `substitute_op`.
+- **Comments**: `rem_comment`, `colon_comment`.
 
----
+Operators use conventional left-associative tree-sitter precedence (cmd binding,
+loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from ReactOS's
+right-leaning operator tree, which would add complexity with no benefit to a
+static tool; observable left-to-right reading order is preserved either way.
 
-## 5. Prior art
+## 7. Prior art
 
-| Project | Approach | License | Verdict |
-|---------|----------|---------|---------|
-| **wharflab/tree-sitter-batch** | Pure `grammar.js`, **no external scanner**; `extras=[ \t]`; significant newlines; `token.immediate`; `ci()`/`kw()` helpers; `word: $.command_name` (`/[$a-zA-Z_0-9][$a-zA-Z0-9_.#-]*/`); `_line_continuation = token(/\^\r?\n[ \t]*/)`; REM `/[rR][eE][mM]/`; echo via `alias(kw('echo'), command_name)`; IF `prec.right(8)`, FOR/SET `prec(8)`; `conflicts: [parenthesized, paren_expression]`; ships `highlights.scm`; tolerates polyglot headers. ~12 stars, ~18 releases, v0.11.x. | MIT | **Primary architectural reference.** Adopt its config skeleton and helper patterns wholesale. Its proof that cmd is largely doable with no scanner sets our Milestone 1–6 plan. Reuse `highlights.scm` patterns and `ci()/kw()`. |
-| **davidevofficial/tree-sitter-batch** | Has `grammar.js` + multi-language bindings but immature/naive. ~2 stars. | MIT | **Avoid as base.** May skim for test corpus ideas only. |
-| **imDMG/tree-sitter-bat** | Early-stage. | (early) | **Avoid.** |
-| **tree-sitter/tree-sitter-bash** | Canonical context-sensitive shell grammar with `src/scanner.c`: externals incl. `_concat`, `file_descriptor`, `variable_name`, heredoc family, `__error_recovery`; `extras=[comment,/\s/, /\\\r?\n/, …]`; `word: $.word`. | MIT | **Scanner-discipline reference** if we add `src/scanner.c`: copy the `_concat` technique, `eof()`-in-loops, `mark_end`, `serialize()` bounds, and the `__error_recovery` sentinel. Do **not** copy bash *string/quoting semantics* (cmd quotes are grouping-only, no single quotes, `%`/`!` expand inside quotes). |
+- **wharflab/tree-sitter-batch** (MIT): the primary architectural reference. A
+  pure-`grammar.js` cmd grammar with no external scanner, proving most of cmd is
+  doable that way. This grammar borrows its config skeleton and helper patterns.
+- **tree-sitter/tree-sitter-bash** (MIT): the scanner-discipline reference. The
+  `CONCAT` technique, gating every token on `valid_symbols`, calling `eof()` in
+  every loop, and keeping `serialize()` small all come from here. Bash string and
+  quoting semantics are deliberately not copied, since cmd quotes are grouping
+  only and `%`/`!` expand inside them.
 
-Reuse: wharflab config + helpers + highlights; bash scanner *discipline*.
-Avoid: copying bash string semantics; davidevofficial/imDMG as bases; ReactOS's
-right-leaning AST shape and its `::`-as-comment collapse.
+## 8. Limitations
 
----
+These follow from cmd being phased and context-sensitive. None cascade on valid
+scripts.
 
-## 6. Implementation plan (incremental milestones)
-
-Each milestone is independently testable via `tree-sitter test` corpus files
-under `test/corpus/`.
-
-**M1 — Skeleton: program / commands / words / comments / labels.**
-`grammar.js` with `extras=[ \t]`, `word`, `_newline`, `program=repeat(_line)`,
-`command` (name + bareword args), `string` (quoted), `quiet` (`@`),
-`rem_comment`, `colon_comment`, `label`. No operators, no expansions.
-Corpus: `command.txt`, `comment.txt`, `label.txt`, `quiet.txt`, `blank_lines.txt`.
-
-**M2 — Operators & redirection.** Add `pipeline`/`and_list`/`or_list`/`seq_list`
-with the precedence ladder; `block` (`(…)`); `redirection` (`redirect_file`,
-`redirect_dup`, `file_descriptor`) with `token.immediate` fd binding and the
-leading-digit boundary handling. Corpus: `operators.txt`, `pipeline.txt`,
-`redirect.txt`, `redirect_dup.txt`, `block.txt`.
-
-**M3 — Expansions.** Add `_variable` and all members: `var_immediate`,
-`var_delayed`, `param`, `all_params`, `param_tilde` (+`tilde_mods`,
-`tilde_pathsearch`), `for_var_ref`, `substring_op`, `substitute_op`, `%%` literal.
-Wire `_variable` into `_argument` and `string`. Corpus: `var_immediate.txt`,
-`var_delayed.txt`, `params.txt`, `tilde.txt`, `substring.txt`, `substitute.txt`.
-
-**M4 — Control flow IF/ELSE.** `if`, `if_flag`, `not`, all `cond_*`,
-`compare_op`, `_else` (same-line rule), `prec.right(8)`, IF chaining.
-Corpus: `if_single.txt`, `if_block.txt`, `if_else.txt`, `if_chain.txt`,
-`if_compare.txt`.
-
-**M5 — Control flow FOR.** `for`, `for_option` (`/D /R /L /F`), `for_variable`,
-`for_set`, `for_f_options`, `backq_command`. Corpus: `for_plain.txt`,
-`for_l.txt`, `for_r.txt`, `for_d.txt`, `for_f.txt`, `for_f_backq.txt`.
-
-**M6 — GOTO/CALL + SET family.** `goto`, `call`, `eof_label`, `label_ref`;
-`set`, `set_assign`, `set_prompt`, `set_display`. Corpus: `goto.txt`, `call.txt`,
-`set_assign.txt`, `set_prompt.txt`.
-
-**M7 — SET /A arithmetic.** `arith_expr` precedence-climbing sub-grammar,
-`arith_var`, `number`, the `[block, set_arith_paren]` conflict. Corpus:
-`set_a.txt`, `set_a_modulus.txt`, `set_a_paren.txt`.
-
-**M8 — Edge cases & (optional) external scanner.** Caret-before-separator,
-mid-token line continuation, `%VAR:%` non-operator case, leading/positional
-redirection, `^^!` idiom, `echo.`/`echo:`/`echo(` variants, polyglot headers.
-Introduce `src/scanner.c` *only* for tokens that proved brittle. Add
-`__error_recovery`. Corpus: `edge_caret.txt`, `edge_redirect.txt`,
-`edge_echo.txt`, `edge_var.txt`.
-
-**M9 — Highlights & bindings.** `queries/highlights.scm` (adapt wharflab),
-`queries/injections.scm`, node-types stabilization, README.
-
----
-
-## 7. Test-corpus plan
-
-Use `tree-sitter test` (`test/corpus/*.txt`) for unit cases and
-`tree-sitter parse` against real files for regression. Categories:
-
-1. **Per-feature unit corpus** — one file per node family (see M1–M8 names),
-   small focused inputs with expected S-expressions.
-2. **Escaping/quoting matrix** — caret arithmetic (`^&`, `^^`, `^^^&`,
-   `^^^^^&`), continuation joins, `^^!` under delayed expansion, unbalanced
-   quotes (rest-of-line quoted), `%%` literal, `^"`.
-3. **Expansion matrix** — every sigil and operator, the `%VAR:%` edge, the
-   `%~dpnxg` greedy case (document chosen parse), `%~$PATH:N`, nested
-   `%a%%b%` adjacency, `!VAR!` always-accepted.
-4. **Redirection matrix** — `2>file`, `echo 2>file`, `hello2>file`, `>&`/`<&`,
-   `> file 2>&1` vs `2>&1 > file` (tree only; semantics noted), leading
-   `>out echo hi`, `9>nul`.
-5. **Control-flow matrix** — IF single/block/else/chain/compare numeric-vs-string;
-   FOR all five variants, `tokens=`/`delims=`/`skip=`/`eol=`/`usebackq`,
-   tokens-to-variable consecutive assignment; ELSE same-line rule
-   (positive + negative).
-6. **Comment matrix** — `rem`/`REM=`/`rem;`/bare `rem`/`remxyz` (not a comment);
-   `::`, `;::`, `   ::`; `& rem` inline; `::` inside block (parse + note).
-7. **Negative/error cases** — empty `()`, `<<`, stray `)`, malformed
-   `%~`/`%var:` (note: cmd aborts; we produce an error node).
-8. **Real-world known-good corpus** (regression, not assertion):
-   - Windows SDK / Visual Studio `vcvarsall.bat`, `vsdevcmd.bat` family
-     (heavy SET/IF/FOR/CALL, redirection).
-   - `gradlew.bat`, Maven `mvn.cmd`, Apache `*.bat` launchers, Node `npm.cmd`/
-     `npx.cmd`, Python `activate.bat`, Conda `activate.bat`.
-   - `git-for-windows` `*.bat`, ANGLE/Chromium build `.bat` scripts.
-   - The dBenham/DosTips and ss64 example snippets (delayed-expansion,
-     substring, FOR /F idioms).
-   - Polyglot batch+PowerShell/VBScript headers from real `.cmd` wrappers.
-   Run `tree-sitter parse --quiet` over a checked-in fixtures dir and gate CI on
-   zero ERROR nodes (allowing a documented allowlist for genuinely cmd-invalid
-   files).
-
----
-
-## 8. Open questions / risks
-
-1. **Phase-order imprecision (fundamental).** A CF grammar parses *unexpanded*
-   source; `%VAR%` content that injects/removes operators or quotes is invisible.
-   Accepted limitation; cannot be fixed without an evaluator.
-2. **`!VAR!` over-acceptance.** We always parse delayed refs; without tracking
-   `SETLOCAL ENABLEDELAYEDEXPANSION` we cannot know `!` is literal. Risk: false
-   variable nodes in non-delayed scripts. Mitigation: highlighting only; optional
-   lint pass could downgrade.
-3. **`%~dpnxg` greedy-backtrack.** Resolution depends on in-scope FOR vars —
-   statically unknowable. We pick one fixed parse; document it. Risk: occasional
-   mis-segmentation of modifier vs trailing literal.
-4. **Caret-before-separator.** `^ `/`^,` rebinding a separator into literal text
-   is the hardest CF case; the fixed-token approximation may mis-split. Decision
-   needed: ship the approximation (M1–M7) and promote to external scanner in M8,
-   or write the scanner earlier. Recommendation: defer to M8.
-5. **Mid-token line continuation.** *Resolved.* A *named* `line_continuation`
-   extra produced spurious structure and, worse, glued space-separated words
-   (`echo a ^\nb` became one argument). Fixed by modelling it as an anonymous,
-   invisible extra `token(/\^\r?\n/)` — the tree-sitter-bash `\\\n` approach — so
-   `echo a^\nsecond` is the single word `asecond` and `echo a ^\nsecond` stays
-   two arguments, with no node and no scanner token (see §4.1).
-6. **ELSE same-line enforcement.** Encoding "`)` ELSE `(` on one physical line"
-   purely via rule shape (no `_newline` between `then` and `_else`) needs
-   validation that the negative case (ELSE on next line) yields a clean error
-   node, not a misparse of the whole file.
-7. **Batch vs command-line dialect.** We commit to batch (`%%x`, `%N`, `%%`→`%`).
-   If interactive `.cmd` snippets appear in corpora, single-`%` FOR vars may
-   misparse. Decide whether to accept both (adds ambiguity) or document
-   batch-only.
-8. **`SET /A` `%` collisions.** Modulus `%`/`%%` and bitwise `& | ^ < >` inside
-   the expression clash with cmd's outer tokenizer; raw source escapes/quotes
-   them inconsistently. The arith sub-grammar must accept escaped, quoted, and
-   bare forms — risk of ambiguity with the surrounding command grammar; rely on
-   the declared conflict + `/a` keyword anchor.
-9. **`::` inside blocks.** Real cmd breaks on `::` inside `(…)`; we parse it
-   anyway. Whether to emit a warning is a linter concern, but the grammar must at
-   least not cascade-fail the rest of the file.
-10. **Empty `&` RHS and stray `)`.** ReactOS allows empty `&` RHS and silently
-    swallows stray `)` (GOTO-into-block hack). Decide how lenient to be vs
-    producing error nodes; recommendation: allow empty `&` RHS, treat stray `)`
-    as an error node (it is rare and a real bug magnet).
-11. **External-scanner scope creep.** If too many bodies (echo/rem/label) move to
-    the scanner, complexity and serialization risk grow. Keep the scanner minimal
-    (`_concat`, `_caret_escape`, `__error_recovery`) and prefer grammar regexes.
-
-### 8.1 Status after implementation & the broad stress sweep
-
-Resolved by the implemented grammar/scanner (verified against the committed
-corpus and a 160+-file sweep):
-
-- **Parentheses** (was the per-level kind stack idea): replaced by a plain
-  block-depth counter; a literal `(` never nests and the first unescaped `)`
-  closes an open block — the cmd-accurate model (see the header note). This
-  makes `echo (text)`, `echo.version(s)`, and the `(echo()` blank-line idiom
-  all parse correctly.
-- **Caret escaping of separators** (#4): handled by `escape_sequence`; caret-
-  escaped, unquoted `FOR /F` options (`for /f tokens^=2-5^ delims^=.-_ %%v …`)
-  parse. Note `/R` and `/F` *share* one optional-argument path: a tree-sitter
-  lexer-state quirk lets only one for-flag accept a bareword argument, so they
-  are unified behind a single `for_flag` + `_for_arg` rule (the latter also
-  admits the command-name word token the lexer offers in that state).
-- **`FOR` variables** are any single non-separator character (`%%#`, `%%1`),
-  and `FOR /L` accepts the non-comma numeric separators `;`/`=`/space (`(1;1=5)`).
-- **Stacked `@@` quiet prefixes** parse (`_unit` takes `repeat(quiet)`).
-- **Stray `)`** (#10) is an error node, as recommended; **empty `&` RHS** is
-  allowed; **`::` inside blocks** (#9) parses without cascading.
-- **Escaped `^)` inside a block** is a literal close-paren and does NOT close
-  the block (cmd's documented escape); `( echo a^) b )` and the multi-line form
-  parse correctly. (An earlier note claimed this could mis-close — that was a
-  test artifact from a doubled caret `^^`, not a real defect.)
-- **Quoted `SET /P "name=prompt"`** parses (the prompt may carry trailing
-  spaces, e.g. `set /p "answer=Enter choice: "`). `set_prompt` accepts either
-  the unquoted `name=prompt` or a leading quoted string, the latter modelled
-  like `set_quoted`. Found by the 34-repo discovery sweep (WiX launchers); it
-  was the only confirmed-fixable gap in ~450 newly-swept scripts.
-- **Caret-escaped expansions** (`^%VAR%`, `^!VAR!`): in cmd `%VAR%` expands
-  first and the caret escapes the *result*, so `escape_sequence` no longer
-  swallows a `%`/`!` that opens an expansion; a lone caret before one is the
-  external `_caret_escape` token, then the expansion parses normally. This also
-  cleared the `for /f eol^=^%LF%%LF%^ …` option form and the real cpython
-  `prepare_libffi.bat` (previously the lone exotic-caret torture case).
-- **A lone `%`/`!` leading a command name** (`! echo …`, the debug-disable
-  trick where cmd runs a failing command named `!`): `_cmd_lead` now admits a
-  stray sigil, while a real `%VAR%`/`!VAR!` still wins by maximal munch.
-- **`SET` names with spaces** (`set sim salabim=magic`): `_set_name` allows
-  internal spaces (first char non-space), matching cmd's "everything up to the
-  first `=` is the name" rule; the `/a`/`/p` switches still win their slot by
-  token precedence.
-
-Live limitations (also in `README.md`):
-
-- Phase-order/`!VAR!`/`%~` greediness (#1–#3, #7) — fundamental; batch dialect.
-- **Linefeed-named variables** (`%\n%` macros, a caret/`%LF%` dance to fold
-  multi-line code onto one logical line) — a torture-test trick; not supported.
+- **Phase-order imprecision** is fundamental: a context-free grammar parses
+  unexpanded source, so `%VAR%` content that injects or removes operators or
+  quotes is invisible.
+- **`!VAR!` over-acceptance**: delayed references are always parsed, even where
+  delayed expansion is not enabled and `!` is literal at runtime.
+- **`%~dpnxg` greediness**: the modifier-vs-literal split depends on in-scope FOR
+  variables, which is statically unknowable, so one fixed parse is chosen.
+- **`SET /A` expressions** are a generic argument tail, not an arithmetic
+  sub-grammar.
+- **String interiors are opaque**: `%VAR%` inside `"..."` is not sub-noded.
+- **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
+  fold multi-line code onto one logical line) are not supported. This is a
+  torture-test trick rather than mainstream batch.
