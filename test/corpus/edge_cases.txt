@@ -54,9 +54,10 @@ quiet prefix on if
 (program
   quiet: (quiet)
   (if_statement
+    (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      arg: (argument))
+      argument: (argument))
     consequence: (command
       name: (command_name)
       argument: (argument
@@ -72,6 +73,7 @@ if (%1) == () goto done
 
 (program
   (if_statement
+    (keyword)
     condition: (comparison
       left: (argument)
       left: (argument
@@ -81,6 +83,7 @@ if (%1) == () goto done
       right: (argument)
       right: (argument))
     consequence: (goto_statement
+      (keyword)
       target: (argument
         (text)))))
 
@@ -119,16 +122,17 @@ set /p VAR=<"data.txt" 2>nul
 
 (program
   (set_statement
+    (keyword)
     (set_prompt
       name: (variable_name))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (string))))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (text))))))
 
@@ -235,6 +239,7 @@ set err%%i=0
 
 (program
   (set_statement
+    (keyword)
     (set_assignment
       name: (variable_name)
       value: (argument
@@ -250,6 +255,7 @@ set /p=Press any key...
 
 (program
   (set_statement
+    (keyword)
     (set_prompt
       prompt: (argument
         (text))
@@ -268,11 +274,12 @@ call :sub <"%TEMP%\in.txt"
 
 (program
   (call_statement
+    (keyword)
     argument: (argument
       (text))
     redirect: (redirection
       (redirect_file
-        op: (redirect_operator)
+        operator: (redirect_operator)
         target: (argument
           (string))))))
 
@@ -286,6 +293,7 @@ set "exe=call "%exe%.bat""
 
 (program
   (set_statement
+    (keyword)
     (set_quoted
       (string)
       (variable)

@@ -8,6 +8,7 @@ if "%x%"=="yes" echo matched
 
 (program
   (if_statement
+    (keyword)
     condition: (comparison
       left: (argument
         (string))
@@ -29,6 +30,7 @@ if /i "%a%"=="b" (echo eq) else (echo ne)
 
 (program
   (if_statement
+    (keyword)
     (if_flag)
     condition: (comparison
       left: (argument
@@ -41,6 +43,7 @@ if /i "%a%"=="b" (echo eq) else (echo ne)
         name: (command_name)
         argument: (argument
           (text))))
+    (keyword)
     alternative: (block
       (command
         name: (command_name)
@@ -57,10 +60,11 @@ if not exist "file.txt" echo missing
 
 (program
   (if_statement
+    (keyword)
     (not)
     condition: (unary_condition
       kind: (condition_keyword)
-      arg: (argument
+      argument: (argument
         (string)))
     consequence: (command
       name: (command_name)
@@ -77,9 +81,10 @@ if defined VAR echo set
 
 (program
   (if_statement
+    (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      arg: (argument))
+      argument: (argument))
     consequence: (command
       name: (command_name)
       argument: (argument
@@ -95,10 +100,12 @@ if errorlevel 1 goto error
 
 (program
   (if_statement
+    (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      arg: (argument))
+      argument: (argument))
     consequence: (goto_statement
+      (keyword)
       target: (argument
         (text)))))
 
@@ -116,6 +123,7 @@ if %n% GEQ 10 (
 
 (program
   (if_statement
+    (keyword)
     condition: (comparison
       left: (argument
         (variable))
@@ -126,6 +134,7 @@ if %n% GEQ 10 (
         name: (command_name)
         argument: (argument
           (text))))
+    (keyword)
     alternative: (block
       (command
         name: (command_name)
@@ -142,13 +151,15 @@ if exist a if exist b echo both
 
 (program
   (if_statement
+    (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      arg: (argument))
+      argument: (argument))
     consequence: (if_statement
+      (keyword)
       condition: (unary_condition
         kind: (condition_keyword)
-        arg: (argument))
+        argument: (argument))
       consequence: (command
         name: (command_name)
         argument: (argument
@@ -164,6 +175,7 @@ if ^%V:~0,1% NEQ ^" echo x
 
 (program
   (if_statement
+    (keyword)
     condition: (comparison
       left: (argument
         (escape_sequence)

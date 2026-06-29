@@ -52,8 +52,19 @@ bindings/           node, rust, python, go, swift bindings
 
 - Indentation follows `.editorconfig`: 2 spaces for `.js`, `.scm`, JSON, and
   YAML; 4 spaces for C. Do not reformat unrelated lines.
-- Keep `grammar.js` rule names and the hidden-rule (`_name`) convention
-  consistent with what is already there.
+- Follow tree-sitter naming idioms. Named node types are snake_case and
+  descriptive. Reuse the field names already in use for the same role (`name`,
+  `value`, `left`, `right`, `operator`, `condition`, `consequence`,
+  `alternative`, `argument`, `target`, `body`, `option`, `kind`); do not add a
+  second name for one role (no `arg` beside `argument`, no `op` beside
+  `operator`). Helper rules that should not appear in the tree take a leading
+  underscore (`_name`). Expose a `choice` of related nodes as a `supertype` when
+  a query would want to match the group (for example `_expansion`). Alias
+  keywords to the named `keyword` node (alias to `$.keyword`, the symbol, not the
+  string `'keyword'`) so `(keyword)` matches them and they appear in the tree.
+- Highlight captures in `queries/highlights.scm` use the standard capture names
+  (`@keyword`, `@string`, `@operator`, `@variable`, `@comment`, `@number`,
+  `@punctuation.bracket`, and so on). A new visible node should get a capture.
 - When adding a construct, add a focused case to the matching `test/corpus/`
   file with its expected S-expression.
 - When adding a real-world fixture, follow `test/real-world/README.md`: drop the

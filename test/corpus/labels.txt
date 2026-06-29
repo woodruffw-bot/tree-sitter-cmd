@@ -32,5 +32,6 @@ goto :eof
 
 (program
   (goto_statement
+    (keyword)
     target: (argument
       (text))))

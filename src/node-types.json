@@ -1,5 +1,39 @@
 [
   {
+    "type": "_expansion",
+    "named": true,
+    "subtypes": [
+      {
+        "type": "all_arguments",
+        "named": true
+      },
+      {
+        "type": "delayed_variable",
+        "named": true
+      },
+      {
+        "type": "loop_variable",
+        "named": true
+      },
+      {
+        "type": "parameter",
+        "named": true
+      },
+      {
+        "type": "parameter_tilde",
+        "named": true
+      },
+      {
+        "type": "percent_literal",
+        "named": true
+      },
+      {
+        "type": "variable",
+        "named": true
+      }
+    ]
+  },
+  {
     "type": "and_list",
     "named": true,
     "fields": {
@@ -140,31 +174,11 @@
       "required": false,
       "types": [
         {
-          "type": "all_arguments",
-          "named": true
-        },
-        {
-          "type": "delayed_variable",
+          "type": "_expansion",
           "named": true
         },
         {
           "type": "escape_sequence",
-          "named": true
-        },
-        {
-          "type": "loop_variable",
-          "named": true
-        },
-        {
-          "type": "parameter",
-          "named": true
-        },
-        {
-          "type": "parameter_tilde",
-          "named": true
-        },
-        {
-          "type": "percent_literal",
           "named": true
         },
         {
@@ -173,10 +187,6 @@
         },
         {
           "type": "text",
-          "named": true
-        },
-        {
-          "type": "variable",
           "named": true
         }
       ]
@@ -294,6 +304,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -356,31 +376,11 @@
       "required": false,
       "types": [
         {
-          "type": "all_arguments",
-          "named": true
-        },
-        {
-          "type": "delayed_variable",
+          "type": "_expansion",
           "named": true
         },
         {
           "type": "escape_sequence",
-          "named": true
-        },
-        {
-          "type": "loop_variable",
-          "named": true
-        },
-        {
-          "type": "parameter",
-          "named": true
-        },
-        {
-          "type": "parameter_tilde",
-          "named": true
-        },
-        {
-          "type": "percent_literal",
           "named": true
         },
         {
@@ -389,10 +389,6 @@
         },
         {
           "type": "text",
-          "named": true
-        },
-        {
-          "type": "variable",
           "named": true
         }
       ]
@@ -485,6 +481,10 @@
         {
           "type": "backquote_string",
           "named": true
+        },
+        {
+          "type": "single_quote_string",
+          "named": true
         }
       ]
     }
@@ -575,6 +575,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -611,6 +621,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -728,10 +748,14 @@
     },
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "if_flag",
+          "named": true
+        },
+        {
+          "type": "keyword",
           "named": true
         },
         {
@@ -1114,7 +1138,7 @@
     "type": "redirect_dup",
     "named": true,
     "fields": {
-      "op": {
+      "operator": {
         "multiple": false,
         "required": true,
         "types": [
@@ -1140,7 +1164,7 @@
     "type": "redirect_file",
     "named": true,
     "fields": {
-      "op": {
+      "operator": {
         "multiple": false,
         "required": true,
         "types": [
@@ -1423,31 +1447,11 @@
       "required": false,
       "types": [
         {
-          "type": "all_arguments",
-          "named": true
-        },
-        {
-          "type": "delayed_variable",
+          "type": "_expansion",
           "named": true
         },
         {
           "type": "escape_sequence",
-          "named": true
-        },
-        {
-          "type": "loop_variable",
-          "named": true
-        },
-        {
-          "type": "parameter",
-          "named": true
-        },
-        {
-          "type": "parameter_tilde",
-          "named": true
-        },
-        {
-          "type": "percent_literal",
           "named": true
         },
         {
@@ -1456,10 +1460,6 @@
         },
         {
           "type": "text",
-          "named": true
-        },
-        {
-          "type": "variable",
           "named": true
         }
       ]
@@ -1474,31 +1474,11 @@
       "required": true,
       "types": [
         {
-          "type": "all_arguments",
-          "named": true
-        },
-        {
-          "type": "delayed_variable",
+          "type": "_expansion",
           "named": true
         },
         {
           "type": "escape_sequence",
-          "named": true
-        },
-        {
-          "type": "loop_variable",
-          "named": true
-        },
-        {
-          "type": "parameter",
-          "named": true
-        },
-        {
-          "type": "parameter_tilde",
-          "named": true
-        },
-        {
-          "type": "percent_literal",
           "named": true
         },
         {
@@ -1507,10 +1487,6 @@
         },
         {
           "type": "text",
-          "named": true
-        },
-        {
-          "type": "variable",
           "named": true
         }
       ]
@@ -1532,9 +1508,13 @@
       }
     },
     "children": {
-      "multiple": false,
-      "required": false,
+      "multiple": true,
+      "required": true,
       "types": [
+        {
+          "type": "keyword",
+          "named": true
+        },
         {
           "type": "set_arith",
           "named": true
@@ -1562,7 +1542,7 @@
     "type": "unary_condition",
     "named": true,
     "fields": {
-      "arg": {
+      "argument": {
         "multiple": true,
         "required": true,
         "types": [
@@ -1642,15 +1622,7 @@
   },
   {
     "type": "keyword",
-    "named": false
-  },
-  {
-    "type": "keyword",
     "named": true
-  },
-  {
-    "type": "keyword",
-    "named": false
   },
   {
     "type": "label_name",
@@ -1690,6 +1662,10 @@
   },
   {
     "type": "redirect_operator",
+    "named": true
+  },
+  {
+    "type": "single_quote_string",
     "named": true
   },
   {

@@ -20,7 +20,8 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 - **Blocks**: multi-line `( ... )` compounds with attached redirections.
 - **Control flow**: `IF` (`/I`, `NOT`, the comparison and `EXIST`/`DEFINED`/
   `ERRORLEVEL`/`CMDEXTVERSION` tests, `ELSE`, nesting); `FOR` (`/D`, `/R`, `/L`,
-  `/F` with options or a `` `command` ``); `GOTO`, `CALL`, and labels.
+  `/F` with options and a `` `command` ``, `'command'`, or file source); `GOTO`,
+  `CALL` (including the colon-glued `goto:eof` / `call:label` forms), and labels.
 - **The SET family**: `SET name=value`, `SET /A`, `SET /P`, quoted `SET "x=y"`,
   and display forms.
 - **Expansions**: `%VAR%` and `%VAR:...%`, delayed `!VAR!`, positional `%0`-`%9`,
@@ -37,6 +38,8 @@ This is tracked by the external scanner as a block-depth counter.
 
 Keyword extraction handles command disambiguation, so `set` is a keyword but
 `setlocal` is a command, and `rem` is a comment but `remote` is a command.
+Keywords surface as named `(keyword)` nodes, and the `%…%`/`!…!` expansion forms
+share a `_expansion` supertype so queries can target them as a group.
 
 ## Usage
 
@@ -87,7 +90,8 @@ cannot fully reproduce. None of these cascade on valid scripts. See
 - **String interiors are opaque**: `%VAR%` inside `"..."` is not sub-noded.
 - **Line continuation** joins a mid-word caret before an indented next line into
   one word, where cmd would keep two arguments. The common `arg ^` form (space
-  before the caret) is unaffected.
+  before the caret) is unaffected. A *dangling* caret continuation onto a blank
+  line or at end-of-file produces an error node (the splice has nothing to join).
 - **Variables whose name is a literal newline** (`%LF%` macros) are not
   supported.
 

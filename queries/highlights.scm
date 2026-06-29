@@ -16,7 +16,7 @@
 (not) @keyword.operator
 (condition_keyword) @keyword.operator
 (if_flag) @keyword
-(for_option) @keyword
+(for_flag) @keyword
 
 ; ---------------------------------------------------------------------------
 ; Commands & labels
@@ -42,6 +42,7 @@
 ; ---------------------------------------------------------------------------
 (string) @string
 (backquote_string) @string.special
+(single_quote_string) @string.special
 (escape_sequence) @string.escape
 (file_descriptor) @number
 
@@ -51,13 +52,14 @@
 (comparison_operator) @operator
 (redirect_operator) @operator
 (redirect_dup_operator) @operator
-(quiet) @operator
+(quiet) @punctuation.special
 
 [
   "&"
   "&&"
   "||"
   "|"
+  "="
 ] @operator
 
 [

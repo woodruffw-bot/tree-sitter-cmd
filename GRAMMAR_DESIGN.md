@@ -94,7 +94,12 @@ Most of the grammar lives in `grammar.js` with `[ \t]`-only extras, significant
 newlines, `token.immediate` for tight expansion lexing, case-insensitive keyword
 helpers, and precedence to resolve command/operator/control-flow ambiguity.
 Keyword extraction (`word: $._cmd_text`) makes `IF`/`FOR`/`SET` match robustly
-against barewords, so a file named `if` still works as an argument.
+against barewords, so a file named `if` still works as an argument. Keywords are
+aliased to the named `keyword` node so they appear in the tree and highlight via
+`(keyword)`. `_cmd_text` ends a bareword at `:` — cmd ends an internal-command
+name there (and at `.\,/;=[]`), so `goto:eof`/`call:label` are `goto`/`call`
+plus a `:label` argument — with a leading-drive-letter exception (`C:`,
+`C:\tools\foo.exe`) so command paths still parse.
 
 `extras` is `[/[ \t]/, token(/\^\r?\n/)]`. The line continuation is an anonymous,
 invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
@@ -144,7 +149,9 @@ Two distinct mechanisms:
   boundaries. It is modeled as the anonymous extra described in section 3.
   Residual imprecision: a mid-word caret before an indented next line
   (`echo a^\n   b`) joins to `ab`, where cmd would produce `a   b`. The common
-  `arg ^\n   arg` form (space before the caret) is unaffected.
+  `arg ^\n   arg` form (space before the caret) is unaffected. A *dangling*
+  continuation — a caret onto a blank line or at end-of-file — is an error node,
+  since an invisible extra has nothing to splice onto.
 - **Mid-line escape `^x`** makes the following metacharacter literal. The common
   cases are a fixed token. A caret before a `%`/`!` expansion is the scanner's
   `CARET_ESCAPE`: in cmd `^%VAR%` expands `%VAR%` first and the caret escapes the
@@ -185,7 +192,10 @@ block so `)` ends it and inner newlines are skipped. A FOR variable is `%%` plus
 any single non-separator character (`%%#`, `%%1` are valid). `FOR /L` accepts the
 non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F`
 share one optional-argument path because of a lexer-state constraint, so they are
-unified behind a single `for_flag` rule (this is the one declared conflict).
+unified behind a single `for_flag` rule (this is the one declared conflict). The
+`/F` command source can be `` `backquoted` `` or `'single-quoted'`; both are one
+token (`backquote_string` / `single_quote_string`) so inner `)`/operators stay
+literal, and both are cmd injection points.
 
 ### Redirection
 
@@ -265,3 +275,9 @@ scripts.
 - **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
   fold multi-line code onto one logical line) are not supported. This is a
   torture-test trick rather than mainstream batch.
+- **Dangling caret continuation** (a caret onto a blank line or at end-of-file)
+  is an error node; the normal continuation-onto-content case is fine.
+- **Tree-shape imprecisions that still parse cleanly**: `%%` outside a FOR is
+  noded as a `loop_variable` (the documented batch-`%%x` vs `%%`-literal
+  ambiguity), and the `if (%1)==()` idiom emits the parens as sibling `argument`
+  nodes rather than one wrapped operand. Neither produces an error.
