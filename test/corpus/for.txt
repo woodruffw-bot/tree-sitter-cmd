@@ -278,3 +278,25 @@ for /f %%a in ('echo (hi)') do echo %%a
       name: (command_name)
       argument: (argument
         (loop_variable)))))
+
+================================================
+for set with parentheses in a quoted item
+================================================
+
+for %%a in ("file (1).txt") do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (string)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))

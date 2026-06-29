@@ -88,6 +88,9 @@ cannot fully reproduce. None of these cascade on valid scripts. See
   `SETLOCAL ENABLEDELAYEDEXPANSION` is not active and it is literal at runtime.
 - **`SET /A` expressions** are captured as a generic argument tail, not a full
   arithmetic sub-grammar.
+- **An unquoted `(` in a FOR set** ends the set at the first `)`, like any block
+  paren (and like cmd). A set item that contains parentheses must be quoted, e.g.
+  `for %%a in ("file (1).txt")`.
 - **Line continuation** joins a mid-word caret before an indented next line into
   one word, where cmd would keep two arguments. The common `arg ^` form (space
   before the caret) is unaffected. A *dangling* caret continuation at the end of

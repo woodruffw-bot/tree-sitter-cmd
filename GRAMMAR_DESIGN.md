@@ -296,6 +296,11 @@ scripts.
   variables, which is statically unknowable, so one fixed parse is chosen.
 - **`SET /A` expressions** are a generic argument tail, not an arithmetic
   sub-grammar.
+- **Unquoted parentheses in a FOR set**: the set runs from the opening `(` to the
+  first `)`, the same block-paren rule used everywhere (and what cmd does), so an
+  inner unquoted `(...)` closes the set early and the rest errors. A set item that
+  contains parentheses must be quoted (`for %%a in ("file (1).txt")`), which parses
+  cleanly. The error stays on that line; the block-depth counter does not desync.
 - **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
   fold multi-line code onto one logical line) are not supported. This is a
   torture-test trick rather than mainstream batch.
