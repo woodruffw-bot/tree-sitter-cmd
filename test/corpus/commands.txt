@@ -91,3 +91,24 @@ echo hi
     name: (command_name)
     argument: (argument
       (text))))
+
+=============================
+sigil can lead a command name
+=============================
+
+! echo disabled debug line
+
+---
+
+(program
+  (command
+    name: (command_name
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))

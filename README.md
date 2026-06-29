@@ -43,9 +43,12 @@ idiom, redirections on `call`, quoted SET values with embedded quotes
 (`set "x="y" !z!"`), caret-escaped unquoted `FOR /F` options
 (`for /f tokens^=2-5^ delims^=.-_ %%j in (...)`), stacked `@@` quiet prefixes,
 non-comma `FOR /L` separators (`(1;1=5)`), single-character `FOR` variables of
-any kind (`%%#`, `%%1`), and — most importantly — the cmd-accurate block-vs-
-literal parenthesis model that makes the `(echo()` robust blank-line idiom and
-`echo (parenthesised)` arguments parse the way cmd actually runs them.
+any kind (`%%#`, `%%1`), caret-escaped expansions (`^%VAR%`, where the caret
+escapes the *result* of the expansion rather than the `%`), `SET` names with
+spaces (`set sim salabim=x`), a lone `%`/`!` leading a command name (the
+`! echo …` debug-disable trick), and — most importantly — the cmd-accurate
+block-vs-literal parenthesis model that makes the `(echo()` robust blank-line
+idiom and `echo (parenthesised)` arguments parse the way cmd actually runs them.
 
 Where vendoring a script's license forbids checking it in (e.g. Elasticsearch
 is Elastic-2.0 / SSPL), the corpus instead carries an independent, hand-authored
@@ -119,7 +122,7 @@ Rust, Python, Go and Swift bindings are also generated under `bindings/`.
 
 Two layers of tests:
 
-1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 83
+1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 93
    focused cases across every construct, each with an expected S-expression.
 2. **Real-world regression** — `test/real-world/` is a committed corpus of
    known-good upstream scripts, parsed against per-file ERROR-node budgets:
@@ -152,11 +155,9 @@ on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
   word, while a space before the caret keeps them as separate arguments. The lone
   residual case is a mid-word caret before an *indented* next line
   (`echo a^⏎   b`), which joins to `ab` rather than re-splitting on that indent.
-- **`SET name=value` with spaces in the name** (`set sim salabim=x`, a valid but
-  rare cmd form) is not modelled; the name token stops at whitespace.
-- **Caret-escaped `%VAR%` inside `FOR /F` options** (`for /f eol^=^%LF%%LF%^ …`)
-  and variables whose name is a literal newline (`%\n%` macros) are not
-  supported — both are torture-test tricks rather than mainstream batch.
+- **Variables whose name is a literal newline** (`%\n%` linefeed macros, built
+  via a caret/`%LF%` dance to fold multi-line code onto one logical line) are
+  not supported — a torture-test trick rather than mainstream batch.
 
 ## Layout
 

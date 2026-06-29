@@ -58,3 +58,9 @@
 0	mre-cli-launcher.bat	(original MRE — see mre-cli-launcher.bat.LICENSE)
 0	mre-classpath-builder.bat	(original MRE — see mre-classpath-builder.bat.LICENSE)
 0	mre-interactive-menu.bat	(original MRE — see mre-interactive-menu.bat.LICENSE)
+
+# Edge-case guards added on the cmd-edge-cases branch: caret-escaped
+# expansions, sigil-led command names, and spaced SET names.
+0	cpython-prepare-libffi.bat	(see cpython-prepare-libffi.bat.LICENSE)
+0	npocmaka-checkNet.bat	(see npocmaka-checkNet.bat.LICENSE)
+0	npocmaka-ifDefined.bat	(see npocmaka-ifDefined.bat.LICENSE)

@@ -110,3 +110,18 @@ set PATH
   (set_statement
     (set_display
       (variable_name))))
+
+===========================
+assignment name with spaces
+===========================
+
+set sim salabim=magic
+
+---
+
+(program
+  (set_statement
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)))))

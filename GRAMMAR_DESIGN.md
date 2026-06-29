@@ -753,12 +753,22 @@ corpus and a 160+-file sweep):
   the unquoted `name=prompt` or a leading quoted string, the latter modelled
   like `set_quoted`. Found by the 34-repo discovery sweep (WiX launchers); it
   was the only confirmed-fixable gap in ~450 newly-swept scripts.
+- **Caret-escaped expansions** (`^%VAR%`, `^!VAR!`): in cmd `%VAR%` expands
+  first and the caret escapes the *result*, so `escape_sequence` no longer
+  swallows a `%`/`!` that opens an expansion; a lone caret before one is the
+  external `_caret_escape` token, then the expansion parses normally. This also
+  cleared the `for /f eol^=^%LF%%LF%^ …` option form and the real cpython
+  `prepare_libffi.bat` (previously the lone exotic-caret torture case).
+- **A lone `%`/`!` leading a command name** (`! echo …`, the debug-disable
+  trick where cmd runs a failing command named `!`): `_cmd_lead` now admits a
+  stray sigil, while a real `%VAR%`/`!VAR!` still wins by maximal munch.
+- **`SET` names with spaces** (`set sim salabim=magic`): `_set_name` allows
+  internal spaces (first char non-space), matching cmd's "everything up to the
+  first `=` is the name" rule; the `/a`/`/p` switches still win their slot by
+  token precedence.
 
 Live limitations (also in `README.md`):
 
 - Phase-order/`!VAR!`/`%~` greediness (#1–#3, #7) — fundamental; batch dialect.
-- **`SET name=value` with spaces in the name** (`set sim salabim=x`) — the name
-  token stops at whitespace; rare, not modelled.
-- **Caret-escaped `%VAR%` *inside* `FOR /F` options** (`eol^=^%LF%%LF%^ …`) and
-  **linefeed-named variables** (`%\n%` macros) — torture-test tricks; not
-  supported.
+- **Linefeed-named variables** (`%\n%` macros, a caret/`%LF%` dance to fold
+  multi-line code onto one logical line) — a torture-test trick; not supported.

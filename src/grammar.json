@@ -821,6 +821,15 @@
           "name": "escape_sequence"
         },
         {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
+        },
+        {
           "type": "SYMBOL",
           "name": "_expansion"
         },
@@ -1495,7 +1504,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "[^ \\t\\r\\n&|<>()^\"=]+"
+        "value": "[^ \\t\\r\\n&|<>()^\"=][^\\r\\n&|<>()^\"=]*"
       }
     },
     "redirection": {
@@ -1614,6 +1623,15 @@
         {
           "type": "SYMBOL",
           "name": "_expansion"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_stray_sigil"
+          },
+          "named": true,
+          "value": "text"
         }
       ]
     },
@@ -1663,6 +1681,15 @@
         {
           "type": "SYMBOL",
           "name": "escape_sequence"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
         },
         {
           "type": "SYMBOL",
@@ -1715,7 +1742,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "\\^[^\\r\\n]"
+        "value": "\\^[^\\r\\n%!]"
       }
     },
     "string": {
@@ -1974,6 +2001,10 @@
     {
       "type": "SYMBOL",
       "name": "_rparen"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_caret_escape"
     }
   ],
   "inline": [],

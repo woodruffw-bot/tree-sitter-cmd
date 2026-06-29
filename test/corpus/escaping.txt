@@ -132,3 +132,18 @@ escaped close paren stays literal in a block
       argument: (argument
         (text)
         (escape_sequence)))))
+
+==========================================
+caret before an expansion is a lone escape
+==========================================
+
+echo ^%PATH%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (escape_sequence)
+      (variable))))

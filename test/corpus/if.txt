@@ -153,3 +153,25 @@ if exist a if exist b echo both
         name: (command_name)
         argument: (argument
           (text))))))
+
+======================
+caret-escaped operands
+======================
+
+if ^%V:~0,1% NEQ ^" echo x
+
+---
+
+(program
+  (if_statement
+    condition: (comparison
+      left: (argument
+        (escape_sequence)
+        (variable))
+      operator: (comparison_operator)
+      right: (argument
+        (escape_sequence)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))

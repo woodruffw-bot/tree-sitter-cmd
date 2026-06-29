@@ -13,6 +13,11 @@
 //   BLOCK_OPEN   - `(` that opens a command block or FOR set (structural).
 //   BLOCK_CLOSE  - `)` that closes a structural block / FOR set.
 //   LPAREN/RPAREN- a literal `(` / `)` appearing in an argument or IF operand.
+//   CARET_ESCAPE - a lone `^` that escapes a following `%`/`!` expansion. In cmd
+//                  `^%VAR%` expands `%VAR%` first and the caret escapes the
+//                  result, so the caret must not swallow the `%`/`!`; we emit it
+//                  as a one-char token (the grammar's `escape_sequence` handles
+//                  `^X` for any other X, and `^`-newline is line continuation).
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
 // command/set is expected and literal in an argument; `)` closes a block only
@@ -34,6 +39,7 @@ enum TokenType {
   BLOCK_CLOSE,
   LPAREN,
   RPAREN,
+  CARET_ESCAPE,
 };
 
 typedef struct {
@@ -130,9 +136,10 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   bool want_rem = valid_symbols[REM];
+  bool want_caret = valid_symbols[CARET_ESCAPE];
   bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_paren) {
+  if (!want_rem && !want_caret && !want_paren) {
     return false;
   }
 
@@ -142,6 +149,20 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   int32_t c = lexer->lookahead;
+
+  // A lone caret escaping a following `%`/`!` expansion: consume just the `^`
+  // (so `%VAR%` / `!VAR!` is still recognised as its own token). Any other `^X`
+  // is left to the grammar's `escape_sequence`, and `^`-newline to the line
+  // continuation, so decline unless the very next char is `%` or `!`.
+  if (want_caret && c == '^') {
+    lexer->advance(lexer, false);
+    lexer->mark_end(lexer);
+    if (lexer->lookahead == '%' || lexer->lookahead == '!') {
+      lexer->result_symbol = CARET_ESCAPE;
+      return true;
+    }
+    return false;
+  }
 
   if (want_rem && (c == 'r' || c == 'R')) {
     if (scan_rem(lexer)) return true;
