@@ -27,3 +27,21 @@ jobs:
 
       - name: Real-world parse regression
         run: bash test/real-world/check.sh
+
+  rust:
+    name: Rust crate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build crate
+        run: cargo build --verbose
+
+      - name: Test crate
+        run: cargo test --verbose
