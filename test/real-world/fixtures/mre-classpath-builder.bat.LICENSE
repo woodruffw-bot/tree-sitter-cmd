@@ -1,0 +1,13 @@
+ORIGINAL Minimal Reproducible Example authored for tree-sitter-cmd.
+
+File:           mre-classpath-builder.bat
+Provenance:     Original work, part of this repository (no third party).
+SPDX-License-Identifier: MIT
+Copyright (c) tree-sitter-cmd contributors
+
+This MRE distills the cmd idioms of JVM launcher classpath builders such as Gradle/Kafka wrapper scripts and EPL-licensed tools like deps.clj, whose upstream license
+(EPL-1.0 / Apache-2.0 (mixed)) prevents vendoring the real file verbatim. No third-party text is
+reproduced; it exists as an independent zero-ERROR parse-regression case for:
+  - FOR /F `usebackq` over a back-quoted command
+  - accumulating into a delayed-expansion variable across a loop
+  - `if ERRORLEVEL` handling and `2>nul` redirection in a block

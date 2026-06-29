@@ -15,14 +15,21 @@ decided during implementation:
   keyword but declines `rem`).
 - `=` is a word boundary in the scanner so `_concat` cannot starve `==` /
   `name=value`.
-- **Parentheses are resolved in the external scanner** with a per-level stack
-  (block vs literal). `(` is a block-open where the grammar allows it
-  (`valid_symbols`) and a literal paren otherwise; `)` is matched against the
-  stack top, so a literal `(…)` in an argument balances even when nested inside
-  a block. This is the paren-depth design anticipated in §8 / §4.5.
+- **Parentheses are resolved in the external scanner** with a single block-depth
+  counter. `(` is a block-open where the grammar allows it (`valid_symbols`) and
+  a literal paren otherwise — crucially, a literal `(` in an argument does **not**
+  increment the depth. While a block is open (`depth > 0`) the first unescaped
+  `)` closes it (BLOCK_CLOSE is preferred over a literal RPAREN), so a literal
+  `(` never protects a later `)` inside a block. This mirrors cmd exactly (see
+  ReactOS `parser.c`: `(` only begins a block at a token start, and
+  `InsideBlock && ')'` always ends the token), and is why cmd requires `^)` to
+  echo a close-paren inside a block and why `(echo()` is a block containing the
+  command `echo(`. (An earlier design balanced literal parens with a per-level
+  kind stack; that was wrong and is fixed.)
 
-Validated against 12 real-world scripts — **all parse error-free**. See
-`README.md` for the conformance table and the live limitation list.
+Validated against 37 vendored real-world scripts plus 160+ in the broader sweep
+— **all parse error-free**. See `README.md` for the conformance table and the
+live limitation list.
 
 Target package: `tree-sitter-cmd` (`scope: source.dosbatch`, file types
 `.bat`, `.cmd`). License: MIT.
@@ -688,3 +695,38 @@ Use `tree-sitter test` (`test/corpus/*.txt`) for unit cases and
 11. **External-scanner scope creep.** If too many bodies (echo/rem/label) move to
     the scanner, complexity and serialization risk grow. Keep the scanner minimal
     (`_concat`, `_caret_escape`, `__error_recovery`) and prefer grammar regexes.
+
+### 8.1 Status after implementation & the broad stress sweep
+
+Resolved by the implemented grammar/scanner (verified against the committed
+corpus and a 160+-file sweep):
+
+- **Parentheses** (was the per-level kind stack idea): replaced by a plain
+  block-depth counter; a literal `(` never nests and the first unescaped `)`
+  closes an open block — the cmd-accurate model (see the header note). This
+  makes `echo (text)`, `echo.version(s)`, and the `(echo()` blank-line idiom
+  all parse correctly.
+- **Caret escaping of separators** (#4): handled by `escape_sequence`; caret-
+  escaped, unquoted `FOR /F` options (`for /f tokens^=2-5^ delims^=.-_ %%v …`)
+  parse. Note `/R` and `/F` *share* one optional-argument path: a tree-sitter
+  lexer-state quirk lets only one for-flag accept a bareword argument, so they
+  are unified behind a single `for_flag` + `_for_arg` rule (the latter also
+  admits the command-name word token the lexer offers in that state).
+- **`FOR` variables** are any single non-separator character (`%%#`, `%%1`),
+  and `FOR /L` accepts the non-comma numeric separators `;`/`=`/space (`(1;1=5)`).
+- **Stacked `@@` quiet prefixes** parse (`_unit` takes `repeat(quiet)`).
+- **Stray `)`** (#10) is an error node, as recommended; **empty `&` RHS** is
+  allowed; **`::` inside blocks** (#9) parses without cascading.
+
+Live limitations (also in `README.md`):
+
+- Phase-order/`!VAR!`/`%~` greediness (#1–#3, #7) — fundamental; batch dialect.
+- **`SET name=value` with spaces in the name** (`set sim salabim=x`) — the name
+  token stops at whitespace; rare, not modelled.
+- **Caret-escaped `%VAR%` *inside* `FOR /F` options** (`eol^=^%LF%%LF%^ …`) and
+  **linefeed-named variables** (`%\n%` macros) — torture-test tricks; not
+  supported.
+- **An escaped `^)` inside a multi-line block** can still mis-close the block in
+  some positions — the residual edge of the paren model (a literal `)` must be
+  escaped to survive in a block, but the escape interacts with block-close
+  recovery). Rare; documented rather than fixed.

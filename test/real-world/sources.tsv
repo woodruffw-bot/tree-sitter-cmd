@@ -41,3 +41,19 @@
 0	tomcat-catalina.bat	https://github.com/apache/tomcat/blob/main/bin/catalina.bat
 0	tomcat-setclasspath.bat	https://github.com/apache/tomcat/blob/main/bin/setclasspath.bat
 0	zookeeper-zkenv.cmd	https://github.com/apache/zookeeper/blob/master/bin/zkEnv.cmd
+
+# npocmaka/batch.scripts (MIT) — a torture-test collection of cmd idioms;
+# included to guard the trickier edge cases (carets, (echo(), @@, delayed exp).
+0	npocmaka-getJavaVersion.bat	https://github.com/npocmaka/batch.scripts/blob/master/Java/getJavaVersion.bat
+0	npocmaka-md5.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/md5.bat
+0	npocmaka-firstLinesP.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/firstLinesP.bat
+0	npocmaka-endsWith.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/endsWith.bat
+0	npocmaka-getTime.bat	https://github.com/npocmaka/batch.scripts/blob/master/DateAndTime/getTime.bat
+0	npocmaka-isInteger.bat	https://github.com/npocmaka/batch.scripts/blob/master/math/isInteger.bat
+0	npocmaka-countOfSubstrings.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/countOfSubstrings.bat
+0	npocmaka-binaryTree.bat	https://github.com/npocmaka/batch.scripts/blob/master/dataStructures/binaryTree.bat
+
+# Original Minimal Reproducible Examples (authored here, MIT) that distill
+# idioms from scripts whose licenses prevent vendoring them verbatim.
+0	mre-cli-launcher.bat	(original MRE — see mre-cli-launcher.bat.LICENSE)
+0	mre-classpath-builder.bat	(original MRE — see mre-classpath-builder.bat.LICENSE)

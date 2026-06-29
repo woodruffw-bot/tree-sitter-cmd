@@ -1,0 +1,13 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           npocmaka-firstLinesP.bat
+Upstream:       npocmaka/batch.scripts (fileUtils/firstLinesP.bat)
+Source:         https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/firstLinesP.bat
+SPDX-License-Identifier: MIT
+Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
+Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+
+Notable for tree-sitter-cmd because it exercises: stacked `@@` quiet prefixes and leading `;` command separators

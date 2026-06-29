@@ -29,7 +29,8 @@ for /l %%n in (1,1,10) do echo %%n
 
 (program
   (for_statement
-    option: (for_option)
+    option: (for_option
+      (for_flag))
     variable: (loop_variable)
     set: (for_set
       (argument
@@ -50,7 +51,8 @@ for /r C:\src %%f in (*.c) do echo %%f
 (program
   (for_statement
     option: (for_option
-      path: (argument
+      (for_flag)
+      argument: (argument
         (text)))
     variable: (loop_variable)
     set: (for_set
@@ -71,7 +73,8 @@ for /d %%d in (*) do echo %%d
 
 (program
   (for_statement
-    option: (for_option)
+    option: (for_option
+      (for_flag))
     variable: (loop_variable)
     set: (for_set
       (argument
@@ -92,7 +95,9 @@ for /f "tokens=1,2 delims=," %%a in (data.csv) do echo %%a %%b
 (program
   (for_statement
     option: (for_option
-      options: (string))
+      (for_flag)
+      argument: (argument
+        (string)))
     variable: (loop_variable)
     set: (for_set
       (argument
@@ -115,7 +120,9 @@ for /f "usebackq" %%L in (`dir /b`) do echo %%L
 (program
   (for_statement
     option: (for_option
-      options: (string))
+      (for_flag)
+      argument: (argument
+        (string)))
     variable: (loop_variable)
     set: (for_set
       (backquote_string))
@@ -147,3 +154,74 @@ for %%g in (a b) do (
         name: (command_name)
         argument: (argument
           (loop_variable))))))
+
+===============================
+for variable is any single char
+===============================
+
+for %%# in (1 2) do echo %%#
+
+---
+
+(program
+  (for_statement
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=====================================
+for /f caret-escaped unquoted options
+=====================================
+
+for /f tokens^=2-5^ delims^=.-_ %%j in (data) do echo %%j
+
+---
+
+(program
+  (for_statement
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (text)
+        (escape_sequence)
+        (text)
+        (escape_sequence)
+        (text)
+        (escape_sequence)
+        (text)))
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+================================
+for /l with non-comma separators
+================================
+
+for /l %%A in (1;1=5) do echo %%A
+
+---
+
+(program
+  (for_statement
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable)
+    set: (for_set
+      (argument
+        (text)))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))

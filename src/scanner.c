@@ -16,12 +16,16 @@
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
 // command/set is expected and literal in an argument; `)` closes a block only
-// when one is open (depth > 0) — and a literal `(` in an argument must protect
-// its matching `)` even when nested inside a block. We mirror cmd by tracking a
-// stack of open parens, recording for each whether it is a structural block or
-// a literal paren, and emitting BLOCK_CLOSE vs RPAREN according to the stack
-// top. `(` vs literal is chosen from `valid_symbols` (the grammar only allows a
-// block-open where a command/set may begin).
+// when one is open (depth > 0). This mirrors cmd's tokenizer (see ReactOS
+// base/shell/cmd/parser.c): a `(` only begins a block at the start of a command
+// token; a `(` appearing mid-argument is just a literal character and does NOT
+// increase the block-nesting depth. Conversely, while inside a block, the first
+// unescaped `)` always closes it — a literal `(` in an argument never protects a
+// later `)`. (That is exactly why cmd requires `^)` to echo a close-paren inside
+// a block.) So we track only a single depth counter of open *blocks*: `(` vs
+// literal is chosen from `valid_symbols` (the grammar offers a block-open only
+// where a command/set may begin), and a `)` is BLOCK_CLOSE whenever a block is
+// open (preferred over a literal RPAREN), else a literal RPAREN at depth 0.
 
 enum TokenType {
   CONCAT,
@@ -32,12 +36,8 @@ enum TokenType {
   RPAREN,
 };
 
-// Up to 64 levels of paren nesting are tracked precisely (a bit per level:
-// 1 = structural block, 0 = literal). Deeper nesting degrades to "block",
-// which real scripts never reach.
 typedef struct {
-  uint32_t depth;
-  uint64_t kinds;
+  uint32_t depth; // number of currently-open structural blocks
 } Scanner;
 
 void *tree_sitter_cmd_external_scanner_create(void) {
@@ -49,12 +49,8 @@ void tree_sitter_cmd_external_scanner_destroy(void *payload) { free(payload); }
 
 unsigned tree_sitter_cmd_external_scanner_serialize(void *payload, char *buffer) {
   Scanner *s = payload;
-  unsigned n = 0;
-  memcpy(buffer + n, &s->depth, sizeof(s->depth));
-  n += sizeof(s->depth);
-  memcpy(buffer + n, &s->kinds, sizeof(s->kinds));
-  n += sizeof(s->kinds);
-  return n;
+  memcpy(buffer, &s->depth, sizeof(s->depth));
+  return sizeof(s->depth);
 }
 
 void tree_sitter_cmd_external_scanner_deserialize(void *payload,
@@ -62,37 +58,8 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
                                                   unsigned length) {
   Scanner *s = payload;
   s->depth = 0;
-  s->kinds = 0;
-  if (length >= sizeof(s->depth) + sizeof(s->kinds)) {
-    unsigned n = 0;
-    memcpy(&s->depth, buffer + n, sizeof(s->depth));
-    n += sizeof(s->depth);
-    memcpy(&s->kinds, buffer + n, sizeof(s->kinds));
-  }
-}
-
-static void push_paren(Scanner *s, bool is_block) {
-  if (s->depth < 64) {
-    if (is_block) {
-      s->kinds |= (uint64_t)1 << s->depth;
-    } else {
-      s->kinds &= ~((uint64_t)1 << s->depth);
-    }
-  }
-  s->depth++;
-}
-
-static bool top_is_block(Scanner *s) {
-  uint32_t i = s->depth - 1;
-  if (i < 64) {
-    return (s->kinds >> i) & 1;
-  }
-  return true; // overflow: treat as block
-}
-
-static void pop_paren(Scanner *s) {
-  if (s->depth > 0) {
-    s->depth--;
+  if (length >= sizeof(s->depth)) {
+    memcpy(&s->depth, buffer, sizeof(s->depth));
   }
 }
 
@@ -182,15 +149,16 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if (c == '(') {
+    // A block-open only where the grammar expects a command/set to begin;
+    // otherwise the `(` is a literal paren that does not nest.
     if (valid_symbols[BLOCK_OPEN]) {
       lexer->advance(lexer, false);
-      push_paren(s, true);
+      s->depth++;
       lexer->result_symbol = BLOCK_OPEN;
       return true;
     }
     if (valid_symbols[LPAREN]) {
       lexer->advance(lexer, false);
-      push_paren(s, false);
       lexer->result_symbol = LPAREN;
       return true;
     }
@@ -198,36 +166,17 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if (c == ')') {
-    if (s->depth > 0) {
-      bool block = top_is_block(s);
-      if (block && valid_symbols[BLOCK_CLOSE]) {
-        lexer->advance(lexer, false);
-        pop_paren(s);
-        lexer->result_symbol = BLOCK_CLOSE;
-        return true;
-      }
-      if (!block && valid_symbols[RPAREN]) {
-        lexer->advance(lexer, false);
-        pop_paren(s);
-        lexer->result_symbol = RPAREN;
-        return true;
-      }
-      // Fallbacks for states where only one form is offered.
-      if (valid_symbols[BLOCK_CLOSE]) {
-        lexer->advance(lexer, false);
-        pop_paren(s);
-        lexer->result_symbol = BLOCK_CLOSE;
-        return true;
-      }
-      if (valid_symbols[RPAREN]) {
-        lexer->advance(lexer, false);
-        pop_paren(s);
-        lexer->result_symbol = RPAREN;
-        return true;
-      }
-      return false;
+    // While a block is open, the first unescaped `)` closes it — prefer
+    // BLOCK_CLOSE over a literal RPAREN so literal `(` in arguments never
+    // protect a later `)` inside a block (matching cmd).
+    if (s->depth > 0 && valid_symbols[BLOCK_CLOSE]) {
+      lexer->advance(lexer, false);
+      s->depth--;
+      lexer->result_symbol = BLOCK_CLOSE;
+      return true;
     }
-    // depth 0: a `)` can only be literal text.
+    // Otherwise (depth 0, or a state that only admits a literal here) a `)` is
+    // literal text and does not change the block depth.
     if (valid_symbols[RPAREN]) {
       lexer->advance(lexer, false);
       lexer->result_symbol = RPAREN;

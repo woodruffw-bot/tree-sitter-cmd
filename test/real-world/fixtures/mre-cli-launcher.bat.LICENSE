@@ -1,0 +1,15 @@
+ORIGINAL Minimal Reproducible Example authored for tree-sitter-cmd.
+
+File:           mre-cli-launcher.bat
+Provenance:     Original work, part of this repository (no third party).
+SPDX-License-Identifier: MIT
+Copyright (c) tree-sitter-cmd contributors
+
+This MRE distills the cmd idioms of self-locating launcher scripts such as Elasticsearch's bin/elasticsearch-env.bat, whose upstream license
+(Elastic-2.0 / SSPL-1.0) prevents vendoring the real file verbatim. No third-party text is
+reproduced; it exists as an independent zero-ERROR parse-regression case for:
+  - resolving the script's own directory via `%0` and `%%~dpI`
+  - the `:label` + `goto :label` walk-up loop
+  - negative-index substring expansion (`%VAR:~1,-1%`)
+  - delayed-expansion classpath building (`!HOME!\lib\*`)
+  - build-filter placeholders left literal (`@project.version@`)

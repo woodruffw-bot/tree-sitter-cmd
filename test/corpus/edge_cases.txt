@@ -194,13 +194,11 @@ echo.version(s) of the tool
     argument: (argument
       (text))))
 
-================================
-literal parens nested in a block
-================================
+====================================
+blank-line echo idiom inside a block
+====================================
 
-(
-  echo (note)
-)
+(echo()
 
 ---
 
@@ -209,10 +207,23 @@ literal parens nested in a block
     (command
       name: (command_name)
       argument: (argument
-        (text)
-        (text))
-      argument: (argument
         (text)))))
+
+======================
+stacked quiet prefixes
+======================
+
+@@echo off
+
+---
+
+(program
+  quiet: (quiet)
+  quiet: (quiet)
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
 
 ================================
 set name containing an expansion

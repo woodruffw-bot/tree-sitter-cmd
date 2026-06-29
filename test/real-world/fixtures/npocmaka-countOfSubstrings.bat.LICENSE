@@ -1,0 +1,13 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           npocmaka-countOfSubstrings.bat
+Upstream:       npocmaka/batch.scripts (stringutils/countOfSubstrings.bat)
+Source:         https://github.com/npocmaka/batch.scripts/blob/master/stringutils/countOfSubstrings.bat
+SPDX-License-Identifier: MIT
+Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
+Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+
+Notable for tree-sitter-cmd because it exercises: nested delayed expansion in counting loops

@@ -44,6 +44,10 @@ const PREC = {
 const TILDE_MODS = '[dpnxfsatzDPNXFSATZ]*';
 // An optional `$ENV:` PATH-search clause inside a %~ expansion.
 const PATH_SEARCH = '(?:\\$[A-Za-z_][^:\\r\\n]*:)?';
+// A FOR loop variable name is a single character — cmd accepts almost anything,
+// not just letters (e.g. `%%#`, `%%1`/`%%2` from `tokens=1,2`, `%%@`). Exclude
+// only whitespace, `%`, the modifier sigils `~`/`*`, operators, `=` and quotes.
+const FOR_VAR = '[^ \\t\\r\\n%~*&|<>()="]';
 
 /** Build a case-insensitive regexp source for a literal word. */
 function ciSource(word) {
@@ -149,10 +153,11 @@ module.exports = grammar({
       ),
 
     // A `@` echo-suppress prefix may precede any command form, not just a
-    // plain command (e.g. `@rem`, `@if`, `@echo off`).
+    // plain command (e.g. `@rem`, `@if`, `@echo off`). cmd accepts the prefix
+    // stacked (`@@fc ...`), each `@` a redundant suppression, so allow a run.
     _unit: ($) =>
       seq(
-        optional(field('quiet', $.quiet)),
+        repeat(field('quiet', $.quiet)),
         choice(
           $.command,
           $.block,
@@ -287,12 +292,26 @@ module.exports = grammar({
         ),
       ),
 
+    // FOR options. `/R [path]` takes an optional unquoted path; `/F [options]`
+    // takes an optional quoted option string. NOTE: cmd also accepts caret-
+    // escaped *unquoted* `/F` options (`for /f tokens^=2-5^ delims^=.-_^" ...`),
+    // but a tree-sitter lexer-state asymmetry makes only one for-flag able to
+    // accept a bareword argument (here `/R`, which needs it for paths), so the
+    // unquoted `/F` option form is a documented limitation (GRAMMAR_DESIGN §8).
     for_option: ($) =>
       choice(
-        opt('/d'),
-        seq(opt('/r'), optional(field('path', $.argument))),
-        opt('/l'),
-        seq(opt('/f'), optional(field('options', $.string))),
+        alias(opt('/d'), $.for_flag),
+        alias(opt('/l'), $.for_flag),
+        seq(
+          alias(choice(opt('/r'), opt('/f')), $.for_flag),
+          optional(field('argument', alias($._for_arg, $.argument))),
+        ),
+      ),
+
+    _for_arg: ($) =>
+      seq(
+        choice(alias($._cmd_text, $.text), $._fragment),
+        repeat(seq($._concat, $._fragment)),
       ),
 
     for_set: ($) =>
@@ -304,12 +323,18 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // GOTO / CALL
     // ---------------------------------------------------------------------
-    // GOTO label  /  GOTO :EOF
+    // GOTO label  /  GOTO :EOF. cmd ignores trailing tokens/separators after
+    // the label (e.g. `goto :loop ;`), so tolerate trailing arguments.
     goto_statement: ($) =>
       prec.right(
         seq(
           kw('goto'),
-          optional(field('target', $.argument)),
+          optional(
+            seq(
+              field('target', $.argument),
+              repeat(field('argument', $.argument)),
+            ),
+          ),
           repeat(field('redirect', $.redirection)),
         ),
       ),
@@ -461,7 +486,7 @@ module.exports = grammar({
       token(new RegExp('%~' + TILDE_MODS + PATH_SEARCH + '[0-9]')),
     // %%x FOR loop variable (batch context), optionally with ~modifiers.
     loop_variable: ($) =>
-      token(new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?[A-Za-z]')),
+      token(new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?' + FOR_VAR)),
     // %% literal percent sign.
     percent_literal: ($) => token(/%%/),
 

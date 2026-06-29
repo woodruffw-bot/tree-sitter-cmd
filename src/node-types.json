@@ -448,17 +448,7 @@
     "type": "for_option",
     "named": true,
     "fields": {
-      "options": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "string",
-            "named": true
-          }
-        ]
-      },
-      "path": {
+      "argument": {
         "multiple": false,
         "required": false,
         "types": [
@@ -468,6 +458,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "for_flag",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -546,7 +546,7 @@
         ]
       },
       "quiet": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -581,6 +581,16 @@
     "type": "goto_statement",
     "named": true,
     "fields": {
+      "argument": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      },
       "redirect": {
         "multiple": true,
         "required": false,
@@ -1573,6 +1583,10 @@
     "named": true
   },
   {
+    "type": "for_flag",
+    "named": true
+  },
+  {
     "type": "if_flag",
     "named": true
   },
@@ -1583,10 +1597,6 @@
   {
     "type": "keyword",
     "named": true
-  },
-  {
-    "type": "keyword",
-    "named": false
   },
   {
     "type": "label_name",

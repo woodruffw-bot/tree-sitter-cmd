@@ -12,12 +12,14 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 
 ## Status
 
-Stress-tested against 80+ well-known real-world batch scripts from across the
-ecosystem. The committed regression corpus (`test/real-world/`) holds **27 of
+Stress-tested against 160+ well-known real-world batch scripts from across the
+ecosystem. The committed regression corpus (`test/real-world/`) holds **37 of
 them — all parsing with zero error nodes**, including the notoriously tricky
 `gradlew.bat`, the 333-line `mvn.cmd`, a 579-line LLVM release script, Node's
-989-line `vcbuild.bat`, and classics from Apache Tomcat / Kafka / Spark / Ant,
-Go, Flutter, CPython, pyenv-win and .NET:
+989-line `vcbuild.bat`, classics from Apache Tomcat / Kafka / Spark / Ant, Go,
+Flutter, CPython, pyenv-win and .NET, and a curated slice of the
+[`npocmaka/batch.scripts`](https://github.com/npocmaka/batch.scripts) cmd
+torture-test collection:
 
 | Script | Lines | Errors |
 |--------|------:|-------:|
@@ -31,8 +33,18 @@ Go, Flutter, CPython, pyenv-win and .NET:
 
 The broader sweep surfaced (and fixed) several real edge cases — SET names
 containing expansions (`set err%%i=`), the `set /p=` print-without-newline
-idiom, redirections on `call`, and quoted SET values with embedded quotes
-(`set "x="y" !z!"`).
+idiom, redirections on `call`, quoted SET values with embedded quotes
+(`set "x="y" !z!"`), caret-escaped unquoted `FOR /F` options
+(`for /f tokens^=2-5^ delims^=.-_ %%j in (...)`), stacked `@@` quiet prefixes,
+non-comma `FOR /L` separators (`(1;1=5)`), single-character `FOR` variables of
+any kind (`%%#`, `%%1`), and — most importantly — the cmd-accurate block-vs-
+literal parenthesis model that makes the `(echo()` robust blank-line idiom and
+`echo (parenthesised)` arguments parse the way cmd actually runs them.
+
+Where vendoring a script's license forbids checking it in (e.g. Elasticsearch
+is Elastic-2.0 / SSPL), the corpus instead carries an independent, hand-authored
+**MRE** (`fixtures/mre-*.bat`) that distills the same idioms without copying any
+third-party text.
 
 ## Features
 
@@ -58,10 +70,13 @@ The grammar models:
 - **Comments** — `REM` (rest-of-line, including special characters) and `::`.
 - **Escaping** — the caret `^x` escape and `^`-newline line continuation,
   double-quoted strings (quotes group; cmd does not strip them).
-- **Context-sensitive parentheses** — `(` opens a block where a command is
-  expected but is literal in an argument (`echo (text)`), and `)` closes a
-  block only at the matching nesting depth, so literal parens balance even
-  inside blocks (`( echo (x) )`). Tracked by the external scanner.
+- **Context-sensitive parentheses** — `(` opens a block only where a command is
+  expected; in an argument it is a literal character that does **not** nest
+  (`echo (text)`). While a block is open, the first unescaped `)` closes it — a
+  literal `(` in an argument never protects a later `)`, exactly as in cmd
+  (which is why cmd needs `^)` to echo a close-paren inside a block, and why the
+  `(echo()` blank-line idiom is a block whose body is the command `echo(`).
+  Tracked by the external scanner as a block-depth counter.
 
 Keyword/command disambiguation uses tree-sitter keyword extraction, so
 `set` is the keyword but `setlocal` is a command, `rem` is a comment but
@@ -97,7 +112,7 @@ Rust, Python, Go and Swift bindings are also generated under `bindings/`.
 
 Two layers of tests:
 
-1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 72
+1. **Unit corpus** — `test/corpus/*.txt`, run with `tree-sitter test`. 83
    focused cases across every construct, each with an expected S-expression.
 2. **Real-world regression** — `test/real-world/` is a committed corpus of
    known-good upstream scripts, parsed against per-file ERROR-node budgets:
@@ -108,8 +123,9 @@ Two layers of tests:
 
    The fixtures are third-party, included verbatim as test input only; each has
    a sibling `<file>.LICENSE` recording its origin and license (the corpus
-   spans Apache-2.0, MIT, BSD-3, Artistic-2.0, PSF and GPL-2.0). See
-   `test/real-world/README.md`.
+   spans Apache-2.0, MIT, BSD-3, Artistic-2.0, PSF and GPL-2.0). Scripts whose
+   licenses forbid vendoring are represented by original `mre-*.bat` MREs
+   instead. See `test/real-world/README.md`.
 
 ## Known limitations
 
@@ -126,12 +142,19 @@ on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
   is not sub-noded.
 - **Line continuations** join adjacent fragments into one argument node across
   the `^`-newline.
+- **`SET name=value` with spaces in the name** (`set sim salabim=x`, a valid but
+  rare cmd form) is not modelled; the name token stops at whitespace.
+- **Caret-escaped `%VAR%` inside `FOR /F` options** (`for /f eol^=^%LF%%LF%^ …`)
+  and variables whose name is a literal newline (`%\n%` macros) are not
+  supported — both are torture-test tricks rather than mainstream batch.
+- **An escaped `^)` inside a multi-line block** can still mis-close the block in
+  some positions (the literal-paren-in-block edge of the model above).
 
 ## Layout
 
 ```
 grammar.js              the grammar
-src/scanner.c           external scanner (CONCAT word-join, REM keyword)
+src/scanner.c           external scanner (CONCAT word-join, REM, block parens)
 queries/                highlights.scm, injections.scm
 test/corpus/            unit test corpus
 test/real-world/        real-world regression harness
