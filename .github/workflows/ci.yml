@@ -28,6 +28,29 @@ jobs:
       - name: Real-world parse regression
         run: bash test/real-world/check.sh
 
+  generated:
+    name: Generated parser up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Regenerate parser
+        run: npx tree-sitter generate
+
+      - name: Check committed src/ is in sync with grammar.js
+        run: |
+          if ! git diff --exit-code -- src/; then
+            echo "::error::Committed parser in src/ is stale. Run 'tree-sitter generate' and commit the result."
+            exit 1
+          fi
+
   rust:
     name: Rust crate
     runs-on: ubuntu-latest
