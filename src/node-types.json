@@ -1410,9 +1410,59 @@
           {
             "type": "argument",
             "named": true
+          },
+          {
+            "type": "string",
+            "named": true
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "all_arguments",
+          "named": true
+        },
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "loop_variable",
+          "named": true
+        },
+        {
+          "type": "parameter",
+          "named": true
+        },
+        {
+          "type": "parameter_tilde",
+          "named": true
+        },
+        {
+          "type": "percent_literal",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
     }
   },
   {

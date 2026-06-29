@@ -1357,56 +1357,90 @@
       ]
     },
     "set_prompt": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "TOKEN",
-          "content": {
-            "type": "PREC",
-            "value": 3,
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "TOKEN",
             "content": {
-              "type": "PATTERN",
-              "value": "\\/[pP]"
-            }
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "name",
+              "type": "PREC",
+              "value": 3,
               "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "_set_name"
-                },
-                "named": true,
-                "value": "variable_name"
+                "type": "PATTERN",
+                "value": "\\/[pP]"
               }
-            },
-            {
-              "type": "BLANK"
             }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "="
-        },
-        {
-          "type": "REPEAT",
-          "content": {
-            "type": "FIELD",
-            "name": "prompt",
-            "content": {
-              "type": "SYMBOL",
-              "name": "argument"
-            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "FIELD",
+                        "name": "name",
+                        "content": {
+                          "type": "ALIAS",
+                          "content": {
+                            "type": "SYMBOL",
+                            "name": "_set_name"
+                          },
+                          "named": true,
+                          "value": "variable_name"
+                        }
+                      },
+                      {
+                        "type": "BLANK"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "STRING",
+                    "value": "="
+                  },
+                  {
+                    "type": "REPEAT",
+                    "content": {
+                      "type": "FIELD",
+                      "name": "prompt",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "argument"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "prompt",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "type": "REPEAT",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_fragment"
+                    }
+                  }
+                ]
+              }
+            ]
           }
-        }
-      ]
+        ]
+      }
     },
     "set_arith": {
       "type": "SEQ",

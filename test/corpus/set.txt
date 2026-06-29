@@ -75,6 +75,19 @@ set /p name=Enter name:
         (text)))))
 
 ====================
+quoted prompt
+====================
+
+set /p "answer=Enter your choice: "
+
+---
+
+(program
+  (set_statement
+    (set_prompt
+      prompt: (string))))
+
+====================
 display all
 ====================
 

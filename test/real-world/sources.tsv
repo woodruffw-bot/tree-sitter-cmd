@@ -57,3 +57,4 @@
 # idioms from scripts whose licenses prevent vendoring them verbatim.
 0	mre-cli-launcher.bat	(original MRE — see mre-cli-launcher.bat.LICENSE)
 0	mre-classpath-builder.bat	(original MRE — see mre-classpath-builder.bat.LICENSE)
+0	mre-interactive-menu.bat	(original MRE — see mre-interactive-menu.bat.LICENSE)

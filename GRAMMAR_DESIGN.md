@@ -721,6 +721,11 @@ corpus and a 160+-file sweep):
   the block (cmd's documented escape); `( echo a^) b )` and the multi-line form
   parse correctly. (An earlier note claimed this could mis-close — that was a
   test artifact from a doubled caret `^^`, not a real defect.)
+- **Quoted `SET /P "name=prompt"`** parses (the prompt may carry trailing
+  spaces, e.g. `set /p "answer=Enter choice: "`). `set_prompt` accepts either
+  the unquoted `name=prompt` or a leading quoted string, the latter modelled
+  like `set_quoted`. Found by the 34-repo discovery sweep (WiX launchers); it
+  was the only confirmed-fixable gap in ~450 newly-swept scripts.
 
 Live limitations (also in `README.md`):
 

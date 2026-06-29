@@ -12,12 +12,18 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 
 ## Status
 
-Stress-tested against 160+ well-known real-world batch scripts from across the
-ecosystem. The committed regression corpus (`test/real-world/`) holds **37 of
-them — all parsing with zero error nodes**, including the notoriously tricky
-`gradlew.bat`, the 333-line `mvn.cmd`, a 579-line LLVM release script, Node's
-989-line `vcbuild.bat`, classics from Apache Tomcat / Kafka / Spark / Ant, Go,
-Flutter, CPython, pyenv-win and .NET, and a curated slice of the
+Stress-tested against 600+ well-known real-world batch scripts from across the
+ecosystem — including a 34-repo sweep (Apache HBase/Cassandra/Storm/Flink/Groovy/
+Lucene/ZooKeeper/Tomcat/Ant, Qt's `configure.bat`, Hadoop, CMake, WiX, Inno
+Setup, Chocolatey, nvm-windows, Boost, curl, godot, dotnet/aspnetcore, and more)
+in which the grammar parsed every mainstream script cleanly; the only residual
+failures were a genuinely-quoted `SET /P` form (now fixed), OS/2 REXX files that
+merely share the `.cmd` extension, and a PowerShell polyglot. The committed
+regression corpus (`test/real-world/`) holds **38 of these — all parsing with
+zero error nodes**, including the notoriously tricky `gradlew.bat`, the 333-line
+`mvn.cmd`, a 579-line LLVM release script, Node's 989-line `vcbuild.bat`,
+classics from Apache Tomcat / Kafka / Spark / Ant, Go, Flutter, CPython,
+pyenv-win and .NET, and a curated slice of the
 [`npocmaka/batch.scripts`](https://github.com/npocmaka/batch.scripts) cmd
 torture-test collection:
 
@@ -62,8 +68,9 @@ The grammar models:
   `EXIST`/`DEFINED`/`ERRORLEVEL`/`CMDEXTVERSION`, single-line & block, `ELSE`,
   nesting, the `if (%1)==()` idiom); `FOR` (`/D`, `/R [path]`, `/L`, `/F` with
   options or a `` `command` ``); `GOTO`/`CALL` and labels.
-- **The SET family** — `SET name=value`, `SET /A`, `SET /P`, quoted `SET "x=y"`,
-  display forms, and trailing redirections.
+- **The SET family** — `SET name=value`, `SET /A`, `SET /P` (both `SET /P n=msg`
+  and the quoted `SET /P "n=msg"` prompt form), quoted `SET "x=y"`, display
+  forms, and trailing redirections.
 - **Expansions** — `%VAR%` and `%VAR:...%` (substring/substitution), delayed
   `!VAR!`, positional `%0`–`%9`, `%*`, `%~`-modifiers (`%~dp0`, `%~$PATH:1`),
   FOR variables `%%i`, and the `%%` literal.

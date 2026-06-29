@@ -1,0 +1,13 @@
+ORIGINAL Minimal Reproducible Example authored for tree-sitter-cmd.
+
+File:           mre-interactive-menu.bat
+Provenance:     Original work, part of this repository (no third party).
+SPDX-License-Identifier: MIT
+Copyright (c) tree-sitter-cmd contributors
+
+Distills the interactive-launcher idioms of menu/sandbox scripts such as the
+WiX Toolset sandbox launchers (MS-RL, reciprocal — not vendorable verbatim).
+No third-party text is reproduced. Independent zero-ERROR parse-regression for:
+  - the quoted `set /p "name=prompt"` form (prompt carrying trailing spaces)
+  - delayed-expansion menu state with `if /i "!answer!"=="q"` dispatch
+  - blocks combining `&` with `goto`, and FOR /F usebackq over a command

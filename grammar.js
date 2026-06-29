@@ -379,13 +379,23 @@ module.exports = grammar({
         repeat(field('value', $.argument)),
       ),
     // SET /P [name]=prompt. The name may be empty (the `<nul set /p=text` trick
-    // for printing without a trailing newline).
+    // for printing without a trailing newline). cmd also accepts the prompt in
+    // the quoted `"name=prompt"` form (so the prompt can hold spaces, e.g.
+    // `set /p "answer=Enter choice: "`); the quoted span runs first-quote to
+    // last-quote like SET "x=y", so model that branch like set_quoted.
     set_prompt: ($) =>
-      seq(
-        opt('/p'),
-        optional(field('name', alias($._set_name, $.variable_name))),
-        '=',
-        repeat(field('prompt', $.argument)),
+      prec.right(
+        seq(
+          opt('/p'),
+          choice(
+            seq(
+              optional(field('name', alias($._set_name, $.variable_name))),
+              '=',
+              repeat(field('prompt', $.argument)),
+            ),
+            seq(field('prompt', $.string), repeat($._fragment)),
+          ),
+        ),
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
     set_arith: ($) => seq(opt('/a'), repeat(field('expression', $.argument))),
