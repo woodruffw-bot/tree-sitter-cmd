@@ -232,9 +232,12 @@ semantics are runtime.
 `REM` is a whole-word keyword followed by a delimiter and a free body to
 end-of-line. The body surfaces `%VAR%`/`!VAR!` for highlighting but is otherwise
 opaque, and does not honor line continuation (cmd's `ParseRem` does not splice).
-`::` is a degenerate label at statement start with optional leading delimiters.
-`::` inside a block is unsafe in real cmd, but the grammar parses it without
-cascading; a linter layer could warn.
+`::` is a degenerate label used as a comment. It is a statement, so it is
+accepted both at the start of a line and after an operator, matching the common
+`dir &:: note` inline-comment idiom (the same position the `& rem` form already
+worked in). Like `REM` it runs to end of line, so any later `&`/`|` is part of
+the comment. `::` inside a block is unsafe in real cmd, but the grammar parses it
+without cascading; a linter layer could warn.
 
 ### SET /A
 

@@ -58,10 +58,6 @@
         {
           "type": "SYMBOL",
           "name": "label"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "colon_comment"
         }
       ]
     },
@@ -94,6 +90,10 @@
         {
           "type": "SYMBOL",
           "name": "pipeline"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "colon_comment"
         }
       ]
     },

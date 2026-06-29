@@ -66,3 +66,20 @@ echo hi & rem trailing
     right: (rem_comment
       (keyword)
       (comment_text))))
+
+============================
+inline colon comment after operator
+============================
+
+echo hi &:: trailing
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (colon_comment
+      (comment_text))))
