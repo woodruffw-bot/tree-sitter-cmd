@@ -161,7 +161,10 @@ Handled by **plain `grammar.js`**:
 - Variable references (`%VAR%`, `!VAR!`, `%N`, `%*`, `%~mods`, `%%x`,
   `:~`/`:=` operators) as a `choice`, wrapped with `token.immediate` for
   adjacency/concatenation.
-- Line continuation `token(/\^\r?\n[ \t]*/)`.
+- Line continuation as an **anonymous, invisible** extra `token(/\^\r?\n/)`
+  (tree-sitter-bash models `\\\n` the same way). It produces no node and is
+  transparent to word adjacency, so `echo a ^\nb` is two arguments while
+  `echo a^\nb` is the single word `ab` (see §4.1).
 - Caret escapes of a single following metacharacter `^[&|<>()^"]` as a fixed
   token.
 - Case-insensitive keywords via `ci()`.
@@ -173,8 +176,12 @@ Handled by **plain `grammar.js`**:
 - `_concat` — general no-whitespace fragment concatenation into one `argument`
   (mirror tree-sitter-bash). Needed only if `token.immediate` adjacency proves
   insufficient for arbitrary `bareword%VAR%"q"!V!` runs.
-- `_line_continuation` — if the regex form interacts badly with mid-token joins
-  (the caret can splice *inside* a token).
+- `_line_continuation` — *not needed.* Making the continuation a **named**
+  (visible or `_`-hidden) extra makes tree-sitter re-offer the `_concat`
+  adjacency token across it, so `echo a ^\nb` wrongly glues into one word. The
+  fix is the tree-sitter-bash approach: an **anonymous** token in `extras`
+  (`token(/\^\r?\n/)`), which is transparent to adjacency, so a space before the
+  caret still splits and only a true mid-token splice joins. No scanner token.
 - `_caret_escape` — caret that rebinds the role of the *following separator*
   (the genuinely context-sensitive case the regex `^[&|<>()^"]` does not cover,
   e.g. `^ ` producing a non-delimiter space).
@@ -192,7 +199,8 @@ If/when a scanner is written, these are the tokens it would own (names are the
 ```
 externals: $ => [
   $._concat,            // adjacency join (no whitespace) of argument fragments
-  $._line_continuation, // ^ \r? \n [ \t]*  spliced mid-token
+  // NB: line continuation is NOT a scanner token — it is an anonymous,
+  // invisible extra `token(/\^\r?\n/)` (see §4.1), transparent to `_concat`.
   $._caret_escape,      // ^ <char> where <char>'s ROLE changes (esp. separators)
   $._echo_body,         // free text to unescaped EOL after ECHO
   $._rem_body,          // free text to unescaped EOL after REM
@@ -405,12 +413,28 @@ from `:name` (label) by what follows the first colon.
 Two distinct mechanisms:
 
 - **Line continuation** `^\n`: caret as last char before newline splices the
-  next physical line. Model as `_line_continuation = token(/\^\r?\n[ \t]*/)` and
-  allow it inside `_argument` and between fragments. Because cmd resolves this in
-  phase 2 *before* tokenization, it can join *mid-token*; the regex token handles
-  the common case, but the mid-token splice (`echo first^\nsecond` → one token
-  `firstsecond`) is the canonical reason to promote this to the external scanner
-  if the regex creates spurious node boundaries.
+  next physical line. cmd resolves this in phase 2 *before* tokenization, so it
+  is purely lexical: it must be transparent to word boundaries (a continued word
+  is one word; a continued separator still separates). We model it exactly like
+  tree-sitter-bash models `\\\n` — an **anonymous, invisible** extra
+  `token(/\^\r?\n/)`. Consequences:
+  - It produces **no** CST node, so it never litters `argument`, operator lists
+    or `program` with stray nodes (the earlier visible `line_continuation` node
+    did, and was the "not ergonomic" complaint).
+  - It is transparent to the `_concat` adjacency token: `echo a^\nsecond` joins
+    into the single word `asecond` (mid-token splice), while `echo a ^\nsecond`
+    stays two arguments because the space before the caret already ended the
+    first. A *named* extra (visible or `_`-hidden) breaks this — tree-sitter
+    re-offers `_concat` across the node and wrongly glues `a` to `second`.
+  - We deliberately drop the old `[ \t]*` tail: with the node gone its range is
+    invisible anyway, and leading whitespace on the continued line is left to the
+    ordinary `[ \t]` extra, which keeps argument splitting faithful.
+  - Residual imprecision: a *mid-word* caret followed by an indented next line
+    (`echo a^\n   b`) yields the single word `ab`, where cmd would produce
+    `a   b` (two arguments). Once `_concat` fires at the non-boundary `^`, the
+    join is committed before the next line's leading whitespace is seen. This
+    shape is rare; the common `arg ^\n   arg` form (space before the caret) is
+    unaffected.
 - **Mid-line escape** `^x`: makes the following metachar literal. Model the
   common cases as a fixed token `token(/\^[&|<>()^"%!]/)` inside arguments. The
   genuinely hard case — `^` before a **separator** (`^ `, `^,`) turning it into
@@ -669,9 +693,12 @@ Use `tree-sitter test` (`test/corpus/*.txt`) for unit cases and
    is the hardest CF case; the fixed-token approximation may mis-split. Decision
    needed: ship the approximation (M1–M7) and promote to external scanner in M8,
    or write the scanner earlier. Recommendation: defer to M8.
-5. **Mid-token line continuation.** `echo first^\nsecond` should yield one token;
-   regex `_line_continuation` may create a node boundary. Validate in M2; promote
-   to scanner if it produces spurious structure.
+5. **Mid-token line continuation.** *Resolved.* A *named* `line_continuation`
+   extra produced spurious structure and, worse, glued space-separated words
+   (`echo a ^\nb` became one argument). Fixed by modelling it as an anonymous,
+   invisible extra `token(/\^\r?\n/)` — the tree-sitter-bash `\\\n` approach — so
+   `echo a^\nsecond` is the single word `asecond` and `echo a ^\nsecond` stays
+   two arguments, with no node and no scanner token (see §4.1).
 6. **ELSE same-line enforcement.** Encoding "`)` ELSE `(` on one physical line"
    purely via rule shape (no `_newline` between `then` and `_else`) needs
    validation that the negative case (ELSE on next line) yields a clean error

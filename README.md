@@ -147,8 +147,11 @@ on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
   full arithmetic sub-grammar.
 - **String interiors are opaque** — `%VAR%` inside `"…"` expands at runtime but
   is not sub-noded.
-- **Line continuations** join adjacent fragments into one argument node across
-  the `^`-newline.
+- **Line continuation** is an invisible `^`-newline splice (like Bash's
+  `\`-newline): a caret with no preceding space joins the two fragments into one
+  word, while a space before the caret keeps them as separate arguments. The lone
+  residual case is a mid-word caret before an *indented* next line
+  (`echo a^⏎   b`), which joins to `ab` rather than re-splitting on that indent.
 - **`SET name=value` with spaces in the name** (`set sim salabim=x`, a valid but
   rare cmd form) is not modelled; the name token stops at whitespace.
 - **Caret-escaped `%VAR%` inside `FOR /F` options** (`for /f eol^=^%LF%%LF%^ …`)

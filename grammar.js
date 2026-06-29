@@ -5,8 +5,11 @@
  *
  *   - cmd.exe has no whole-file grammar; each physical line is expanded, parsed
  *     and executed in turn. We model the whole file as one CST for tooling.
- *   - `extras` is `[ \t]` plus caret line-continuations only. Newlines are
- *     significant statement terminators.
+ *   - `extras` is `[ \t]` plus an invisible caret line-continuation (`^\n`,
+ *     modelled like tree-sitter-bash's `\\\n`): it splices the next physical
+ *     line without leaving a node, so a continued word is one word and a
+ *     continued separator still separates. Newlines are significant statement
+ *     terminators.
  *   - A "word" (command name / argument) is a run of adjacent fragments: bare
  *     text, quoted strings, caret escapes and expansions. Adjacency without
  *     whitespace is expressed with the zero-width external `_concat` token, so
@@ -100,7 +103,13 @@ module.exports = grammar({
   // Keyword extraction: a keyword only matches when it spans an entire word.
   word: ($) => $._cmd_text,
 
-  extras: ($) => [/[ \t]/, $.line_continuation],
+  // Whitespace and caret line-continuations interleave anywhere. The
+  // continuation `^\n` is an anonymous, invisible extra (tree-sitter-bash treats
+  // `\\\n` the same way): it never appears as a node, so it cannot glue words
+  // that whitespace should split. `echo a ^\nb` is two arguments (the space
+  // ends the first), while `echo a^\nb` is the single word `ab` (the join is
+  // adjacency, handled by `_concat`). See GRAMMAR_DESIGN.md §4.1.
+  extras: ($) => [/[ \t]/, token(/\^\r?\n/)],
 
   conflicts: ($) => [[$.for_option]],
 
@@ -114,9 +123,6 @@ module.exports = grammar({
     _line_content: ($) => choice($._statement, $.label, $.colon_comment),
 
     _newline: ($) => token(/\r?\n/),
-
-    // A caret immediately before a newline splices the next physical line.
-    line_continuation: ($) => token(/\^\r?\n[ \t]*/),
 
     // ---------------------------------------------------------------------
     // Statements and the command-operator ladder.

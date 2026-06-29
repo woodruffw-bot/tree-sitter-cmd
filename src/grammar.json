@@ -72,13 +72,6 @@
         "value": "\\r?\\n"
       }
     },
-    "line_continuation": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "\\^\\r?\\n[ \\t]*"
-      }
-    },
     "_statement": {
       "type": "CHOICE",
       "members": [
@@ -1944,8 +1937,11 @@
       "value": "[ \\t]"
     },
     {
-      "type": "SYMBOL",
-      "name": "line_continuation"
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "\\^\\r?\\n"
+      }
     }
   ],
   "conflicts": [

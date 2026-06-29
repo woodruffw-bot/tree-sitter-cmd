@@ -1649,17 +1649,16 @@
     "named": true
   },
   {
+    "type": "keyword",
+    "named": false
+  },
+  {
     "type": "label_name",
     "named": true
   },
   {
     "type": "label_text",
     "named": true
-  },
-  {
-    "type": "line_continuation",
-    "named": true,
-    "extra": true
   },
   {
     "type": "loop_variable",
