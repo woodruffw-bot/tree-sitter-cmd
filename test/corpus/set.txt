@@ -135,3 +135,41 @@ set sim salabim=magic
       name: (variable_name)
       value: (argument
         (text)))))
+
+============================================
+set /a parentheses stay arithmetic (no block)
+============================================
+
+set /a x=2*(3+4)
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_arith
+      expression: (argument
+        (text))
+      expression: (argument
+        (text)
+        (text))
+      expression: (argument
+        (text)))))
+
+============================================
+set /a bare ampersand splits the command
+============================================
+
+set /a x=a&b
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_arith
+        expression: (argument
+          (text))))
+    right: (command
+      name: (command_name))))
