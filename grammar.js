@@ -98,6 +98,7 @@ module.exports = grammar({
     $._block_close,
     $._lparen,
     $._rparen,
+    $._caret_escape,
   ],
 
   // Keyword extraction: a keyword only matches when it spans an entire word.
@@ -272,6 +273,8 @@ module.exports = grammar({
         $._if_text,
         $.string,
         $.escape_sequence,
+        // A lone caret escaping a following `%`/`!` (e.g. `if ^%V:~0,1% …`).
+        alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
       ),
@@ -298,12 +301,12 @@ module.exports = grammar({
         ),
       ),
 
-    // FOR options. `/R [path]` takes an optional unquoted path; `/F [options]`
-    // takes an optional quoted option string. NOTE: cmd also accepts caret-
-    // escaped *unquoted* `/F` options (`for /f tokens^=2-5^ delims^=.-_^" ...`),
-    // but a tree-sitter lexer-state asymmetry makes only one for-flag able to
-    // accept a bareword argument (here `/R`, which needs it for paths), so the
-    // unquoted `/F` option form is a documented limitation (GRAMMAR_DESIGN §8).
+    // FOR options. `/R [path]` and `/F [options]` each take one optional word.
+    // The option may be quoted (`/f "tokens=2 delims=,"`) or caret-escaped and
+    // unquoted (`/f tokens^=2-5^ delims^=.-_`). A tree-sitter lexer-state
+    // asymmetry lets only one for-flag accept a bareword argument, so `/R`/`/F`
+    // share a single rule with one optional `_for_arg` (which also admits the
+    // command-name word token the lexer offers in that state).
     for_option: ($) =>
       choice(
         alias(opt('/d'), $.for_flag),
@@ -413,8 +416,12 @@ module.exports = grammar({
     set_display: ($) => alias($._set_name, $.variable_name),
 
     // A SET variable name stops at `=` but may contain expansion sigils
-    // (e.g. `err%%i` when building indexed variables inside a FOR loop).
-    _set_name: ($) => token(/[^ \t\r\n&|<>()^"=]+/),
+    // (e.g. `err%%i` when building indexed variables inside a FOR loop) and even
+    // internal spaces — cmd takes everything from after the switch up to the
+    // first `=` as the name (`set sim salabim=magic` names "sim salabim"). The
+    // first char is non-space so the name never starts on the separator after
+    // `SET`, and the `/a`/`/p` switch tokens still win their slot by precedence.
+    _set_name: ($) => token(/[^ \t\r\n&|<>()^"=][^\r\n&|<>()^"=]*/),
 
     // ---------------------------------------------------------------------
     // Redirections
@@ -441,8 +448,12 @@ module.exports = grammar({
       seq($._cmd_lead, repeat(seq($._concat, $._fragment))),
 
     // The first fragment of a command name may not begin with `@` (quiet) or
-    // `:` (label), but may otherwise contain `:` (drive letters, `c:\...`).
-    _cmd_lead: ($) => choice($._cmd_text, $.string, $._expansion),
+    // `:` (label), but may otherwise contain `:` (drive letters, `c:\...`). A
+    // lone `%`/`!` sigil can also lead a name: cmd happily parses `! echo ...`
+    // as a command named `!` (it fails at runtime — a common debug-disable
+    // trick), and `%`/`!` only form an expansion when they actually pair up.
+    _cmd_lead: ($) =>
+      choice($._cmd_text, $.string, $._expansion, alias($._stray_sigil, $.text)),
     _cmd_text: ($) => token(/[^ \t\r\n&|<>()^"%!@:][^ \t\r\n&|<>()^"%!]*/),
 
     argument: ($) => seq($._fragment, repeat(seq($._concat, $._fragment))),
@@ -452,6 +463,8 @@ module.exports = grammar({
         $.text,
         $.string,
         $.escape_sequence,
+        // A lone caret escaping a following `%`/`!` expansion (`echo ^%PATH^%`).
+        alias($._caret_escape, $.escape_sequence),
         $._expansion,
         // A `%` or `!` that is not part of an expansion is literal text.
         alias($._stray_sigil, $.text),
@@ -464,8 +477,14 @@ module.exports = grammar({
     text: ($) => token(/[^ \t\r\n&|<>()^"%!]+/),
     _stray_sigil: ($) => token(/[%!]/),
 
-    // A caret escapes the single following (non-newline) character.
-    escape_sequence: ($) => token(/\^[^\r\n]/),
+    // A caret escapes the single following character — but NOT a `%`/`!` that
+    // begins an expansion: in cmd `^%VAR%` expands `%VAR%` first and the caret
+    // escapes the *result*, so the caret must not swallow the opening sigil (or
+    // the now-unbalanced `%`/`!` makes a later one match greedily across the
+    // line). So `^&`, `^"`, `^^`, `^)` escape their char here, while a caret
+    // before `%`/`!` is a lone `_caret_escape` (external) followed by the
+    // expansion, and `^`-newline is the line-continuation extra.
+    escape_sequence: ($) => token(/\^[^\r\n%!]/),
 
     // cmd does not strip quotes; they only group. An unterminated quote runs to
     // end of line. Modelled as a single token (the interior is opaque for now —
