@@ -18,6 +18,10 @@
 //                  result, so the caret must not swallow the `%`/`!`; we emit it
 //                  as a one-char token (the grammar's `escape_sequence` handles
 //                  `^X` for any other X, and `^`-newline is line continuation).
+//   STRING_END   - the terminator of a double-quoted string. Inside a string the
+//                  grammar offers this token; we consume a closing `"`, or match
+//                  zero-width at end of line / end of input so an unterminated
+//                  quote still closes (cmd runs an open quote to end of line).
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
 // command/set is expected and literal in an argument; `)` closes a block only
@@ -40,6 +44,7 @@ enum TokenType {
   LPAREN,
   RPAREN,
   CARET_ESCAPE,
+  STRING_END,
 };
 
 typedef struct {
@@ -133,6 +138,29 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       !is_word_boundary(lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;
+  }
+
+  // STRING_END: terminate a double-quoted string. Checked before whitespace
+  // skipping because an interior space is string text, not a separator. Consume
+  // a closing `"`, or match zero-width at a newline / end of input so an
+  // unterminated quote still closes. Any other character is left for the
+  // interior string-part tokens.
+  if (valid_symbols[STRING_END]) {
+    if (lexer->eof(lexer)) {
+      lexer->result_symbol = STRING_END;
+      return true;
+    }
+    int32_t la = lexer->lookahead;
+    if (la == '"') {
+      lexer->advance(lexer, false);
+      lexer->result_symbol = STRING_END;
+      return true;
+    }
+    if (la == '\r' || la == '\n') {
+      lexer->result_symbol = STRING_END;
+      return true;
+    }
+    return false;
   }
 
   bool want_rem = valid_symbols[REM];

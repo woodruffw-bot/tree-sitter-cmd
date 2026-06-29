@@ -1,0 +1,116 @@
+============================
+quoted variable expansion
+============================
+
+echo "%PATH%"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string
+        (variable)))))
+
+============================
+quoted delayed expansion
+============================
+
+echo "!ERRORLEVEL!"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string
+        (delayed_variable)))))
+
+============================
+expansion among literal text
+============================
+
+echo "dir is %CD% now"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string
+        (variable)))))
+
+============================
+empty string
+============================
+
+echo ""
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))))
+
+============================
+plain string has no children
+============================
+
+echo "plain text"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))))
+
+============================
+string glued to bare words
+============================
+
+echo C:\"Program Files"\app.exe
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (string)
+      (text))))
+
+============================
+unterminated quote runs to end of line
+============================
+
+echo "unterminated %VAR
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))))
+
+============================
+lone percent is literal in a string
+============================
+
+echo "discount 50% today"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))))

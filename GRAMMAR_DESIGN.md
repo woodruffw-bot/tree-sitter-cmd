@@ -175,6 +175,27 @@ phase 2, but phase 5 removes carets even inside quotes when the line contains a
 - **Substring `:~start[,len]`** and **substitution `:[*]search=replace`** are
   modeled directly; `=` is the hard delimiter for substitution.
 
+### Strings
+
+Double quotes group only; cmd does not strip them, and `%VAR%`/`!VAR!` still
+expand inside them. The `string` node sub-nodes its interior: literal text and a
+lone `%`/`!` are hidden tokens that the `string` node covers, while a real
+`%VAR%`/`!VAR!` is the same expansion node used elsewhere. So `"%PATH%"` is a
+`string` containing a `variable`, and a query or highlighter sees the expansion
+through the quotes.
+
+The terminator is the external `_string_end` token, not an optional `"`. The
+scanner consumes a closing `"`, or matches zero-width at end of line / end of
+input so an unterminated quote still closes (cmd runs an open quote to end of
+line). An optional `"` would make a lone `"` a valid empty string, and since a
+quote is not a word boundary the `CONCAT` adjacency join would then parse
+`"%PATH%"` as two empty strings around a bare `%PATH%` rather than one string
+with an interior expansion. The explicit terminator removes that ambiguity: a
+quote can only end a string through `_string_end`, so the interior is always
+taken into the string. A quote inside a `%VAR:"=%` style substitution stays part
+of the single `variable` token (the lexer matches the whole `%...%` first), so
+those do not affect string termination.
+
 ### IF / ELSE
 
 Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)
@@ -271,7 +292,6 @@ scripts.
   variables, which is statically unknowable, so one fixed parse is chosen.
 - **`SET /A` expressions** are a generic argument tail, not an arithmetic
   sub-grammar.
-- **String interiors are opaque**: `%VAR%` inside `"..."` is not sub-noded.
 - **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
   fold multi-line code onto one logical line) are not supported. This is a
   torture-test trick rather than mainstream batch.

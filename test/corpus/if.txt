@@ -11,7 +11,8 @@ if "%x%"=="yes" echo matched
     (keyword)
     condition: (comparison
       left: (argument
-        (string))
+        (string
+          (variable)))
       operator: (comparison_operator)
       right: (argument
         (string)))
@@ -34,7 +35,8 @@ if /i "%a%"=="b" (echo eq) else (echo ne)
     (if_flag)
     condition: (comparison
       left: (argument
-        (string))
+        (string
+          (variable)))
       operator: (comparison_operator)
       right: (argument
         (string)))

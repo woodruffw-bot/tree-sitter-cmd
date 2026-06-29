@@ -40,7 +40,7 @@ Do not hand-edit generated files (`src/parser.c`, `src/grammar.json`,
 
 ```
 grammar.js          the grammar
-src/scanner.c       external scanner (word-join, REM, block parens, caret escape)
+src/scanner.c       external scanner (word-join, REM, block parens, caret escape, string end)
 queries/            highlights.scm, injections.scm
 test/corpus/        unit corpus (input plus expected S-expression)
 test/real-world/    whole upstream scripts parsed against ERROR-node budgets

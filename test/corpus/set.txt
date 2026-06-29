@@ -44,7 +44,8 @@ set "PATH=%PATH%;C:\bin"
   (set_statement
     (keyword)
     (set_quoted
-      (string))))
+      (string
+        (variable)))))
 
 ====================
 arithmetic
