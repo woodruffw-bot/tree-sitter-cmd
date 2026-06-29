@@ -213,3 +213,70 @@ literal parens nested in a block
         (text))
       argument: (argument
         (text)))))
+
+================================
+set name containing an expansion
+================================
+
+set err%%i=0
+
+---
+
+(program
+  (set_statement
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)))))
+
+======================
+set /p with empty name
+======================
+
+set /p=Press any key... 
+
+---
+
+(program
+  (set_statement
+    (set_prompt
+      prompt: (argument
+        (text))
+      prompt: (argument
+        (text))
+      prompt: (argument
+        (text)))))
+
+===========================
+call with input redirection
+===========================
+
+call :sub <"%TEMP%\in.txt"
+
+---
+
+(program
+  (call_statement
+    argument: (argument
+      (text))
+    redirect: (redirection
+      (redirect_file
+        op: (redirect_operator)
+        target: (argument
+          (string))))))
+
+===============================
+quoted set with embedded quotes
+===============================
+
+set "exe=call "%exe%.bat""
+
+---
+
+(program
+  (set_statement
+    (set_quoted
+      (string)
+      (variable)
+      (text)
+      (string))))

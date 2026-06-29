@@ -12,19 +12,27 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 
 ## Status
 
-Validated against a suite of well-known real-world batch scripts. **All 12
-parse with zero error nodes**, including the notoriously tricky `gradlew.bat`,
-the 333-line `mvn.cmd`, and a 579-line LLVM release script:
+Stress-tested against 80+ well-known real-world batch scripts from across the
+ecosystem. The committed regression corpus (`test/real-world/`) holds **27 of
+them — all parsing with zero error nodes**, including the notoriously tricky
+`gradlew.bat`, the 333-line `mvn.cmd`, a 579-line LLVM release script, Node's
+989-line `vcbuild.bat`, and classics from Apache Tomcat / Kafka / Spark / Ant,
+Go, Flutter, CPython, pyenv-win and .NET:
 
 | Script | Lines | Errors |
 |--------|------:|-------:|
-| `gradlew.bat` (Gradle) | 82 | 0 |
-| `mvn.cmd` (Maven) | 333 | 0 |
+| `vcbuild.bat` (Node.js) | 989 | 0 |
 | `build_llvm_release.bat` (LLVM) | 579 | 0 |
-| `build.bat` (CPython) | 234 | 0 |
-| `razzle.cmd` (Windows Terminal) | 126 | 0 |
-| `conda.bat`, `activate.bat` (conda / virtualenv) | — | 0 |
-| `npm.cmd`, `build.cmd` (.NET), `bootstrap-vcpkg.bat`, … | — | 0 |
+| `kafka-run-class.bat` (Apache Kafka) | — | 0 |
+| `catalina.bat` (Apache Tomcat) | 330 | 0 |
+| `mvn.cmd` (Maven), `ant.bat` (Apache Ant) | — | 0 |
+| `make.bat` (Go), `flutter.bat` (Flutter) | — | 0 |
+| `gradlew.bat`, `build.bat` (CPython), `pyenv.bat`, … | — | 0 |
+
+The broader sweep surfaced (and fixed) several real edge cases — SET names
+containing expansions (`set err%%i=`), the `set /p=` print-without-newline
+idiom, redirections on `call`, and quoted SET values with embedded quotes
+(`set "x="y" !z!"`).
 
 ## Features
 

@@ -306,11 +306,25 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // GOTO label  /  GOTO :EOF
     goto_statement: ($) =>
-      seq(kw('goto'), optional(field('target', $.argument))),
+      prec.right(
+        seq(
+          kw('goto'),
+          optional(field('target', $.argument)),
+          repeat(field('redirect', $.redirection)),
+        ),
+      ),
 
-    // CALL :label args  /  CALL file args  /  CALL command
+    // CALL :label args  /  CALL file args  /  CALL command. Redirections may
+    // follow (e.g. `call "%~f0" %* <input`).
     call_statement: ($) =>
-      prec.right(seq(kw('call'), repeat(field('argument', $.argument)))),
+      prec.right(
+        seq(
+          kw('call'),
+          repeat(
+            choice(field('argument', $.argument), field('redirect', $.redirection)),
+          ),
+        ),
+      ),
 
     // ---------------------------------------------------------------------
     // SET family
@@ -324,7 +338,7 @@ module.exports = grammar({
               $.set_prompt,
               $.set_arith,
               $.set_assignment,
-              $.string,
+              $.set_quoted,
               $.set_display,
             ),
           ),
@@ -339,21 +353,27 @@ module.exports = grammar({
         '=',
         repeat(field('value', $.argument)),
       ),
-    // SET /P name=prompt
+    // SET /P [name]=prompt. The name may be empty (the `<nul set /p=text` trick
+    // for printing without a trailing newline).
     set_prompt: ($) =>
       seq(
         opt('/p'),
-        field('name', alias($._set_name, $.variable_name)),
+        optional(field('name', alias($._set_name, $.variable_name))),
         '=',
         repeat(field('prompt', $.argument)),
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
     set_arith: ($) => seq(opt('/a'), repeat(field('expression', $.argument))),
+    // SET "name=value" — quoted assignment. cmd treats the span up to the last
+    // quote as name=value, so the value may itself contain quotes. We model it
+    // as a quote-led word run, which also stops cleanly at an operator/newline.
+    set_quoted: ($) => prec.right(seq($.string, repeat($._fragment))),
     // SET  /  SET prefix  (display)
     set_display: ($) => alias($._set_name, $.variable_name),
 
-    // A SET variable name stops at `=`.
-    _set_name: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
+    // A SET variable name stops at `=` but may contain expansion sigils
+    // (e.g. `err%%i` when building indexed variables inside a FOR loop).
+    _set_name: ($) => token(/[^ \t\r\n&|<>()^"=]+/),
 
     // ---------------------------------------------------------------------
     // Redirections

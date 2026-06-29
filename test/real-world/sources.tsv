@@ -24,3 +24,20 @@
 # cpython's build.bat exercises the `echo.message (parenthesised)` idiom
 # (literal parentheses in arguments) — now supported.
 0	cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat
+
+# Added from the broader stress-test sweep (see commit history).
+0	ant.bat	https://github.com/apache/ant/blob/master/src/script/ant.bat
+0	cpython-get-externals.bat	https://github.com/python/cpython/blob/main/PCbuild/get_externals.bat
+0	cpython-rt.bat	https://github.com/python/cpython/blob/main/PCbuild/rt.bat
+0	dotnet-sdk-build.cmd	https://github.com/dotnet/sdk/blob/main/build.cmd
+0	flutter.bat	https://github.com/flutter/flutter/blob/master/bin/flutter.bat
+0	go-make.bat	https://github.com/golang/go/blob/master/src/make.bat
+0	kafka-run-class.bat	https://github.com/apache/kafka/blob/trunk/bin/windows/kafka-run-class.bat
+0	node-vcbuild.bat	https://github.com/nodejs/node/blob/main/vcbuild.bat
+0	pyenv-version.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/libexec/pyenv-version.bat
+0	pyenv.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/bin/pyenv.bat
+0	spark-class2.cmd	https://github.com/apache/spark/blob/master/bin/spark-class2.cmd
+0	terminal-bcz.cmd	https://github.com/microsoft/terminal/blob/main/tools/bcz.cmd
+0	tomcat-catalina.bat	https://github.com/apache/tomcat/blob/main/bin/catalina.bat
+0	tomcat-setclasspath.bat	https://github.com/apache/tomcat/blob/main/bin/setclasspath.bat
+0	zookeeper-zkenv.cmd	https://github.com/apache/zookeeper/blob/master/bin/zkEnv.cmd

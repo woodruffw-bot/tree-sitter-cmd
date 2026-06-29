@@ -283,6 +283,16 @@
             "named": true
           }
         ]
+      },
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "redirection",
+            "named": true
+          }
+        ]
       }
     }
   },
@@ -571,6 +581,16 @@
     "type": "goto_statement",
     "named": true,
     "fields": {
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "redirection",
+            "named": true
+          }
+        ]
+      },
       "target": {
         "multiple": false,
         "required": false,
@@ -1365,7 +1385,7 @@
     "fields": {
       "name": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "variable_name",
@@ -1383,6 +1403,57 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "set_quoted",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "all_arguments",
+          "named": true
+        },
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "loop_variable",
+          "named": true
+        },
+        {
+          "type": "parameter",
+          "named": true
+        },
+        {
+          "type": "parameter_tilde",
+          "named": true
+        },
+        {
+          "type": "percent_literal",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1421,7 +1492,7 @@
           "named": true
         },
         {
-          "type": "string",
+          "type": "set_quoted",
           "named": true
         }
       ]
@@ -1452,11 +1523,6 @@
         ]
       }
     }
-  },
-  {
-    "type": "variable_name",
-    "named": true,
-    "fields": {}
   },
   {
     "type": "&",
@@ -1519,6 +1585,10 @@
     "named": true
   },
   {
+    "type": "keyword",
+    "named": false
+  },
+  {
     "type": "label_name",
     "named": true
   },
@@ -1573,6 +1643,10 @@
   },
   {
     "type": "variable",
+    "named": true
+  },
+  {
+    "type": "variable_name",
     "named": true
   },
   {

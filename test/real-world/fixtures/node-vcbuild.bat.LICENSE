@@ -1,0 +1,11 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           node-vcbuild.bat
+Upstream:       Node.js
+Source:         https://github.com/nodejs/node/blob/main/vcbuild.bat
+SPDX-License-Identifier: MIT
+Copyright Node.js contributors
+Full license:   https://github.com/nodejs/node/blob/main/LICENSE
