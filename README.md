@@ -147,8 +147,6 @@ on valid scripts; they are documented in `GRAMMAR_DESIGN.md §8`.
 - **Caret-escaped `%VAR%` inside `FOR /F` options** (`for /f eol^=^%LF%%LF%^ …`)
   and variables whose name is a literal newline (`%\n%` macros) are not
   supported — both are torture-test tricks rather than mainstream batch.
-- **An escaped `^)` inside a multi-line block** can still mis-close the block in
-  some positions (the literal-paren-in-block edge of the model above).
 
 ## Layout
 

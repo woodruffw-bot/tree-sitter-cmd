@@ -46,3 +46,37 @@ echo a^|b
       (text)
       (escape_sequence)
       (text))))
+
+===========================
+caret escape of close paren
+===========================
+
+echo a^)b
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (escape_sequence)
+      (text))))
+
+============================================
+escaped close paren stays literal in a block
+============================================
+
+(
+  echo done^)
+)
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (escape_sequence)))))

@@ -717,6 +717,10 @@ corpus and a 160+-file sweep):
 - **Stacked `@@` quiet prefixes** parse (`_unit` takes `repeat(quiet)`).
 - **Stray `)`** (#10) is an error node, as recommended; **empty `&` RHS** is
   allowed; **`::` inside blocks** (#9) parses without cascading.
+- **Escaped `^)` inside a block** is a literal close-paren and does NOT close
+  the block (cmd's documented escape); `( echo a^) b )` and the multi-line form
+  parse correctly. (An earlier note claimed this could mis-close — that was a
+  test artifact from a doubled caret `^^`, not a real defect.)
 
 Live limitations (also in `README.md`):
 
@@ -726,7 +730,3 @@ Live limitations (also in `README.md`):
 - **Caret-escaped `%VAR%` *inside* `FOR /F` options** (`eol^=^%LF%%LF%^ …`) and
   **linefeed-named variables** (`%\n%` macros) — torture-test tricks; not
   supported.
-- **An escaped `^)` inside a multi-line block** can still mis-close the block in
-  some positions — the residual edge of the paren model (a literal `)` must be
-  escaped to survive in a block, but the escape interacts with block-close
-  recovery). Rare; documented rather than fixed.
