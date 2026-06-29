@@ -147,3 +147,23 @@ echo ^%PATH%
     argument: (argument
       (escape_sequence)
       (variable))))
+
+============================================
+escaped angle brackets in usage text
+============================================
+
+echo Usage: build.bat ^<target^>
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (escape_sequence)
+      (text)
+      (escape_sequence))))

@@ -133,3 +133,17 @@ cd %USERPROFILE%\Desktop
     argument: (argument
       (variable)
       (text))))
+
+==============================
+variable name with parentheses
+==============================
+
+echo %ProgramFiles(x86)%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable))))
