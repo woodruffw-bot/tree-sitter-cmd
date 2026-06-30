@@ -103,7 +103,7 @@ cannot fully reproduce. None of these cascade on valid scripts. See
 
 ```
 grammar.js          the grammar
-src/scanner.c       external scanner (word-join, REM, block parens, string end)
+src/scanner.c       external scanner (word-join, REM, block parens, caret escape, string end)
 queries/            highlights.scm, injections.scm
 test/corpus/        unit test corpus
 test/real-world/    real-world regression harness

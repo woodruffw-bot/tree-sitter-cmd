@@ -117,6 +117,7 @@ tokens. Its only state is a single block-depth counter:
 | `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
+| `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
 `name=value`.
@@ -173,8 +174,9 @@ phase 2, but phase 5 removes carets even inside quotes when the line contains a
   takes the final character as the parameter or FOR variable. The
   greedy-then-backtrack ambiguity (`%~dpnxg` depends on the in-scope FOR vars) is
   statically unknowable, so the grammar picks one fixed parse.
-- **Substring `:~start[,len]`** and **substitution `:[*]search=replace`** are
-  modeled directly; `=` is the hard delimiter for substitution.
+- **Substring `:~start[,len]`** and **substitution `:[*]search=replace`** sit
+  inside the single `%…%` / `!…!` token, so they parse without error but are not
+  broken into sub-nodes.
 
 ### Strings
 
@@ -253,18 +255,26 @@ sub-grammar; see Limitations.
 The named nodes group into these families (see `src/node-types.json` for the
 full list):
 
-- **Top level**: `program`, `command`, `quiet`, `command_name`.
-- **Operators**: `pipeline`, `and_list`, `or_list`, `seq_list`.
+- **Top level**: `program`, `command`, `command_name`, `quiet`.
+- **Operators**: `seq_list`, `or_list`, `and_list`, `pipeline`.
 - **Redirection**: `redirection`, `redirect_file`, `redirect_dup`,
-  `file_descriptor`.
+  `redirect_operator`, `redirect_dup_operator`, `file_descriptor`.
 - **Blocks**: `block`.
-- **Control flow**: `if` (with `if_flag`, `not`, the `cond_*` tests,
-  `compare_op`), `for` (with `for_option`, `for_variable`, `for_set`,
-  `backq_command`), `goto`, `call`, `label`.
-- **SET**: `set`, `set_assign`, `set_prompt`, `set_display`.
-- **Expansions**: `var_immediate`, `var_delayed`, `param`, `all_params`,
-  `param_tilde`, `for_var_ref`, with `substring_op` and `substitute_op`.
-- **Comments**: `rem_comment`, `colon_comment`.
+- **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
+  `comparison_operator`, and `unary_condition` / `condition_keyword`),
+  `for_statement` (with `for_option` / `for_flag`, `loop_variable`, `for_set`,
+  and the `backquote_string` / `single_quote_string` command sources),
+  `goto_statement`, `call_statement`, and `label` (with `label_name`,
+  `label_text`).
+- **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,
+  `set_quoted`, and `set_display` branches and `variable_name`.
+- **Expansions** (the `_expansion` supertype): `variable`, `delayed_variable`,
+  `parameter`, `all_arguments`, `parameter_tilde`, `loop_variable`, and
+  `percent_literal`. The `:~off,len` substring and `:search=replace`
+  substitution syntax stays inside the `variable` token, not separate nodes.
+- **Words and literals**: `argument`, `text`, `string`, `escape_sequence`.
+- **Comments**: `rem_comment`, `colon_comment`, `comment_text`; keywords surface
+  as the aliased `keyword` node.
 
 Operators use conventional left-associative tree-sitter precedence (cmd binding,
 loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from ReactOS's
