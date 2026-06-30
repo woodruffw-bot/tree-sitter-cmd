@@ -17,9 +17,9 @@
  *   - Expansions (`%VAR%`, `!VAR!`, `%1`, `%*`, `%~dp0`, `%%i`, `%%`) are single
  *     tokens, so maximal munch prefers a real expansion over a stray `%`/`!`
  *     with no parser ambiguity, while a lone `%` still falls back to literal.
- *   - Keywords are case-insensitive and given elevated token precedence so they
- *     win ties against barewords, while longer barewords still win by maximal
- *     munch (so `rem` is a comment but `remote` is a command).
+ *   - Keywords are case-insensitive and recognised by keyword extraction
+ *     (`word: $._cmd_text`): a keyword matches only as a whole word, so `set`
+ *     is a keyword but `setlocal` is a command, with no token precedence needed.
  *   - Command operators bind, lowest to highest: `&` < `||` < `&&` < `|`
  *     (matching ReactOS's `OpString` ordering).
  *
@@ -29,9 +29,8 @@
 
 /* eslint-disable no-undef */
 
-// Keyword/bareword disambiguation is handled by the `word` directive
-// (keyword extraction): a keyword only matches when it is the whole word, so
-// `set` is a keyword but `setlocal` is a command. No token precedence needed.
+// Keyword/bareword disambiguation uses keyword extraction (see the header
+// note), so the PREC table below covers only command operators, not keywords.
 
 // Operator precedences, lowest to highest binding.
 const PREC = {
@@ -86,6 +85,17 @@ function kw($, word) {
  */
 function opt(word) {
   return token(prec(3, new RegExp(ciSource(word))));
+}
+
+/**
+ * A "word" (command name or argument): one lead fragment followed by zero or
+ * more fragments joined by the zero-width external `_concat` token, so adjacent
+ * fragments with no whitespace are one word (`C:\%ROOT%\bin`) while a space
+ * splits them. `frag` defaults to `lead` where the lead and the fragments that
+ * may follow it are drawn from the same set.
+ */
+function wordOf($, lead, frag = lead) {
+  return seq(lead, repeat(seq($._concat, frag)));
 }
 
 module.exports = grammar({
@@ -242,8 +252,8 @@ module.exports = grammar({
           optional(alias(opt('/i'), $.if_flag)),
           optional(alias(ci('not'), $.not)),
           field('condition', $._if_condition),
-          field('consequence', $._if_body),
-          optional(seq(kw($, 'else'), field('alternative', $._if_body))),
+          field('consequence', $._unit),
+          optional(seq(kw($, 'else'), field('alternative', $._unit))),
         ),
       ),
 
@@ -281,15 +291,12 @@ module.exports = grammar({
     // An IF operand is a word whose bare text stops at `=` so that `a==b`
     // tokenises as `a`, `==`, `b`. It may also be fully wrapped in parentheses,
     // the classic `if (%1)==()` idiom for tolerating empty/odd arguments.
-    // An IF operand is a word whose bare text stops at `=` so that `a==b`
-    // tokenises as `a`, `==`, `b`. It may also be fully wrapped in parentheses,
-    // the classic `if (%1)==()` idiom for tolerating empty/odd arguments.
     _if_operand: ($) =>
       choice(
         alias($._if_word, $.argument),
         alias(seq($._lparen, optional($._if_word), $._rparen), $.argument),
       ),
-    _if_word: ($) => seq($._if_fragment, repeat(seq($._concat, $._if_fragment))),
+    _if_word: ($) => wordOf($, $._if_fragment),
     _if_fragment: ($) =>
       choice(
         $._if_text,
@@ -301,8 +308,6 @@ module.exports = grammar({
         alias($._stray_sigil, $.text),
       ),
     _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
-
-    _if_body: ($) => $._unit,
 
     // ---------------------------------------------------------------------
     // Control flow — FOR
@@ -319,7 +324,7 @@ module.exports = grammar({
           field('set', optional($.for_set)),
           alias($._block_close, ')'),
           kw($, 'do'),
-          field('body', $._if_body),
+          field('body', $._unit),
         ),
       ),
 
@@ -340,10 +345,7 @@ module.exports = grammar({
       ),
 
     _for_arg: ($) =>
-      seq(
-        choice(alias($._cmd_text, $.text), $._fragment),
-        repeat(seq($._concat, $._fragment)),
-      ),
+      wordOf($, choice(alias($._cmd_text, $.text), $._fragment), $._fragment),
 
     for_set: ($) =>
       repeat1(
@@ -478,8 +480,7 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // Words: command names and arguments are runs of adjacent fragments.
     // ---------------------------------------------------------------------
-    command_name: ($) =>
-      seq($._cmd_lead, repeat(seq($._concat, $._fragment))),
+    command_name: ($) => wordOf($, $._cmd_lead, $._fragment),
 
     // The first fragment of a command name may not begin with `@` (quiet) or
     // `:` (label). A lone `%`/`!` sigil can also lead a name: cmd happily parses
@@ -499,7 +500,7 @@ module.exports = grammar({
         ),
       ),
 
-    argument: ($) => seq($._fragment, repeat(seq($._concat, $._fragment))),
+    argument: ($) => wordOf($, $._fragment),
 
     _fragment: ($) =>
       choice(

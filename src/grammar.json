@@ -497,7 +497,7 @@
             "name": "consequence",
             "content": {
               "type": "SYMBOL",
-              "name": "_if_body"
+              "name": "_unit"
             }
           },
           {
@@ -523,7 +523,7 @@
                     "name": "alternative",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "_if_body"
+                      "name": "_unit"
                     }
                   }
                 ]
@@ -799,10 +799,6 @@
         "value": "[^ \\t\\r\\n&|<>()^\"%!=]+"
       }
     },
-    "_if_body": {
-      "type": "SYMBOL",
-      "name": "_unit"
-    },
     "for_statement": {
       "type": "PREC_RIGHT",
       "value": 0,
@@ -908,7 +904,7 @@
             "name": "body",
             "content": {
               "type": "SYMBOL",
-              "name": "_if_body"
+              "name": "_unit"
             }
           }
         ]
