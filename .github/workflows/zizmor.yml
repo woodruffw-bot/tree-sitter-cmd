@@ -1,0 +1,25 @@
+name: zizmor
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: Audit workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
+        with:
+          # Fail the job on any finding instead of uploading SARIF to the
+          # Security tab, so the audit gates PRs directly.
+          advanced-security: false
