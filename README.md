@@ -50,20 +50,23 @@ npx tree-sitter generate
 npx tree-sitter parse path/to/script.bat
 ```
 
-From Node:
+From Rust:
 
-```js
-const Parser = require('tree-sitter');
-const Cmd = require('tree-sitter-cmd');
+```rust
+use tree_sitter::Parser;
 
-const parser = new Parser();
-parser.setLanguage(Cmd);
+let mut parser = Parser::new();
+parser
+    .set_language(&tree_sitter_cmd::LANGUAGE.into())
+    .expect("loading Cmd grammar");
 
-const tree = parser.parse('@echo off\r\nif exist x (echo y) else (echo z)\r\n');
-console.log(tree.rootNode.toString());
+let source = "@echo off\r\nif exist x (echo y) else (echo z)\r\n";
+let tree = parser.parse(source, None).unwrap();
+println!("{}", tree.root_node().to_sexp());
 ```
 
-Rust, Python, Go, and Swift bindings are generated under `bindings/`.
+Rust is the only language binding. The grammar also builds as a C library
+(`Makefile` / `CMakeLists.txt`); the generated parser sources live in `src/`.
 
 ## Testing
 
@@ -108,7 +111,7 @@ queries/            highlights.scm, injections.scm
 test/corpus/        unit test corpus
 test/real-world/    real-world regression harness
 GRAMMAR_DESIGN.md   design document
-bindings/           node, rust, python, go, swift bindings
+bindings/           rust crate and C library
 ```
 
 ## License
