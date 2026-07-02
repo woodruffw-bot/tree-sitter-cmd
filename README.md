@@ -65,8 +65,7 @@ let tree = parser.parse(source, None).unwrap();
 println!("{}", tree.root_node().to_sexp());
 ```
 
-Rust is the only language binding. The grammar also builds as a C library
-(`Makefile` / `CMakeLists.txt`); the generated parser sources live in `src/`.
+Rust is the only binding; the generated parser sources live in `src/`.
 
 ## Testing
 
@@ -111,7 +110,7 @@ queries/            highlights.scm, injections.scm
 test/corpus/        unit test corpus
 test/real-world/    real-world regression harness
 GRAMMAR_DESIGN.md   design document
-bindings/           rust crate and C library
+bindings/           rust crate
 ```
 
 ## License

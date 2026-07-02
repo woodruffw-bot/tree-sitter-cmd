@@ -45,7 +45,7 @@ queries/            highlights.scm, injections.scm
 test/corpus/        unit corpus (input plus expected S-expression)
 test/real-world/    whole upstream scripts parsed against ERROR-node budgets
 GRAMMAR_DESIGN.md   design document
-bindings/           rust crate and C library
+bindings/           rust crate
 ```
 
 ## Conventions
