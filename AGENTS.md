@@ -24,7 +24,7 @@ This applies to docs, comments, commit messages, and PR descriptions.
 ## Build and test
 
 ```sh
-npm install                    # install the CLI and build the native binding
+npm install                    # install the tree-sitter CLI
 npx tree-sitter generate       # regenerate src/parser.c after a grammar change
 npx tree-sitter test           # unit corpus (test/corpus/)
 bash test/real-world/check.sh  # real-world parse regression (test/real-world/)
@@ -45,7 +45,7 @@ queries/            highlights.scm, injections.scm
 test/corpus/        unit corpus (input plus expected S-expression)
 test/real-world/    whole upstream scripts parsed against ERROR-node budgets
 GRAMMAR_DESIGN.md   design document
-bindings/           node, rust, python, go, swift bindings
+bindings/           rust crate
 ```
 
 ## Conventions

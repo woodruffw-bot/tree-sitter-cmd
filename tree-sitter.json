@@ -24,5 +24,14 @@
     "links": {
       "repository": "https://github.com/woodruffw-bot/tree-sitter-cmd"
     }
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "node": false,
+    "python": false,
+    "rust": true,
+    "swift": false,
+    "zig": false
   }
 }
