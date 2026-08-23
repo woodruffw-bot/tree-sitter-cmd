@@ -1,47 +1,42 @@
 # tree-sitter-cmd
 
-A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for the
-Windows `cmd.exe` command interpreter, i.e. batch scripts (`.bat`, `.cmd`).
+A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for Windows
+`cmd.exe` batch scripts (`.bat` and `.cmd`).
 
-`cmd.exe` has no formal or public grammar, so this one is grounded in the
-[ReactOS](https://github.com/reactos/reactos) reimplementation
+`cmd.exe` has no public grammar. This grammar is based on the
+[ReactOS](https://github.com/reactos/reactos) parser
 (`base/shell/cmd/parser.c`), the [ss64](https://ss64.com/nt/) and Microsoft
 Learn references, and the dBenham/jeb batch-line-parser phase model. See
-[`GRAMMAR_DESIGN.md`](GRAMMAR_DESIGN.md) for the design rationale.
+[`GRAMMAR_DESIGN.md`](GRAMMAR_DESIGN.md) for design decisions.
 
 ## What it parses
 
-- **Commands**: command name plus argument tail, and the `@` echo-suppress
-  prefix (`@echo off`, `@rem`, `@if`).
-- **Operators**: sequencing `&`, and `&&`, or `||`, and pipes `|`, with cmd
-  precedence (`&` < `||` < `&&` < `|`).
-- **Redirections**: `>`, `>>`, `<`, fd-prefixed (`2>`), and handle duplication
-  (`2>&1`, `>&2`), including leading redirections.
-- **Blocks**: multi-line `( ... )` compounds with attached redirections.
-- **Control flow**: `IF` (`/I`, `NOT`, the comparison and `EXIST`/`DEFINED`/
-  `ERRORLEVEL`/`CMDEXTVERSION` tests, `ELSE`, nesting); `FOR` (`/D`, `/R`, `/L`,
-  `/F` with options, a default `'command'`, a `usebackq` `` `command` ``, or a
-  file source); `GOTO`, `CALL` (including the colon-glued `goto:eof` /
-  `call:label` forms), and labels.
-- **The SET family**: `SET name=value`, `SET /A`, `SET /P`, quoted `SET "x=y"`,
-  and display forms.
-- **Expansions**: `%VAR%` and `%VAR:...%`, delayed `!VAR!`, positional `%0`-`%9`,
-  `%*`, `%~` modifiers (`%~dp0`, `%~$PATH:1`), FOR variables `%%i`, and `%%`.
-- **Comments**: `REM` and `::`.
-- **Escaping**: the caret `^x` escape, caret line continuation, and
-  double-quoted strings (quotes group; cmd does not strip them). Expansions
-  inside a string are sub-noded, so a quoted `%PATH%` is a real `variable` node.
+- Commands, argument tails, and the `@` echo-suppression prefix.
+- The `&`, `&&`, `||`, and `|` operators. The grammar uses cmd precedence:
+  `&` < `||` < `&&` < `|`.
+- Input, output, and handle redirections, including leading redirections.
+- Multi-line `( ... )` blocks with attached redirections.
+- `IF` forms, including `/I`, `NOT`, comparisons, condition tests, `ELSE`,
+  and nested statements.
+- `FOR` forms, including `/D`, `/R`, `/L`, and `/F` sources and options.
+- `GOTO`, `CALL`, labels, and the colon-glued `goto:eof` and `call:label`
+  forms.
+- `SET`, `SET /A`, `SET /P`, quoted assignments, and display forms.
+- Percent, delayed, positional, modified, and `FOR` variable expansions.
+- `REM` and `::` comments.
+- Caret escapes, caret line continuations, and double-quoted strings. Expansions
+  inside strings remain named nodes.
 
-Parentheses are context-sensitive: `(` opens a block only where a command is
-expected. In an argument it is a literal character that does not nest, so
-`echo (text)` parses as one command. While a block is open, the first unescaped
-`)` closes it, which is why cmd needs `^)` to echo a close-paren inside a block.
-This is tracked by the external scanner as a block-depth counter.
+Parentheses depend on context. `(` starts a block only where a command is
+expected. Inside an argument it is a literal character, so `echo (text)` is one
+command. In a block, the first unescaped `)` closes the block. Use `^)` to
+include a closing parenthesis in a command inside the block. The external
+scanner tracks the block depth.
 
-Keyword extraction handles command disambiguation, so `set` is a keyword but
-`setlocal` is a command, and `rem` is a comment but `remote` is a command.
-Keywords surface as named `(keyword)` nodes, and the `%…%`/`!…!` expansion forms
-share a `_expansion` supertype so queries can target them as a group.
+Keyword extraction distinguishes complete keywords from longer command names.
+For example, `set` is a keyword, but `setlocal` is a command. Likewise, `rem`
+is a comment, but `remote` is a command. Keywords appear as named `(keyword)`
+nodes. Percent and delayed expansions share the `_expansion` supertype.
 
 ## Usage
 
@@ -50,9 +45,6 @@ cargo install --locked --version 0.26.11 tree-sitter-cli
 tree-sitter generate --js-runtime native
 tree-sitter parse path/to/script.bat
 ```
-
-The CLI comes from the official Rust crate. Its bundled native runtime evaluates
-`grammar.js`, so Node and npm are not required.
 
 From Rust:
 
@@ -69,47 +61,38 @@ let tree = parser.parse(source, None).unwrap();
 println!("{}", tree.root_node().to_sexp());
 ```
 
-The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY` with the parser.
-Rust is the only binding; the generated parser sources live in `src/`.
+The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY`. Only Rust bindings
+are provided.
 
 ## Testing
 
 ```sh
-tree-sitter test # unit corpus (test/corpus/)
-tree-sitter fuzz # mutated corpus inputs and incremental edits
-cargo test       # Rust, incremental, and real-world regression tests
+tree-sitter test # unit corpus
+tree-sitter fuzz # mutated inputs and incremental edits
+cargo test       # Rust and real-world regression tests
 ```
 
-The unit corpus holds focused cases with expected S-expressions, one file per
-construct. The real-world corpus parses whole upstream scripts (gradlew.bat,
-mvn.cmd, catalina.bat, Node's vcbuild.bat, and others) from raw bytes. Every
-fixture must parse without `ERROR` or `MISSING` nodes. Those fixtures are
-third-party test input under their own licenses; see `test/real-world/README.md`.
-
-CI runs the CLI fuzzer on each change. A separate libFuzzer job runs briefly on
-parser pull requests and for a longer period each week. Both build the committed
-C parser and scanner directly. They do not require Node or npm.
+The unit corpus contains focused inputs and expected syntax trees. Rust
+integration tests parse upstream scripts from raw bytes and reject `ERROR` or
+`MISSING` nodes. Each fixture retains its third-party license. See
+[`test/real-world/README.md`](test/real-world/README.md).
 
 ## Known limitations
 
-`cmd.exe` is phased and context-sensitive in ways a single context-free pass
-cannot fully reproduce. None of these cascade on valid scripts. See
-`GRAMMAR_DESIGN.md` for detail.
+`cmd.exe` processes input in several context-dependent phases. A single
+context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
 
-- **`!VAR!` is always parsed as a delayed reference**, even where
-  `SETLOCAL ENABLEDELAYEDEXPANSION` is not active and it is literal at runtime.
-- **`SET /A` expressions** are captured as a generic argument tail, not a full
-  arithmetic sub-grammar.
-- **An unquoted `(` in a FOR set** ends the set at the first `)`, like any block
-  paren (and like cmd). A set item that contains parentheses must be quoted, e.g.
+- `!VAR!` is always parsed as a delayed reference, even when delayed expansion
+  is not active and the text is literal at runtime.
+- `SET /A` expressions are an argument tail, not an arithmetic syntax tree.
+- An unquoted `(` in a `FOR` set ends the set at the first `)`. Quote a set
+  item that contains parentheses, such as
   `for %%a in ("file (1).txt")`.
-- **Line continuation** joins a mid-word caret before an indented next line into
-  one word, where cmd would keep two arguments. The common `arg ^` form (space
-  before the caret) is unaffected. A *dangling* caret continuation at the end of
-  the file, with no following line to splice onto, produces an error node.
-  Continuation onto a following line, blank or not, is fine.
-- **Variables whose name is a literal newline** (`%LF%` macros) are not
-  supported.
+- A caret that continues a word onto an indented line is joined into one word.
+  `cmd.exe` treats it as two arguments. The common `arg ^` form is not
+  affected. A final caret with no following line produces an error node.
+- Variable names that contain a literal newline, as used by `%LF%` macros, are
+  not supported.
 
 ## Layout
 
@@ -121,7 +104,7 @@ test/corpus/        unit test corpus
 test/real-world/    real-world regression harness
 tests/              Rust integration tests
 GRAMMAR_DESIGN.md   design document
-bindings/           rust crate
+bindings/           Rust crate
 ```
 
 ## License
