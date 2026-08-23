@@ -2151,6 +2151,10 @@
     {
       "type": "SYMBOL",
       "name": "_string_end"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_error_sentinel"
     }
   ],
   "inline": [],

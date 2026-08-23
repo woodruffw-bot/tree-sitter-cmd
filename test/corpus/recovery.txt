@@ -35,3 +35,71 @@ echo before
       argument: (argument
         (text)))
     (MISSING ")")))
+
+========================================
+malformed if beside concatenated fragments
+========================================
+
+if == echo pre%VAR%post
+echo after
+
+---
+
+(program
+  (ERROR
+    (keyword))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (variable)
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+============================================
+unterminated string recovery ends at newline
+============================================
+
+|| echo "unterminated
+echo after
+
+---
+
+(program
+  (ERROR)
+  (command
+    name: (command_name)
+    argument: (argument
+      (string)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+===============================================
+unmatched close does not change later block depth
+===============================================
+
+)
+(
+  echo inside
+)
+echo after
+
+---
+
+(program
+  (ERROR
+    (UNEXPECTED ')'))
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))

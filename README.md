@@ -74,6 +74,7 @@ Rust is the only binding; the generated parser sources live in `src/`.
 
 ```sh
 tree-sitter test # unit corpus (test/corpus/)
+tree-sitter fuzz # mutated corpus inputs and incremental edits
 cargo test       # Rust, incremental, and real-world regression tests
 ```
 
@@ -82,6 +83,10 @@ construct. The real-world corpus parses whole upstream scripts (gradlew.bat,
 mvn.cmd, catalina.bat, Node's vcbuild.bat, and others) from raw bytes. Every
 fixture must parse without `ERROR` or `MISSING` nodes. Those fixtures are
 third-party test input under their own licenses; see `test/real-world/README.md`.
+
+CI runs the CLI fuzzer on each change. A separate libFuzzer job runs briefly on
+parser pull requests and for a longer period each week. Both build the committed
+C parser and scanner directly. They do not require Node or npm.
 
 ## Known limitations
 

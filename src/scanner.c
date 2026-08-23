@@ -1,6 +1,6 @@
 #include "tree_sitter/parser.h"
+#include "tree_sitter/alloc.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 // External tokens for tree-sitter-cmd.
@@ -22,6 +22,9 @@
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
 //                  quote still closes (cmd runs an open quote to end of line).
+//   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
+//                    error-recovery state. The scanner declines in that state so
+//                    zero-width CONCAT / STRING_END tokens cannot stall recovery.
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
 // command/set is expected and literal in an argument; `)` closes a block only
@@ -45,6 +48,7 @@ enum TokenType {
   RPAREN,
   CARET_ESCAPE,
   STRING_END,
+  ERROR_SENTINEL,
 };
 
 typedef struct {
@@ -52,11 +56,11 @@ typedef struct {
 } Scanner;
 
 void *tree_sitter_cmd_external_scanner_create(void) {
-  Scanner *s = calloc(1, sizeof(Scanner));
+  Scanner *s = ts_calloc(1, sizeof(Scanner));
   return s;
 }
 
-void tree_sitter_cmd_external_scanner_destroy(void *payload) { free(payload); }
+void tree_sitter_cmd_external_scanner_destroy(void *payload) { ts_free(payload); }
 
 unsigned tree_sitter_cmd_external_scanner_serialize(void *payload, char *buffer) {
   Scanner *s = payload;
@@ -131,6 +135,11 @@ static bool scan_rem(TSLexer *lexer) {
 
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
+  // During error recovery Tree-sitter makes every external symbol valid. Do not
+  // emit scanner tokens in that state. In particular, CONCAT and STRING_END can
+  // match without consuming input, so accepting either would impede recovery.
+  if (valid_symbols[ERROR_SENTINEL]) return false;
+
   Scanner *s = payload;
 
   // CONCAT: adjacency only, no whitespace skipping.

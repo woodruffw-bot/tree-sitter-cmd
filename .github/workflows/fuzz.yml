@@ -1,0 +1,39 @@
+name: Fuzz parser
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fuzz.yml
+      - grammar.js
+      - src/**
+      - test/**
+  schedule:
+    - cron: "41 8 * * 6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libfuzzer:
+    name: C parser and scanner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fuzz parser and external scanner
+        uses: tree-sitter/fuzz-action@6a1dcff00aefd038ba418bd63732a9add4901266 # v4
+        with:
+          corpus: test/real-world/fixtures
+          max-length: 16384
+          max-time: ${{ github.event_name == 'pull_request' && 60 || 900 }}
+          timeout: 10
+          tree-sitter-version: v0.26.11

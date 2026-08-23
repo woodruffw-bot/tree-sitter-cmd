@@ -26,6 +26,8 @@ jobs:
       - name: Run corpus tests
         run: tree-sitter test
 
+      - name: Fuzz corpus edits
+        run: tree-sitter fuzz --edits 3 --iterations 5
   generated:
     name: Generated parser up to date
     runs-on: ubuntu-latest

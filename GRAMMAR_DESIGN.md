@@ -118,6 +118,7 @@ tokens. Its only state is a single block-depth counter:
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
+| `ERROR_SENTINEL` | an unused final token that makes the scanner decline Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
 `name=value`.
