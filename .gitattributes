@@ -1,8 +1,9 @@
 * text=auto eol=lf
 
 # Real-world test fixtures are third-party files stored verbatim (preserving
-# original CRLF/LF and bytes); never normalize them.
-test/real-world/fixtures/** -text
+# original CRLF/LF, upstream trailing whitespace, and bytes); never normalize
+# or whitespace-fix them.
+test/real-world/fixtures/** -text whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
 
 # Generated source files
 src/*.json linguist-generated

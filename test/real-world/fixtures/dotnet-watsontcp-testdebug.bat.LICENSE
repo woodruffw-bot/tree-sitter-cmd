@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           dotnet-watsontcp-testdebug.bat
+Upstream:       dotnet/WatsonTcp (TestDebug.bat)
+Source:         https://github.com/dotnet/WatsonTcp/blob/2fdb90119fdb2b363ff9b666537227e834753d98/TestDebug.bat
+Git blob:       a5c99c59b73195a1ce4ac616037e6fa0eb881417
+SPDX-License-Identifier: MIT
+Copyright notice: not stated in the upstream LICENSE.md
+Full license:   https://github.com/dotnet/WatsonTcp/blob/2fdb90119fdb2b363ff9b666537227e834753d98/LICENSE.md
+
+Notable for tree-sitter-cmd because it exercises: FOR /L with a percent-expanded numeric bound and a parenthesized loop body; upstream CRLF bytes are preserved

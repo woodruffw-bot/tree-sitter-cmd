@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           arkenfox-updater.bat
+Upstream:       ghacksuserjs/ghacks-user.js (now arkenfox/user.js; updater.bat)
+Source:         https://github.com/arkenfox/user.js/blob/00e17281dc439c1e517671eeeb5bfc4e96f90104/updater.bat
+Git blob:       37b5867260028ab641b00589091779aa9c01b0a9
+SPDX-License-Identifier: MIT
+Copyright (c) 2017 ghacksuserjs
+Full license:   https://github.com/arkenfox/user.js/blob/00e17281dc439c1e517671eeeb5bfc4e96f90104/LICENSE.txt
+
+Notable for tree-sitter-cmd because it exercises: CHOICE, SHIFT, delayed expansion, SET /A, nested FOR /F loops, and deeply nested parenthesized blocks

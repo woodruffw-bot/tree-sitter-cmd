@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           microsoft-printtrace.cmd
+Upstream:       Microsoft Universal Print Resources (PrintTrace.cmd)
+Source:         https://github.com/microsoft/universal-print-resources/blob/eb3b59f1d8019842448a161c575a4bb584e67a9d/PrintTrace.cmd
+Git blob:       a801f1653f907cfae92075263ede6845ddae1aa9
+SPDX-License-Identifier: MIT
+Copyright (c) 2020 Microsoft
+Full license:   https://github.com/microsoft/universal-print-resources/blob/eb3b59f1d8019842448a161c575a4bb584e67a9d/LICENSE
+
+Notable for tree-sitter-cmd because it exercises: REG QUERY, many redirections and command sequences, and a large elevated diagnostic workflow; upstream CRLF bytes are preserved

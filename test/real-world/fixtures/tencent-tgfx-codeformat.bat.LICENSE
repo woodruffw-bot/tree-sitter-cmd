@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           tencent-tgfx-codeformat.bat
+Upstream:       Tencent tgfx (codeformat.bat)
+Source:         https://github.com/Tencent/tgfx/blob/f9a65657d6b7a732bacb230ff7058d438fb696f7/codeformat.bat
+Git blob:       ad2b76f3543587333b465dc8f705fe9690f46e2c
+SPDX-License-Identifier: BSD-3-Clause
+Copyright (C) 2025 Tencent. All rights reserved.
+Full license:   https://github.com/Tencent/tgfx/blob/f9a65657d6b7a732bacb230ff7058d438fb696f7/LICENSE.txt
+
+Notable for tree-sitter-cmd because it exercises: FOR /R recursion, nested loops, subroutine calls, and percent-parameter path modifiers

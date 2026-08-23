@@ -62,3 +62,15 @@ mre-interactive-menu.bat	(original MRE — see mre-interactive-menu.bat.LICENSE)
 cpython-prepare-libffi.bat	(see cpython-prepare-libffi.bat.LICENSE)
 npocmaka-checkNet.bat	(see npocmaka-checkNet.bat.LICENSE)
 npocmaka-ifDefined.bat	(see npocmaka-ifDefined.bat.LICENSE)
+
+# Operational and interactive breadth sweep. These URLs are pinned to the
+# exact upstream commits from which the verbatim fixtures were copied.
+microsoft-securecerts.bat	https://github.com/microsoft/DesktopBridgeToUWP-Samples/blob/7c7e66d38e200b19ab42ecc48153361f770bab39/Samples/SigningCerts/securecerts.bat
+microsoft-rdsn-deploy.cmd	https://github.com/microsoft/rDSN/blob/06fdcb9de071fe73ee9eb4ad0d4ede5af0551308/bin/Windows/deploy.one.cmd
+arkenfox-updater.bat	https://github.com/arkenfox/user.js/blob/00e17281dc439c1e517671eeeb5bfc4e96f90104/updater.bat
+openvino-install-service.bat	https://github.com/openvinotoolkit/model_server/blob/7e4df0c7ae340972bad15020ad777bbba3ee321d/install_ovms_service.bat
+microsoft-printtrace.cmd	https://github.com/microsoft/universal-print-resources/blob/eb3b59f1d8019842448a161c575a4bb584e67a9d/PrintTrace.cmd
+dotnet-watsontcp-testdebug.bat	https://github.com/dotnet/WatsonTcp/blob/2fdb90119fdb2b363ff9b666537227e834753d98/TestDebug.bat
+microsoft-scalar-capture-perfview.bat	https://github.com/microsoft/scalar/blob/1f66ccf37864e25fc27c0b786b425eb2695f814e/Scripts/CapturePerfView.bat
+tencent-tgfx-codeformat.bat	https://github.com/Tencent/tgfx/blob/f9a65657d6b7a732bacb230ff7058d438fb696f7/codeformat.bat
+reactos-remaster.cmd	https://github.com/reactos/reactos/blob/606b2e96207ca98d43b2e1345bcf07b8990a2e05/boot/remaster.cmd

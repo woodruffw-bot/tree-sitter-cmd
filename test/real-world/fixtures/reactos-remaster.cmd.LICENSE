@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           reactos-remaster.cmd
+Upstream:       ReactOS (boot/remaster.cmd)
+Source:         https://github.com/reactos/reactos/blob/606b2e96207ca98d43b2e1345bcf07b8990a2e05/boot/remaster.cmd
+Git blob:       497891353cdec76bbe517436de0c3139cc2521ec
+SPDX-License-Identifier: GPL-2.0-or-later
+Copyright 2023-2025 Hermès Bélusca-Maïto <hermes.belusca-maito@reactos.org>
+Full license:   https://github.com/reactos/reactos/blob/606b2e96207ca98d43b2e1345bcf07b8990a2e05/COPYING
+
+Notable for tree-sitter-cmd because it exercises: CHOICE, SET /P, a delayed-expansion newline macro, caret continuations, and complex variable expansion; upstream UTF-8 non-ASCII bytes are preserved

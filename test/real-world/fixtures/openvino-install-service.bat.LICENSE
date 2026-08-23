@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           openvino-install-service.bat
+Upstream:       OpenVINO Model Server (install_ovms_service.bat)
+Source:         https://github.com/openvinotoolkit/model_server/blob/7e4df0c7ae340972bad15020ad777bbba3ee321d/install_ovms_service.bat
+Git blob:       842e2a4a76112233915d9b85fefe3ac48dce948d
+SPDX-License-Identifier: Apache-2.0
+Copyright (c) 2025 Intel Corporation
+Full license:   https://github.com/openvinotoolkit/model_server/blob/7e4df0c7ae340972bad15020ad777bbba3ee321d/LICENSE
+
+Notable for tree-sitter-cmd because it exercises: SET /P, SC CREATE and SC CONFIG, delayed expansion, and heavily quoted service command strings

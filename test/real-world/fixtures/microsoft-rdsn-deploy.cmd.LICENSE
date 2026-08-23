@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           microsoft-rdsn-deploy.cmd
+Upstream:       Microsoft rDSN (bin/Windows/deploy.one.cmd)
+Source:         https://github.com/microsoft/rDSN/blob/06fdcb9de071fe73ee9eb4ad0d4ede5af0551308/bin/Windows/deploy.one.cmd
+Git blob:       8b698f0634edb1e058092cadba3239b840c4c8b6
+SPDX-License-Identifier: MIT
+Copyright (c) Microsoft Corporation
+Full license:   https://github.com/microsoft/rDSN/blob/06fdcb9de071fe73ee9eb4ad0d4ede5af0551308/LICENSE
+
+Notable for tree-sitter-cmd because it exercises: UNC paths, SCHTASKS lifecycle commands, dynamic CALL targets, labels, and percent-expanded remote paths
