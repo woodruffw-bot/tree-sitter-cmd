@@ -28,6 +28,12 @@ extern "C" {
     uint32_t capacity; \
   }
 
+#ifdef __cplusplus
+#define _array__type_of(a) decltype(a)
+#else
+#define _array__type_of(a) void *
+#endif
+
 /// Initialize an array.
 #define array_init(self) \
   ((self)->size = 0, (self)->capacity = 0, (self)->contents = NULL)
@@ -136,7 +142,7 @@ extern "C" {
 /// Swap one array with another
 #define array_swap(self, other)                                     \
   do {                                                              \
-    void *_array_swap_tmp = (void *)(self)->contents;               \
+    _array__type_of((self)->contents) _array_swap_tmp = (self)->contents; \
     (self)->contents = (other)->contents;                           \
     (other)->contents = _array_swap_tmp;                            \
     _array__swap(&(self)->size, &(self)->capacity,                  \
