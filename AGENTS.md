@@ -24,14 +24,18 @@ This applies to docs, comments, commit messages, and PR descriptions.
 ## Build and test
 
 ```sh
-npm install                    # install the tree-sitter CLI
-npx tree-sitter generate       # regenerate src/parser.c after a grammar change
-npx tree-sitter test           # unit corpus (test/corpus/)
-bash test/real-world/check.sh  # real-world parse regression (test/real-world/)
+cargo install --locked --version 0.26.11 tree-sitter-cli
+tree-sitter generate --js-runtime native
+tree-sitter test
+bash test/real-world/check.sh
 ```
 
-Always run `tree-sitter generate` after editing `grammar.js` or `src/scanner.c`,
-then run both test layers. CI runs the same steps (`.github/workflows/ci.yml`).
+The CLI comes from the official Rust crate. Its bundled native runtime evaluates
+`grammar.js`, so Node and npm are not required.
+
+Always run `tree-sitter generate --js-runtime native` after editing `grammar.js`
+or `src/scanner.c`, then run both test layers. CI runs the same steps
+(`.github/workflows/ci.yml`).
 
 Do not hand-edit generated files (`src/parser.c`, `src/grammar.json`,
 `src/node-types.json`). Change `grammar.js` and regenerate.

@@ -3,10 +3,6 @@
 /Cargo.lock
 .toolchain/
 
-# Node (tree-sitter CLI tooling)
-node_modules/
-npm-debug.log*
-
 # tree-sitter build artifacts
 /build
 *.o
