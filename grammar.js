@@ -362,13 +362,42 @@ module.exports = grammar({
         ),
       ),
 
-    // `command` source for FOR /F (backquoted). May be unterminated.
-    backquote_string: ($) => token(/`[^`\r\n]*`?/),
-    // 'command' source for FOR /F (single-quoted). The closing quote is required
-    // so a stray apostrophe in a plain FOR set (`for %%a in (it's)`) stays text;
-    // a properly quoted command keeps its inner parens/operators literal, e.g.
-    // `for /f %%a in ('wmic … where (x=1) …') do …`.
-    single_quote_string: ($) => token(/'[^'\r\n]*'/),
+    // A backquoted FOR /F source. It is a command only with `usebackq` and may
+    // be unterminated. Keep the content in a delimiter-free child so injection
+    // queries do not need range adjustment directives, which the Rust
+    // highlighter does not apply.
+    backquote_string: ($) =>
+      seq(
+        token(prec(2, '`')),
+        optional(
+          field(
+            'content',
+            alias(
+              token.immediate(prec(4, /[^`\r\n]+/)),
+              $.command_content,
+            ),
+          ),
+        ),
+        optional(token.immediate(prec(3, '`'))),
+      ),
+    // A single-quoted FOR /F source. It is a command unless `usebackq` is active.
+    // The closing quote is required so a stray apostrophe in a plain FOR set
+    // (`for %%a in (it's)`) stays text. A properly quoted source keeps its inner
+    // parens/operators literal, e.g. `for /f %%a in ('wmic … where (x=1) …') do …`.
+    single_quote_string: ($) =>
+      seq(
+        token(prec(2, "'")),
+        optional(
+          field(
+            'content',
+            alias(
+              token.immediate(prec(4, /[^'\r\n]+/)),
+              $.command_content,
+            ),
+          ),
+        ),
+        token.immediate("'"),
+      ),
 
     // ---------------------------------------------------------------------
     // GOTO / CALL

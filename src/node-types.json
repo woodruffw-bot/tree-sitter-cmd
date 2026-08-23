@@ -209,6 +209,22 @@
     }
   },
   {
+    "type": "backquote_string",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "command_content",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "block",
     "named": true,
     "fields": {
@@ -1634,6 +1650,22 @@
     }
   },
   {
+    "type": "single_quote_string",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "command_content",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "string",
     "named": true,
     "fields": {},
@@ -1687,6 +1719,10 @@
     "named": false
   },
   {
+    "type": "'",
+    "named": false
+  },
+  {
     "type": "(",
     "named": false
   },
@@ -1703,15 +1739,19 @@
     "named": false
   },
   {
+    "type": "`",
+    "named": false
+  },
+  {
     "type": "all_arguments",
     "named": true
   },
   {
-    "type": "backquote_string",
+    "type": "caret_quoted_string",
     "named": true
   },
   {
-    "type": "caret_quoted_string",
+    "type": "command_content",
     "named": true
   },
   {
@@ -1780,10 +1820,6 @@
   },
   {
     "type": "redirect_operator",
-    "named": true
-  },
-  {
-    "type": "single_quote_string",
     "named": true
   },
   {

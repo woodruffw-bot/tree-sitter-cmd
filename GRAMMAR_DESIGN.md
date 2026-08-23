@@ -225,9 +225,15 @@ any single non-separator character (`%%#`, `%%1` are valid). `FOR /L` accepts th
 non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F`
 share one optional-argument path because of a lexer-state constraint, so they are
 unified behind a single `for_flag` rule (this is the one declared conflict). The
-`/F` command source can be `` `backquoted` `` or `'single-quoted'`; both are one
-token (`backquote_string` / `single_quote_string`) so inner `)`/operators stay
-literal, and both are cmd injection points.
+`/F` command quoting depends on its options. By default, `'single-quoted'` is a
+command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
+command and single quotes are literal. The `backquote_string` and
+`single_quote_string` nodes keep inner `)`/operators literal. Each has a
+delimiter-free `command_content` child. The injection query checks the `/F`
+option text and captures only the command form for the active quote mode. This
+also avoids range-adjustment directives that the Rust highlighter does not
+apply. An error-recovery pattern keeps an unterminated `usebackq` command
+injectable while it is being edited.
 
 ### Redirection
 
@@ -278,7 +284,8 @@ full list):
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
   `for_statement` (with `for_option` / `for_flag`, `loop_variable`, `for_set`,
-  and the `backquote_string` / `single_quote_string` command sources),
+  and the `backquote_string` / `single_quote_string` quoted sources, whose
+  interior is a `command_content` node),
   `goto_statement`, `call_statement`, and `label` (with `label_name`,
   `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,
