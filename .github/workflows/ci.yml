@@ -48,8 +48,12 @@ jobs:
           fi
 
   rust:
-    name: Rust crate & fixtures
-    runs-on: ubuntu-latest
+    name: Rust crate & fixtures (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,3 +67,7 @@ jobs:
 
       - name: Test crate and fixtures
         run: cargo test --verbose
+
+      - name: Validate crate package
+        if: runner.os == 'Linux'
+        run: cargo package --verbose

@@ -166,7 +166,8 @@ for /f "usebackq" %%L in (`dir /b`) do echo %%L
     variable: (loop_variable)
     (keyword)
     set: (for_set
-      (backquote_string))
+      (backquote_string
+        content: (command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -296,12 +297,33 @@ for /f %%a in ('echo (hi)') do echo %%a
     variable: (loop_variable)
     (keyword)
     set: (for_set
-      (single_quote_string))
+      (single_quote_string
+        content: (command_content)))
     (keyword)
     body: (command
       name: (command_name)
       argument: (argument
         (loop_variable)))))
+
+==============================================
+unterminated FOR /F backquote retains content
+==============================================
+
+for /f "usebackq" %%a in (`echo hi
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    (loop_variable)
+    (keyword)
+    (backquote_string
+      content: (command_content))))
 
 ================================================
 for set with parentheses in a quoted item

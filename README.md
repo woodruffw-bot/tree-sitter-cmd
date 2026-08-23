@@ -20,8 +20,9 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 - **Blocks**: multi-line `( ... )` compounds with attached redirections.
 - **Control flow**: `IF` (`/I`, `NOT`, the comparison and `EXIST`/`DEFINED`/
   `ERRORLEVEL`/`CMDEXTVERSION` tests, `ELSE`, nesting); `FOR` (`/D`, `/R`, `/L`,
-  `/F` with options and a `` `command` ``, `'command'`, or file source); `GOTO`,
-  `CALL` (including the colon-glued `goto:eof` / `call:label` forms), and labels.
+  `/F` with options, a default `'command'`, a `usebackq` `` `command` ``, or a
+  file source); `GOTO`, `CALL` (including the colon-glued `goto:eof` /
+  `call:label` forms), and labels.
 - **The SET family**: `SET name=value`, `SET /A`, `SET /P`, quoted `SET "x=y"`,
   and display forms.
 - **Expansions**: `%VAR%` and `%VAR:...%`, delayed `!VAR!`, positional `%0`-`%9`,
@@ -68,6 +69,7 @@ let tree = parser.parse(source, None).unwrap();
 println!("{}", tree.root_node().to_sexp());
 ```
 
+The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY` with the parser.
 Rust is the only binding; the generated parser sources live in `src/`.
 
 ## Testing
