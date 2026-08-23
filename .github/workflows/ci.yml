@@ -17,18 +17,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm ci || npm install
+      - name: Install tree-sitter CLI
+        run: cargo install --locked --version 0.26.11 tree-sitter-cli
 
       - name: Generate parser
-        run: npx tree-sitter generate
+        run: tree-sitter generate --js-runtime native
 
       - name: Run corpus tests
-        run: npx tree-sitter test
+        run: tree-sitter test
 
       - name: Real-world parse regression
         run: bash test/real-world/check.sh
@@ -41,15 +37,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm ci || npm install
+      - name: Install tree-sitter CLI
+        run: cargo install --locked --version 0.26.11 tree-sitter-cli
 
       - name: Regenerate parser
-        run: npx tree-sitter generate
+        run: tree-sitter generate --js-runtime native
 
       - name: Check committed src/ is in sync with grammar.js
         run: |

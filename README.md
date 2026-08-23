@@ -45,10 +45,13 @@ share a `_expansion` supertype so queries can target them as a group.
 ## Usage
 
 ```sh
-npm install
-npx tree-sitter generate
-npx tree-sitter parse path/to/script.bat
+cargo install --locked --version 0.26.11 tree-sitter-cli
+tree-sitter generate --js-runtime native
+tree-sitter parse path/to/script.bat
 ```
+
+The CLI comes from the official Rust crate. Its bundled native runtime evaluates
+`grammar.js`, so Node and npm are not required.
 
 From Rust:
 
@@ -70,7 +73,7 @@ Rust is the only binding; the generated parser sources live in `src/`.
 ## Testing
 
 ```sh
-npx tree-sitter test          # unit corpus (test/corpus/)
+tree-sitter test              # unit corpus (test/corpus/)
 bash test/real-world/check.sh # real-world regression (test/real-world/)
 ```
 

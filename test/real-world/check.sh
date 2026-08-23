@@ -7,10 +7,10 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 dest="$here/fixtures"
 
-ts() {
-  if command -v tree-sitter >/dev/null 2>&1; then tree-sitter "$@";
-  else npx --no-install tree-sitter "$@"; fi
-}
+if ! command -v tree-sitter >/dev/null 2>&1; then
+  echo "tree-sitter CLI not found in PATH" >&2
+  exit 1
+fi
 
 cd "$root"
 status=0
@@ -23,7 +23,7 @@ while IFS=$'\t' read -r max name url; do
     status=1
     continue
   fi
-  errs=$(ts parse "$file" 2>/dev/null | grep -c 'ERROR' || true)
+  errs=$(tree-sitter parse "$file" 2>/dev/null | grep -c 'ERROR' || true)
   total=$((total + errs))
   if [ "$errs" -le "$max" ]; then
     printf 'PASS %-28s %s error(s) (<= %s)\n' "$name" "$errs" "$max"
