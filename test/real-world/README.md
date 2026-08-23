@@ -2,19 +2,19 @@
 
 Known-good, real-world Windows batch/cmd scripts, checked in and parsed by CI to
 guard against regressions. Unlike the unit corpus in `../corpus/` (small inputs
-with expected S-expressions), these are whole upstream files. The only assertion
-is that each parses within its ERROR-node budget (0 for everything currently).
+with expected S-expressions), these are whole upstream files. The Rust
+integration test reads each file as raw bytes and requires a parse tree without
+`ERROR` or `MISSING` nodes.
 
 ```
 fixtures/      the committed scripts (plus a .LICENSE per file)
-sources.tsv    budget, filename, and source URL for each fixture
-check.sh       parse every fixture, fail if over budget
+sources.tsv    filename and source URL for each fixture
 ```
 
 Run it:
 
 ```sh
-bash test/real-world/check.sh
+cargo test --test real_world
 ```
 
 ## Third-party content and licensing
@@ -38,6 +38,5 @@ Add cases as new constructs or bugs surface; do not rewrite existing ones.
 
 1. Drop the script in `fixtures/`, kept verbatim.
 2. Add a `fixtures/<name>.LICENSE` sibling with its provenance and license.
-3. Add a row to `sources.tsv`: `<budget>\t<name>\t<source-url>` (budget `0`
-   unless it exercises a documented limitation).
-4. Confirm `bash test/real-world/check.sh` passes.
+3. Add a row to `sources.tsv`: `<name>\t<source-url>`.
+4. Confirm `cargo test --test real_world` passes.

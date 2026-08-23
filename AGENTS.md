@@ -27,15 +27,15 @@ This applies to docs, comments, commit messages, and PR descriptions.
 cargo install --locked --version 0.26.11 tree-sitter-cli
 tree-sitter generate --js-runtime native
 tree-sitter test
-bash test/real-world/check.sh
+cargo test
 ```
 
 The CLI comes from the official Rust crate. Its bundled native runtime evaluates
 `grammar.js`, so Node and npm are not required.
 
 Always run `tree-sitter generate --js-runtime native` after editing `grammar.js`
-or `src/scanner.c`, then run both test layers. CI runs the same steps
-(`.github/workflows/ci.yml`).
+or `src/scanner.c`, then run `tree-sitter test` and `cargo test`. CI runs the
+same steps (`.github/workflows/ci.yml`).
 
 Do not hand-edit generated files (`src/parser.c`, `src/grammar.json`,
 `src/node-types.json`). Change `grammar.js` and regenerate.
@@ -47,7 +47,8 @@ grammar.js          the grammar
 src/scanner.c       external scanner (word-join, REM, block parens, caret escape, string end)
 queries/            highlights.scm, injections.scm
 test/corpus/        unit corpus (input plus expected S-expression)
-test/real-world/    whole upstream scripts parsed against ERROR-node budgets
+test/real-world/    whole upstream scripts parsed by the Rust integration test
+tests/              Rust integration tests
 GRAMMAR_DESIGN.md   design document
 bindings/           rust crate
 ```
