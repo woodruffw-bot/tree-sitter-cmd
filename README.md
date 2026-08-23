@@ -46,9 +46,6 @@ tree-sitter generate --js-runtime native
 tree-sitter parse path/to/script.bat
 ```
 
-The CLI is installed from the official Rust crate. Its bundled native runtime
-evaluates `grammar.js`, so parser generation does not need Node or npm.
-
 From Rust:
 
 ```rust
@@ -65,7 +62,7 @@ println!("{}", tree.root_node().to_sexp());
 ```
 
 The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY`. Only Rust bindings
-are provided. Generated parser sources are committed under `src/`.
+are provided.
 
 ## Testing
 
@@ -79,10 +76,6 @@ The unit corpus contains focused inputs and expected syntax trees. Rust
 integration tests parse upstream scripts from raw bytes and reject `ERROR` or
 `MISSING` nodes. Each fixture retains its third-party license. See
 [`test/real-world/README.md`](test/real-world/README.md).
-
-CI runs `tree-sitter fuzz` for each change. A separate libFuzzer workflow runs
-on parser pull requests and once a week. Both use the committed C parser and
-scanner. Neither needs Node or npm.
 
 ## Known limitations
 
