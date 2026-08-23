@@ -14,6 +14,30 @@ echo hello world
     argument: (argument
       (text))))
 
+======================================
+keyword-like executable names and paths
+======================================
+
+if.exe arg
+set.exe arg
+.\for.exe arg
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
 ====================
 quiet prefix
 ====================

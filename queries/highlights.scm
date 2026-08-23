@@ -6,6 +6,7 @@
 ; ---------------------------------------------------------------------------
 (rem_comment) @comment
 (colon_comment) @comment
+(powershell_comment) @comment
 (comment_text) @comment
 (label_text) @comment
 
@@ -41,6 +42,7 @@
 ; Literals
 ; ---------------------------------------------------------------------------
 (string) @string
+(caret_quoted_string) @string
 (backquote_string) @string.special
 (single_quote_string) @string.special
 (escape_sequence) @string.escape

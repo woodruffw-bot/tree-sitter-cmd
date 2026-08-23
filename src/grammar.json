@@ -94,6 +94,10 @@
         {
           "type": "SYMBOL",
           "name": "colon_comment"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "powershell_comment"
         }
       ]
     },
@@ -1198,6 +1202,17 @@
         "type": "SEQ",
         "members": [
           {
+            "type": "REPEAT",
+            "content": {
+              "type": "FIELD",
+              "name": "redirect",
+              "content": {
+                "type": "SYMBOL",
+                "name": "redirection"
+              }
+            }
+          },
+          {
             "type": "ALIAS",
             "content": {
               "type": "TOKEN",
@@ -1409,8 +1424,17 @@
         "type": "SEQ",
         "members": [
           {
-            "type": "SYMBOL",
-            "name": "string"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "string"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "caret_quoted_string"
+              }
+            ]
           },
           {
             "type": "REPEAT",
@@ -1420,6 +1444,13 @@
             }
           }
         ]
+      }
+    },
+    "caret_quoted_string": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "\\^\"(?:[^\\r\\n^]|\\^[^\"\\r\\n])*(?:\\^\"|\")"
       }
     },
     "set_display": {
@@ -1494,16 +1525,25 @@
           "type": "FIELD",
           "name": "target",
           "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "IMMEDIATE_TOKEN",
-              "content": {
-                "type": "PATTERN",
-                "value": "[0-9]"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "IMMEDIATE_TOKEN",
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "[0-9]"
+                  }
+                },
+                "named": true,
+                "value": "file_descriptor"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_expansion"
               }
-            },
-            "named": true,
-            "value": "file_descriptor"
+            ]
           }
         }
       ]
@@ -1545,6 +1585,14 @@
       "members": [
         {
           "type": "SYMBOL",
+          "name": "_cmd_path"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_cmd_punct_lead"
+        },
+        {
+          "type": "SYMBOL",
           "name": "_cmd_text"
         },
         {
@@ -1566,6 +1614,37 @@
         }
       ]
     },
+    "_cmd_path": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1,
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": "[^ \\t\\r\\n&|<>()^\"%!@:,/;=\\[\\]\\\\]+[.\\\\][^ \\t\\r\\n&|<>()^\"%!]*"
+            },
+            {
+              "type": "PATTERN",
+              "value": "\\.{1,2}[\\\\/][^ \\t\\r\\n&|<>()^\"%!]*"
+            },
+            {
+              "type": "PATTERN",
+              "value": "\\\\\\\\[^ \\t\\r\\n&|<>()^\"%!]*"
+            }
+          ]
+        }
+      }
+    },
+    "_cmd_punct_lead": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "[.,/;=\\[\\]\\\\][^ \\t\\r\\n&|<>()^\"%!]*"
+      }
+    },
     "_cmd_text": {
       "type": "TOKEN",
       "content": {
@@ -1577,7 +1656,7 @@
           },
           {
             "type": "PATTERN",
-            "value": "[^ \\t\\r\\n&|<>()^\"%!@:][^ \\t\\r\\n&|<>()^\"%!:]*"
+            "value": "[^ \\t\\r\\n&|<>()^\"%!@:,./;=\\[\\]\\\\][^ \\t\\r\\n&|<>()^\"%!:,./;=\\[\\]\\\\]*"
           }
         ]
       }
@@ -1906,31 +1985,110 @@
       ]
     },
     "colon_comment": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "TOKEN",
+              "content": {
+                "type": "PATTERN",
+                "value": "::"
+              }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_line_text"
+                  },
+                  "named": true,
+                  "value": "comment_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "TOKEN",
+              "content": {
+                "type": "PREC",
+                "value": 1,
+                "content": {
+                  "type": "PATTERN",
+                  "value": ":[^$0-9A-Za-z_\\r\\n:]"
+                }
+              }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_line_text"
+                  },
+                  "named": true,
+                  "value": "comment_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "powershell_comment": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "TOKEN",
+              "content": {
+                "type": "PATTERN",
+                "value": "<#"
+              }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_line_text"
+                  },
+                  "named": true,
+                  "value": "comment_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
         {
           "type": "TOKEN",
           "content": {
             "type": "PATTERN",
-            "value": "::"
+            "value": "#>[^\\r\\n]*"
           }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "ALIAS",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_line_text"
-              },
-              "named": true,
-              "value": "comment_text"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
         }
       ]
     },

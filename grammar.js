@@ -158,6 +158,7 @@ module.exports = grammar({
         $.and_list,
         $.pipeline,
         $.colon_comment,
+        $.powershell_comment,
       ),
 
     seq_list: ($) =>
@@ -402,6 +403,7 @@ module.exports = grammar({
     set_statement: ($) =>
       prec.right(
         seq(
+          repeat(field('redirect', $.redirection)),
           kw($, 'set'),
           optional(
             choice(
@@ -444,10 +446,15 @@ module.exports = grammar({
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
     set_arith: ($) => seq(opt('/a'), repeat(field('expression', $.argument))),
-    // SET "name=value" — quoted assignment. cmd treats the span up to the last
-    // quote as name=value, so the value may itself contain quotes. We model it
-    // as a quote-led word run, which also stops cleanly at an operator/newline.
-    set_quoted: ($) => prec.right(seq($.string, repeat($._fragment))),
+    // SET "name=value". cmd treats the span up to the last quote as name=value,
+    // so the value may itself contain quotes. Caret-escaped wrapper quotes are
+    // also common in macro definitions and remain one quoted assignment.
+    set_quoted: ($) =>
+      prec.right(
+        seq(choice($.string, $.caret_quoted_string), repeat($._fragment)),
+      ),
+    caret_quoted_string: ($) =>
+      token(/\^"(?:[^\r\n^]|\^[^"\r\n])*(?:\^"|")/),
     // SET  /  SET prefix  (display)
     set_display: ($) => alias($._set_name, $.variable_name),
 
@@ -473,7 +480,13 @@ module.exports = grammar({
     redirect_dup: ($) =>
       seq(
         field('operator', $.redirect_dup_operator),
-        field('target', alias(token.immediate(/[0-9]/), $.file_descriptor)),
+        field(
+          'target',
+          choice(
+            alias(token.immediate(/[0-9]/), $.file_descriptor),
+            $._expansion,
+          ),
+        ),
       ),
     redirect_dup_operator: ($) => token(/[0-9]?[<>]&/),
 
@@ -487,16 +500,42 @@ module.exports = grammar({
     // `! echo ...` as a command named `!` (it fails at runtime — a common
     // debug-disable trick), and `%`/`!` only form an expansion when they pair up.
     _cmd_lead: ($) =>
-      choice($._cmd_text, $.string, $._expansion, alias($._stray_sigil, $.text)),
-    // cmd ends an internal-command name at `:` (and `.\,/;=[]`), so `goto:eof`
-    // is `goto` + `:eof` and `call:sub` is `call` + `:sub`. We honour the `:`
-    // break: a bareword stops at `:`, EXCEPT a leading drive letter keeps it
-    // (`C:`, `C:\tools\foo.exe`), so drive-relative command paths still parse.
+      choice(
+        $._cmd_path,
+        $._cmd_punct_lead,
+        $._cmd_text,
+        $.string,
+        $._expansion,
+        alias($._stray_sigil, $.text),
+      ),
+    // Preserve dotted executable names and explicit paths as one command-name
+    // token. This keeps names such as `if.exe` from being mistaken for an
+    // internal command when `_cmd_text` stops at cmd's keyword delimiters.
+    _cmd_path: ($) =>
+      token(
+        prec(
+          1,
+          choice(
+            /[^ \t\r\n&|<>()^"%!@:,/;=\[\]\\]+[.\\][^ \t\r\n&|<>()^"%!]*/,
+            /\.{1,2}[\\/][^ \t\r\n&|<>()^"%!]*/,
+            /\\\\[^ \t\r\n&|<>()^"%!]*/,
+          ),
+        ),
+      ),
+    // A generic command may itself begin with one of cmd's internal-command
+    // delimiters. Keep that fallback without letting the same token swallow a
+    // delimiter after a recognized keyword such as `set/a`.
+    _cmd_punct_lead: ($) =>
+      token(/[.,/;=\[\]\\][^ \t\r\n&|<>()^"%!]*/),
+    // cmd ends an internal-command name at `:.\,/;=[]`, so `goto:eof` is
+    // `goto` + `:eof` and `set/a` is `set` + `/a`. Explicit paths and dotted
+    // executable names are handled by `_cmd_path`, while a leading drive letter
+    // remains one `_cmd_text` token.
     _cmd_text: ($) =>
       token(
         choice(
           /[A-Za-z]:[^ \t\r\n&|<>()^"%!]*/,
-          /[^ \t\r\n&|<>()^"%!@:][^ \t\r\n&|<>()^"%!:]*/,
+          /[^ \t\r\n&|<>()^"%!@:,./;=\[\]\\][^ \t\r\n&|<>()^"%!:,./;=\[\]\\]*/,
         ),
       ),
 
@@ -600,7 +639,21 @@ module.exports = grammar({
         optional(alias($._line_text, $.comment_text)),
       ),
     colon_comment: ($) =>
-      seq(token(/::/), optional(alias($._line_text, $.comment_text))),
+      choice(
+        seq(token(/::/), optional(alias($._line_text, $.comment_text))),
+        seq(
+          token(prec(1, /:[^$0-9A-Za-z_\r\n:]/)),
+          optional(alias($._line_text, $.comment_text)),
+        ),
+      ),
+    // Batch and PowerShell polyglots use these markers so PowerShell sees a
+    // block comment while cmd reaches the batch section. Keep marker lines
+    // opaque so their punctuation does not trigger redirection recovery.
+    powershell_comment: ($) =>
+      choice(
+        seq(token(/<#/), optional(alias($._line_text, $.comment_text))),
+        token(/#>[^\r\n]*/),
+      ),
     _line_text: ($) => token(/[^\r\n]+/),
   },
 });

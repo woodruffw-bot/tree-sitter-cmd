@@ -94,12 +94,12 @@ Most of the grammar lives in `grammar.js` with `[ \t]`-only extras, significant
 newlines, `token.immediate` for tight expansion lexing, case-insensitive keyword
 helpers, and precedence to resolve command/operator/control-flow ambiguity.
 Keyword extraction (`word: $._cmd_text`) makes `IF`/`FOR`/`SET` match robustly
-against barewords, so a file named `if` still works as an argument. Keywords are
-aliased to the named `keyword` node so they appear in the tree and highlight via
-`(keyword)`. `_cmd_text` ends a bareword at `:` — cmd ends an internal-command
-name there (and at `.\,/;=[]`), so `goto:eof`/`call:label` are `goto`/`call`
-plus a `:label` argument — with a leading-drive-letter exception (`C:`,
-`C:\tools\foo.exe`) so command paths still parse.
+against barewords. Keywords are aliased to the named `keyword` node so they
+appear in the tree and highlight via `(keyword)`. `_cmd_text` ends a bareword at
+cmd's internal-command delimiters (`:.\,/;=[]`), so `goto:eof`, `call:label`,
+and `set/a` recognize the command without requiring a space. `_cmd_path` keeps
+dotted executable names and explicit paths such as `if.exe` from being mistaken
+for internal commands. A leading drive letter also stays intact.
 
 `extras` is `[/[ \t]/, token(/\^\r?\n/)]`. The line continuation is an anonymous,
 invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
@@ -199,6 +199,13 @@ taken into the string. A quote inside a `%VAR:"=%` style substitution stays part
 of the single `variable` token (the lexer matches the whole `%...%` first), so
 those do not affect string termination.
 
+`SET` also accepts caret-escaped wrapper quotes, as in
+`set ^"macro=call helper^"`. These are represented as one
+`caret_quoted_string`. They do not use normal string grouping because the carets
+make the quote characters literal during cmd tokenization. A caret-escaped
+closing wrapper ends the node immediately, so later operators and commands stay
+outside the assignment.
+
 ### IF / ELSE
 
 Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)
@@ -235,12 +242,19 @@ semantics are runtime.
 `REM` is a whole-word keyword followed by a delimiter and a free body to
 end-of-line. The body surfaces `%VAR%`/`!VAR!` for highlighting but is otherwise
 opaque, and does not honor line continuation (cmd's `ParseRem` does not splice).
-`::` is a degenerate label used as a comment. It is a statement, so it is
-accepted both at the start of a line and after an operator, matching the common
-`dir &:: note` inline-comment idiom (the same position the `& rem` form already
-worked in). Like `REM` it runs to end of line, so any later `&`/`|` is part of
-the comment. `::` inside a block is unsafe in real cmd, but the grammar parses it
-without cascading; a linter layer could warn.
+`::` is a degenerate label used as a comment. A single colon followed by a
+character that cannot start a label, such as `:#`, `:!`, or `: `, is treated the
+same way. Digits remain valid label starts, so `:1` is a label rather than a
+comment. Colon comments are statements, so they are accepted both at the start
+of a line and after an operator. This covers `dir &:: note` and
+`call :init &:# note`. Like `REM`, they run to end of line. Colon comments
+inside a block are unsafe in real cmd, but the grammar parses them without
+cascading; a linter layer could warn.
+
+Batch and PowerShell polyglots commonly use `<#` and `#>` marker lines. The
+grammar represents those lines as `powershell_comment` nodes so their marker
+punctuation does not enter redirection recovery. This is a surface-syntax
+convenience; it does not attempt to parse the embedded PowerShell program.
 
 ### SET /A
 
@@ -273,8 +287,8 @@ full list):
   `percent_literal`. The `:~off,len` substring and `:search=replace`
   substitution syntax stays inside the `variable` token, not separate nodes.
 - **Words and literals**: `argument`, `text`, `string`, `escape_sequence`.
-- **Comments**: `rem_comment`, `colon_comment`, `comment_text`; keywords surface
-  as the aliased `keyword` node.
+- **Comments**: `rem_comment`, `colon_comment`, `powershell_comment`,
+  `comment_text`; keywords surface as the aliased `keyword` node.
 
 Operators use conventional left-associative tree-sitter precedence (cmd binding,
 loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from ReactOS's

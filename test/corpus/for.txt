@@ -23,6 +23,30 @@ for %%i in (*.txt *.log) do echo %%i
         (loop_variable)))))
 
 ====================
+compact for flag
+====================
+
+for/f %%i in (x) do echo %%i
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================
 for /l range
 ====================
 
