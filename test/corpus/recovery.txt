@@ -1,0 +1,37 @@
+==========================================
+dangling redirect recovers at next command
+==========================================
+
+echo before >
+echo after
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (ERROR
+    (redirect_operator))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+======================================
+unclosed block records missing delimiter
+======================================
+
+(
+echo before
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (MISSING ")")))

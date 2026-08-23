@@ -73,15 +73,15 @@ Rust is the only binding; the generated parser sources live in `src/`.
 ## Testing
 
 ```sh
-tree-sitter test              # unit corpus (test/corpus/)
-bash test/real-world/check.sh # real-world regression (test/real-world/)
+tree-sitter test # unit corpus (test/corpus/)
+cargo test       # Rust, incremental, and real-world regression tests
 ```
 
 The unit corpus holds focused cases with expected S-expressions, one file per
 construct. The real-world corpus parses whole upstream scripts (gradlew.bat,
-mvn.cmd, catalina.bat, Node's vcbuild.bat, and others) against per-file
-ERROR-node budgets. Those fixtures are third-party test input under their own
-licenses; see `test/real-world/README.md`.
+mvn.cmd, catalina.bat, Node's vcbuild.bat, and others) from raw bytes. Every
+fixture must parse without `ERROR` or `MISSING` nodes. Those fixtures are
+third-party test input under their own licenses; see `test/real-world/README.md`.
 
 ## Known limitations
 
@@ -112,6 +112,7 @@ src/scanner.c       external scanner (word-join, REM, block parens, caret escape
 queries/            highlights.scm, injections.scm
 test/corpus/        unit test corpus
 test/real-world/    real-world regression harness
+tests/              Rust integration tests
 GRAMMAR_DESIGN.md   design document
 bindings/           rust crate
 ```

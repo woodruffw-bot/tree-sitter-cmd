@@ -1,66 +1,64 @@
 # Manifest for the committed real-world parse-regression corpus in ./fixtures/.
-# Format: <max-allowed-errors>\t<filename>\t<source-url>
+# Format: <filename>\t<source-url>
 #
-# The fixtures themselves are checked in (see ./fixtures/) and parsed by
-# check.sh, which fails if a file produces more ERROR nodes than its budget.
-# Each fixture has a sibling <filename>.LICENSE recording its upstream project
-# and license; the files remain under those licenses (see ./README.md).
+# The fixtures themselves are checked in (see ./fixtures/) and parsed by the
+# Rust integration test. Each fixture must parse without ERROR or MISSING
+# nodes. Each fixture has a sibling <filename>.LICENSE recording its upstream
+# project and license; the files remain under those licenses (see ./README.md).
 #
-# All listed scripts currently parse with zero ERROR nodes (budget 0). The
-# column exists so a script exercising a documented limitation can be tracked
-# with a non-zero budget rather than removed. Add new cases by dropping the
-# file in ./fixtures/, adding a .LICENSE sibling, and a row here.
-0	gradlew.bat	https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
-0	mvn.cmd	https://raw.githubusercontent.com/apache/maven/master/apache-maven/src/assembly/maven/bin/mvn.cmd
-0	npm.cmd	https://raw.githubusercontent.com/nodejs/node/main/deps/npm/bin/npm.cmd
-0	vcpkg-bootstrap.bat	https://raw.githubusercontent.com/microsoft/vcpkg/master/bootstrap-vcpkg.bat
-0	razzle.cmd	https://raw.githubusercontent.com/microsoft/terminal/main/tools/razzle.cmd
-0	dotnet-build.cmd	https://raw.githubusercontent.com/dotnet/runtime/main/build.cmd
-0	llvm-release.bat	https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/utils/release/build_llvm_release.bat
-0	conda-activate.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/activate.bat
-0	conda.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/conda.bat
-0	venv-activate.bat	https://raw.githubusercontent.com/pypa/virtualenv/main/src/virtualenv/activation/batch/activate.bat
-0	gfw-vcpkg-copy-dlls.bat	https://raw.githubusercontent.com/git-for-windows/git/main/compat/vcbuild/vcpkg_copy_dlls.bat
+# Add new cases by dropping the file in ./fixtures/, adding a .LICENSE sibling,
+# and adding a row here.
+gradlew.bat	https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
+mvn.cmd	https://raw.githubusercontent.com/apache/maven/master/apache-maven/src/assembly/maven/bin/mvn.cmd
+npm.cmd	https://raw.githubusercontent.com/nodejs/node/main/deps/npm/bin/npm.cmd
+vcpkg-bootstrap.bat	https://raw.githubusercontent.com/microsoft/vcpkg/master/bootstrap-vcpkg.bat
+razzle.cmd	https://raw.githubusercontent.com/microsoft/terminal/main/tools/razzle.cmd
+dotnet-build.cmd	https://raw.githubusercontent.com/dotnet/runtime/main/build.cmd
+llvm-release.bat	https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/utils/release/build_llvm_release.bat
+conda-activate.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/activate.bat
+conda.bat	https://raw.githubusercontent.com/conda/conda/main/conda/shell/condabin/conda.bat
+venv-activate.bat	https://raw.githubusercontent.com/pypa/virtualenv/main/src/virtualenv/activation/batch/activate.bat
+gfw-vcpkg-copy-dlls.bat	https://raw.githubusercontent.com/git-for-windows/git/main/compat/vcbuild/vcpkg_copy_dlls.bat
 # cpython's build.bat exercises the `echo.message (parenthesised)` idiom
 # (literal parentheses in arguments) — now supported.
-0	cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat
+cpython-build.bat	https://raw.githubusercontent.com/python/cpython/main/PCbuild/build.bat
 
 # Added from the broader stress-test sweep (see commit history).
-0	ant.bat	https://github.com/apache/ant/blob/master/src/script/ant.bat
-0	cpython-get-externals.bat	https://github.com/python/cpython/blob/main/PCbuild/get_externals.bat
-0	cpython-rt.bat	https://github.com/python/cpython/blob/main/PCbuild/rt.bat
-0	dotnet-sdk-build.cmd	https://github.com/dotnet/sdk/blob/main/build.cmd
-0	flutter.bat	https://github.com/flutter/flutter/blob/master/bin/flutter.bat
-0	go-make.bat	https://github.com/golang/go/blob/master/src/make.bat
-0	kafka-run-class.bat	https://github.com/apache/kafka/blob/trunk/bin/windows/kafka-run-class.bat
-0	node-vcbuild.bat	https://github.com/nodejs/node/blob/main/vcbuild.bat
-0	pyenv-version.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/libexec/pyenv-version.bat
-0	pyenv.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/bin/pyenv.bat
-0	spark-class2.cmd	https://github.com/apache/spark/blob/master/bin/spark-class2.cmd
-0	terminal-bcz.cmd	https://github.com/microsoft/terminal/blob/main/tools/bcz.cmd
-0	tomcat-catalina.bat	https://github.com/apache/tomcat/blob/main/bin/catalina.bat
-0	tomcat-setclasspath.bat	https://github.com/apache/tomcat/blob/main/bin/setclasspath.bat
-0	zookeeper-zkenv.cmd	https://github.com/apache/zookeeper/blob/master/bin/zkEnv.cmd
+ant.bat	https://github.com/apache/ant/blob/master/src/script/ant.bat
+cpython-get-externals.bat	https://github.com/python/cpython/blob/main/PCbuild/get_externals.bat
+cpython-rt.bat	https://github.com/python/cpython/blob/main/PCbuild/rt.bat
+dotnet-sdk-build.cmd	https://github.com/dotnet/sdk/blob/main/build.cmd
+flutter.bat	https://github.com/flutter/flutter/blob/master/bin/flutter.bat
+go-make.bat	https://github.com/golang/go/blob/master/src/make.bat
+kafka-run-class.bat	https://github.com/apache/kafka/blob/trunk/bin/windows/kafka-run-class.bat
+node-vcbuild.bat	https://github.com/nodejs/node/blob/main/vcbuild.bat
+pyenv-version.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/libexec/pyenv-version.bat
+pyenv.bat	https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/bin/pyenv.bat
+spark-class2.cmd	https://github.com/apache/spark/blob/master/bin/spark-class2.cmd
+terminal-bcz.cmd	https://github.com/microsoft/terminal/blob/main/tools/bcz.cmd
+tomcat-catalina.bat	https://github.com/apache/tomcat/blob/main/bin/catalina.bat
+tomcat-setclasspath.bat	https://github.com/apache/tomcat/blob/main/bin/setclasspath.bat
+zookeeper-zkenv.cmd	https://github.com/apache/zookeeper/blob/master/bin/zkEnv.cmd
 
 # npocmaka/batch.scripts (MIT) — a torture-test collection of cmd idioms;
 # included to guard the trickier edge cases (carets, (echo(), @@, delayed exp).
-0	npocmaka-getJavaVersion.bat	https://github.com/npocmaka/batch.scripts/blob/master/Java/getJavaVersion.bat
-0	npocmaka-md5.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/md5.bat
-0	npocmaka-firstLinesP.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/firstLinesP.bat
-0	npocmaka-endsWith.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/endsWith.bat
-0	npocmaka-getTime.bat	https://github.com/npocmaka/batch.scripts/blob/master/DateAndTime/getTime.bat
-0	npocmaka-isInteger.bat	https://github.com/npocmaka/batch.scripts/blob/master/math/isInteger.bat
-0	npocmaka-countOfSubstrings.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/countOfSubstrings.bat
-0	npocmaka-binaryTree.bat	https://github.com/npocmaka/batch.scripts/blob/master/dataStructures/binaryTree.bat
+npocmaka-getJavaVersion.bat	https://github.com/npocmaka/batch.scripts/blob/master/Java/getJavaVersion.bat
+npocmaka-md5.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/md5.bat
+npocmaka-firstLinesP.bat	https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/firstLinesP.bat
+npocmaka-endsWith.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/endsWith.bat
+npocmaka-getTime.bat	https://github.com/npocmaka/batch.scripts/blob/master/DateAndTime/getTime.bat
+npocmaka-isInteger.bat	https://github.com/npocmaka/batch.scripts/blob/master/math/isInteger.bat
+npocmaka-countOfSubstrings.bat	https://github.com/npocmaka/batch.scripts/blob/master/stringutils/countOfSubstrings.bat
+npocmaka-binaryTree.bat	https://github.com/npocmaka/batch.scripts/blob/master/dataStructures/binaryTree.bat
 
 # Original Minimal Reproducible Examples (authored here, MIT) that distill
 # idioms from scripts whose licenses prevent vendoring them verbatim.
-0	mre-cli-launcher.bat	(original MRE — see mre-cli-launcher.bat.LICENSE)
-0	mre-classpath-builder.bat	(original MRE — see mre-classpath-builder.bat.LICENSE)
-0	mre-interactive-menu.bat	(original MRE — see mre-interactive-menu.bat.LICENSE)
+mre-cli-launcher.bat	(original MRE — see mre-cli-launcher.bat.LICENSE)
+mre-classpath-builder.bat	(original MRE — see mre-classpath-builder.bat.LICENSE)
+mre-interactive-menu.bat	(original MRE — see mre-interactive-menu.bat.LICENSE)
 
 # Edge-case guards added on the cmd-edge-cases branch: caret-escaped
 # expansions, sigil-led command names, and spaced SET names.
-0	cpython-prepare-libffi.bat	(see cpython-prepare-libffi.bat.LICENSE)
-0	npocmaka-checkNet.bat	(see npocmaka-checkNet.bat.LICENSE)
-0	npocmaka-ifDefined.bat	(see npocmaka-ifDefined.bat.LICENSE)
+cpython-prepare-libffi.bat	(see cpython-prepare-libffi.bat.LICENSE)
+npocmaka-checkNet.bat	(see npocmaka-checkNet.bat.LICENSE)
+npocmaka-ifDefined.bat	(see npocmaka-ifDefined.bat.LICENSE)

@@ -26,9 +26,6 @@ jobs:
       - name: Run corpus tests
         run: tree-sitter test
 
-      - name: Real-world parse regression
-        run: bash test/real-world/check.sh
-
   generated:
     name: Generated parser up to date
     runs-on: ubuntu-latest
@@ -51,7 +48,7 @@ jobs:
           fi
 
   rust:
-    name: Rust crate
+    name: Rust crate & fixtures
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,5 +61,5 @@ jobs:
       - name: Build crate
         run: cargo build --verbose
 
-      - name: Test crate
+      - name: Test crate and fixtures
         run: cargo test --verbose
