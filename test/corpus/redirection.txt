@@ -11,11 +11,10 @@ echo hi > out.txt
     name: (command_name)
     argument: (argument
       (text))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 ====================
 stdout append
@@ -30,11 +29,10 @@ echo hi >> log.txt
     name: (command_name)
     argument: (argument
       (text))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 ====================
 stdin
@@ -47,11 +45,10 @@ sort < in.txt
 (program
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 ====================
 stderr to file
@@ -64,11 +61,11 @@ cmd 2> err.txt
 (program
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 ========================
 merge stderr into stdout
@@ -81,15 +78,14 @@ cmd > out.txt 2>&1
 (program
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))
-    redirect: (redirection
-      (redirect_dup
-        operator: (redirect_dup_operator)
-        target: (file_descriptor)))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor))))
 
 ====================
 leading redirection
@@ -101,11 +97,11 @@ leading redirection
 
 (program
   (command
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
     name: (command_name)
     argument: (argument
       (text))))
@@ -129,11 +125,10 @@ echo b) > combined.txt
       name: (command_name)
       argument: (argument
         (text)))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 =====================================
 expanded file descriptor destinations
@@ -148,19 +143,69 @@ cmd 2>&!FD!
 (program
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_dup
-        operator: (redirect_dup_operator)
-        target: (parameter))))
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (parameter)))
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_dup
-        operator: (redirect_dup_operator)
-        target: (variable))))
+    redirect: (redirect_dup
+      operator: (redirect_dup_operator)
+      target: (variable)))
   (command
     name: (command_name)
-    redirect: (redirection
-      (redirect_dup
-        operator: (redirect_dup_operator)
-        target: (delayed_variable)))))
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (delayed_variable))))
+
+=========================================
+source descriptors and numeric arguments
+=========================================
+
+echo 2 > spaced.txt
+echo 22>joined.txt
+echo 2 apples
+2>nul echo hidden
+cmd 2>&1
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text)))
+  (command
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor))))

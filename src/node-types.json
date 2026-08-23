@@ -34,11 +34,25 @@
     ]
   },
   {
+    "type": "_redirection",
+    "named": true,
+    "subtypes": [
+      {
+        "type": "redirect_dup",
+        "named": true
+      },
+      {
+        "type": "redirect_file",
+        "named": true
+      }
+    ]
+  },
+  {
     "type": "and_list",
     "named": true,
     "fields": {
       "left": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -83,10 +97,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -103,18 +113,8 @@
           }
         ]
       },
-      "quiet": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "quiet",
-            "named": true
-          }
-        ]
-      },
       "right": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -159,10 +159,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -209,6 +205,22 @@
     }
   },
   {
+    "type": "backquote_string",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "command_content",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "block",
     "named": true,
     "fields": {
@@ -227,7 +239,7 @@
         "required": false,
         "types": [
           {
-            "type": "redirection",
+            "type": "_redirection",
             "named": true
           }
         ]
@@ -314,12 +326,22 @@
           }
         ]
       },
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      },
       "redirect": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "redirection",
+            "type": "_redirection",
             "named": true
           }
         ]
@@ -375,12 +397,22 @@
           }
         ]
       },
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      },
       "redirect": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "redirection",
+            "type": "_redirection",
             "named": true
           }
         ]
@@ -514,7 +546,7 @@
     "named": true,
     "fields": {
       "body": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -539,10 +571,6 @@
           },
           {
             "type": "if_statement",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -621,12 +649,22 @@
           }
         ]
       },
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      },
       "redirect": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "redirection",
+            "type": "_redirection",
             "named": true
           }
         ]
@@ -658,7 +696,7 @@
     "named": true,
     "fields": {
       "alternative": {
-        "multiple": true,
+        "multiple": false,
         "required": false,
         "types": [
           {
@@ -686,10 +724,6 @@
             "named": true
           },
           {
-            "type": "quiet",
-            "named": true
-          },
-          {
             "type": "rem_comment",
             "named": true
           },
@@ -714,7 +748,7 @@
         ]
       },
       "consequence": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -739,10 +773,6 @@
           },
           {
             "type": "if_statement",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -816,7 +846,7 @@
     "named": true,
     "fields": {
       "left": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -861,10 +891,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -881,18 +907,8 @@
           }
         ]
       },
-      "quiet": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "quiet",
-            "named": true
-          }
-        ]
-      },
       "right": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -937,10 +953,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -964,7 +976,7 @@
     "named": true,
     "fields": {
       "left": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -1009,10 +1021,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -1029,18 +1037,8 @@
           }
         ]
       },
-      "quiet": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "quiet",
-            "named": true
-          }
-        ]
-      },
       "right": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -1085,10 +1083,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -1126,18 +1120,7 @@
     "type": "program",
     "named": true,
     "root": true,
-    "fields": {
-      "quiet": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "quiet",
-            "named": true
-          }
-        ]
-      }
-    },
+    "fields": {},
     "children": {
       "multiple": true,
       "required": false,
@@ -1219,6 +1202,16 @@
           }
         ]
       },
+      "source": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "file_descriptor",
+            "named": true
+          }
+        ]
+      },
       "target": {
         "multiple": false,
         "required": true,
@@ -1249,6 +1242,16 @@
           }
         ]
       },
+      "source": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "file_descriptor",
+            "named": true
+          }
+        ]
+      },
       "target": {
         "multiple": false,
         "required": true,
@@ -1262,28 +1265,20 @@
     }
   },
   {
-    "type": "redirection",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "redirect_dup",
-          "named": true
-        },
-        {
-          "type": "redirect_file",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "rem_comment",
     "named": true,
-    "fields": {},
+    "fields": {
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
       "required": true,
@@ -1304,7 +1299,7 @@
     "named": true,
     "fields": {
       "left": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -1352,10 +1347,6 @@
             "named": true
           },
           {
-            "type": "quiet",
-            "named": true
-          },
-          {
             "type": "rem_comment",
             "named": true
           },
@@ -1369,18 +1360,8 @@
           }
         ]
       },
-      "quiet": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "quiet",
-            "named": true
-          }
-        ]
-      },
       "right": {
-        "multiple": true,
+        "multiple": false,
         "required": false,
         "types": [
           {
@@ -1425,10 +1406,6 @@
           },
           {
             "type": "powershell_comment",
-            "named": true
-          },
-          {
-            "type": "quiet",
             "named": true
           },
           {
@@ -1461,6 +1438,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "set_flag",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1535,7 +1522,7 @@
     },
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "_expansion",
@@ -1543,6 +1530,10 @@
         },
         {
           "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "set_flag",
           "named": true
         },
         {
@@ -1591,12 +1582,22 @@
     "type": "set_statement",
     "named": true,
     "fields": {
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      },
       "redirect": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "redirection",
+            "type": "_redirection",
             "named": true
           }
         ]
@@ -1631,6 +1632,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "single_quote_string",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "command_content",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1687,6 +1704,10 @@
     "named": false
   },
   {
+    "type": "'",
+    "named": false
+  },
+  {
     "type": "(",
     "named": false
   },
@@ -1703,15 +1724,19 @@
     "named": false
   },
   {
+    "type": "`",
+    "named": false
+  },
+  {
     "type": "all_arguments",
     "named": true
   },
   {
-    "type": "backquote_string",
+    "type": "caret_quoted_string",
     "named": true
   },
   {
-    "type": "caret_quoted_string",
+    "type": "command_content",
     "named": true
   },
   {
@@ -1783,7 +1808,7 @@
     "named": true
   },
   {
-    "type": "single_quote_string",
+    "type": "set_flag",
     "named": true
   },
   {

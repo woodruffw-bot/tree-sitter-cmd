@@ -11,6 +11,19 @@ rem this is a comment
     (keyword)
     (comment_text)))
 
+====================================
+rem body keeps expansion text opaque
+====================================
+
+rem %PATH% !ERRORLEVEL! %%i
+
+---
+
+(program
+  (rem_comment
+    (keyword)
+    (comment_text)))
+
 ================================
 rem with operators stays literal
 ================================

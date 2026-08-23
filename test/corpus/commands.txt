@@ -47,8 +47,8 @@ quiet prefix
 ---
 
 (program
-  quiet: (quiet)
   (command
+    quiet: (quiet)
     name: (command_name)
     argument: (argument
       (text))))

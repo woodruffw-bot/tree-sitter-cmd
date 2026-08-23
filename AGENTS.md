@@ -60,8 +60,8 @@ bindings/           rust crate
 - Follow tree-sitter naming idioms. Named node types are snake_case and
   descriptive. Reuse the field names already in use for the same role (`name`,
   `value`, `left`, `right`, `operator`, `condition`, `consequence`,
-  `alternative`, `argument`, `target`, `body`, `option`, `kind`); do not add a
-  second name for one role (no `arg` beside `argument`, no `op` beside
+  `alternative`, `argument`, `source`, `target`, `body`, `option`, `kind`); do
+  not add a second name for one role (no `arg` beside `argument`, no `op` beside
   `operator`). Helper rules that should not appear in the tree take a leading
   underscore (`_name`). Expose a `choice` of related nodes as a `supertype` when
   a query would want to match the group (for example `_expansion`). Alias
