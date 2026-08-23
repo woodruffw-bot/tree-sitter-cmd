@@ -134,3 +134,33 @@ echo b) > combined.txt
         operator: (redirect_operator)
         target: (argument
           (text))))))
+
+=====================================
+expanded file descriptor destinations
+=====================================
+
+cmd 2>&%1
+cmd >&%FD%
+cmd 2>&!FD!
+
+---
+
+(program
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_dup
+        operator: (redirect_dup_operator)
+        target: (parameter))))
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_dup
+        operator: (redirect_dup_operator)
+        target: (variable))))
+  (command
+    name: (command_name)
+    redirect: (redirection
+      (redirect_dup
+        operator: (redirect_dup_operator)
+        target: (delayed_variable)))))

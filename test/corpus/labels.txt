@@ -35,3 +35,20 @@ goto :eof
     (keyword)
     target: (argument
       (text))))
+
+====================
+numeric label
+====================
+
+:1
+goto 1
+
+---
+
+(program
+  (label
+    name: (label_name))
+  (goto_statement
+    (keyword)
+    target: (argument
+      (text))))

@@ -173,3 +173,92 @@ set /a x=a&b
           (text))))
     right: (command
       name: (command_name))))
+
+====================
+compact arithmetic flag
+====================
+
+set/a x=1
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_arith
+      expression: (argument
+        (text)))))
+
+====================
+compact prompt flag
+====================
+
+set/p x=Prompt:
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      name: (variable_name)
+      prompt: (argument
+        (text)))))
+
+==================================
+leading input redirect on set prompt
+==================================
+
+<NUL set /p =hello
+
+---
+
+(program
+  (set_statement
+    redirect: (redirection
+      (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    (keyword)
+    (set_prompt
+      prompt: (argument
+        (text)))))
+
+========================
+caret-quoted assignments
+========================
+
+set ^"XCALL=call foo^"
+set ^"@quot=""
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (caret_quoted_string)))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (caret_quoted_string))))
+
+===============================================
+caret-quoted assignment stops at closing wrapper
+===============================================
+
+set ^"X=foo^" & echo "hi"
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        (caret_quoted_string)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (string)))))

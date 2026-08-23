@@ -83,3 +83,43 @@ echo hi &:: trailing
         (text)))
     right: (colon_comment
       (comment_text))))
+
+=====================================
+single-colon non-label comments
+=====================================
+
+:# hash comment
+:! bang comment
+: spaced comment
+call :Init &:# inline comment
+
+---
+
+(program
+  (colon_comment
+    (comment_text))
+  (colon_comment
+    (comment_text))
+  (colon_comment
+    (comment_text))
+  (seq_list
+    left: (call_statement
+      (keyword)
+      argument: (argument
+        (text)))
+    right: (colon_comment
+      (comment_text))))
+
+========================
+PowerShell polyglot markers
+========================
+
+<# :# PowerShell block comment
+#>
+
+---
+
+(program
+  (powershell_comment
+    (comment_text))
+  (powershell_comment))

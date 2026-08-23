@@ -21,6 +21,29 @@ if "%x%"=="yes" echo matched
       argument: (argument
         (text)))))
 
+====================
+compact if flag
+====================
+
+if/i "a"=="A" echo yes
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    (if_flag)
+    condition: (comparison
+      left: (argument
+        (string))
+      operator: (comparison_operator)
+      right: (argument
+        (string)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
 ================================
 case-insensitive with else block
 ================================
