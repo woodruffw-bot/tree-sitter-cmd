@@ -10,7 +10,7 @@
     (backquote_string
       content: (command_content) @injection.content)))
  (#match? @for.flag "^/[fF]$")
- (#match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|$)")
+ (#match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|\\^[ \t\"]|$)")
  (#set! injection.self))
 
 ; Keep an unfinished usebackq command injectable while it is being edited. An
@@ -23,7 +23,7 @@
   (backquote_string
     content: (command_content) @injection.content))
  (#match? @for.flag "^/[fF]$")
- (#match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|$)")
+ (#match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|\\^[ \t\"]|$)")
  (#set! injection.self))
 
 ((for_statement
@@ -44,5 +44,5 @@
     (single_quote_string
       content: (command_content) @injection.content)))
  (#match? @for.flag "^/[fF]$")
- (#not-match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|$)")
+ (#not-match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|\\^[ \t\"]|$)")
  (#set! injection.self))

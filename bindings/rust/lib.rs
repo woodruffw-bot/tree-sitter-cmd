@@ -183,6 +183,8 @@ mod tests {
             "for /f \"usebackq\" %%a in (`dir`) do echo %%a\r\n",
             "for /f \"usebackq\" %%a in (`echo backquoted`) do echo %%a\r\n",
             "for /f \"tokens=* usebackq\" %%a in (`echo combined`) do echo %%a\r\n",
+            "for /f usebackq^ tokens^=* %%a in (`echo escaped options`) do echo %%a\r\n",
+            "for /f usebackq^ tokens^=* %%a in ('not-a-command') do echo %%a\r\n",
             "for /f \"USEBACKQ\" %%a in ('not-a-command') do echo %%a\r\n",
             "for /r %%a in ('not-a-command') do echo %%a\r\n",
             "for /f \"usebackq\" %%a in (`echo unfinished",
@@ -200,6 +202,7 @@ mod tests {
                 "dir",
                 "echo backquoted",
                 "echo combined",
+                "echo escaped options",
                 "echo unfinished"
             ]
         );
