@@ -110,6 +110,10 @@ module.exports = grammar({
     $._rparen,
     $._caret_escape,
     $._string_end,
+    // Tree-sitter marks every external token valid during error recovery. Keep
+    // this unused token last so the scanner can detect that state and decline
+    // zero-width tokens that would otherwise prevent recovery from advancing.
+    $._error_sentinel,
   ],
 
   // Keyword extraction: a keyword only matches when it spans an entire word.
