@@ -98,12 +98,18 @@ function wordOf($, lead, frag = lead) {
   return seq(lead, repeat(seq($._concat, frag)));
 }
 
+/** Attach one or more `@` prefixes to the concrete statement they suppress. */
+function quietPrefix($) {
+  return repeat(field('quiet', $.quiet));
+}
+
 module.exports = grammar({
   name: 'cmd',
 
   externals: ($) => [
     $._concat,
     $._rem,
+    $._redirect_source,
     $._block_open,
     $._block_close,
     $._lparen,
@@ -119,11 +125,9 @@ module.exports = grammar({
   // Keyword extraction: a keyword only matches when it spans an entire word.
   word: ($) => $._cmd_text,
 
-  // `_expansion` is exposed as a supertype so queries can target any %…%/!…!
-  // form with `(_expansion)` instead of enumerating every concrete node. (It is
-  // transparent — it adds no nodes.) `_statement` can't be a supertype: its
-  // hidden `_unit` member resolves to multiple visible nodes.
-  supertypes: ($) => [$._expansion],
+  // These pure choices are exposed as transparent supertypes so queries can
+  // target the category without adding wrapper nodes to the CST.
+  supertypes: ($) => [$._expansion, $._redirection],
 
   // Whitespace and caret line-continuations interleave anywhere. The
   // continuation `^\n` is an anonymous, invisible extra (tree-sitter-bash treats
@@ -197,18 +201,15 @@ module.exports = grammar({
     // plain command (e.g. `@rem`, `@if`, `@echo off`). cmd accepts the prefix
     // stacked (`@@fc ...`), each `@` a redundant suppression, so allow a run.
     _unit: ($) =>
-      seq(
-        repeat(field('quiet', $.quiet)),
-        choice(
-          $.command,
-          $.block,
-          $.rem_comment,
-          $.if_statement,
-          $.for_statement,
-          $.goto_statement,
-          $.call_statement,
-          $.set_statement,
-        ),
+      choice(
+        $.command,
+        $.block,
+        $.rem_comment,
+        $.if_statement,
+        $.for_statement,
+        $.goto_statement,
+        $.call_statement,
+        $.set_statement,
       ),
 
     // A parenthesised compound. Newlines inside act like `&`. The parentheses
@@ -217,10 +218,11 @@ module.exports = grammar({
     block: ($) =>
       prec.right(
         seq(
+          quietPrefix($),
           alias($._block_open, '('),
           optional($._block_body),
           alias($._block_close, ')'),
-          repeat(field('redirect', $.redirection)),
+          repeat(field('redirect', $._redirection)),
         ),
       ),
     _block_body: ($) =>
@@ -235,10 +237,14 @@ module.exports = grammar({
       prec.right(
         PREC.COMMAND,
         seq(
-          repeat(field('redirect', $.redirection)),
+          quietPrefix($),
+          repeat(field('redirect', $._redirection)),
           field('name', $.command_name),
           repeat(
-            choice(field('argument', $.argument), field('redirect', $.redirection)),
+            choice(
+              field('argument', $.argument),
+              field('redirect', $._redirection),
+            ),
           ),
         ),
       ),
@@ -253,6 +259,7 @@ module.exports = grammar({
     if_statement: ($) =>
       prec.right(
         seq(
+          quietPrefix($),
           kw($, 'if'),
           optional(alias(opt('/i'), $.if_flag)),
           optional(alias(ci('not'), $.not)),
@@ -321,6 +328,7 @@ module.exports = grammar({
     for_statement: ($) =>
       prec.right(
         seq(
+          quietPrefix($),
           kw($, 'for'),
           optional(field('option', $.for_option)),
           field('variable', $.loop_variable),
@@ -407,6 +415,7 @@ module.exports = grammar({
     goto_statement: ($) =>
       prec.right(
         seq(
+          quietPrefix($),
           kw($, 'goto'),
           optional(
             seq(
@@ -414,7 +423,7 @@ module.exports = grammar({
               repeat(field('argument', $.argument)),
             ),
           ),
-          repeat(field('redirect', $.redirection)),
+          repeat(field('redirect', $._redirection)),
         ),
       ),
 
@@ -423,9 +432,13 @@ module.exports = grammar({
     call_statement: ($) =>
       prec.right(
         seq(
+          quietPrefix($),
           kw($, 'call'),
           repeat(
-            choice(field('argument', $.argument), field('redirect', $.redirection)),
+            choice(
+              field('argument', $.argument),
+              field('redirect', $._redirection),
+            ),
           ),
         ),
       ),
@@ -436,7 +449,8 @@ module.exports = grammar({
     set_statement: ($) =>
       prec.right(
         seq(
-          repeat(field('redirect', $.redirection)),
+          quietPrefix($),
+          repeat(field('redirect', $._redirection)),
           kw($, 'set'),
           optional(
             choice(
@@ -447,7 +461,7 @@ module.exports = grammar({
               $.set_display,
             ),
           ),
-          repeat(field('redirect', $.redirection)),
+          repeat(field('redirect', $._redirection)),
         ),
       ),
 
@@ -466,7 +480,7 @@ module.exports = grammar({
     set_prompt: ($) =>
       prec.right(
         seq(
-          opt('/p'),
+          alias(opt('/p'), $.set_flag),
           choice(
             seq(
               optional(field('name', alias($._set_name, $.variable_name))),
@@ -478,7 +492,11 @@ module.exports = grammar({
         ),
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
-    set_arith: ($) => seq(opt('/a'), repeat(field('expression', $.argument))),
+    set_arith: ($) =>
+      seq(
+        alias(opt('/a'), $.set_flag),
+        repeat(field('expression', $.argument)),
+      ),
     // SET "name=value". cmd treats the span up to the last quote as name=value,
     // so the value may itself contain quotes. Caret-escaped wrapper quotes are
     // also common in macro definitions and remain one quoted assignment.
@@ -502,26 +520,52 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // Redirections
     // ---------------------------------------------------------------------
-    redirection: ($) => choice($.redirect_file, $.redirect_dup),
+    _redirection: ($) => choice($.redirect_file, $.redirect_dup),
 
-    // `>`, `>>`, `<`, with an optional immediately-preceding fd digit.
+    // `>`, `>>`, `<`, with an optional immediately-preceding source fd digit.
+    // The external source token only matches a digit whose next byte is the
+    // operator. The immediate operator branch then preserves that adjacency.
     redirect_file: ($) =>
-      seq(field('operator', $.redirect_operator), field('target', $.argument)),
-    redirect_operator: ($) => token(/[0-9]?(?:>>|>|<)/),
+      choice(
+        seq(
+          field(
+            'source',
+            alias($._redirect_source, $.file_descriptor),
+          ),
+          field(
+            'operator',
+            alias(token.immediate(/>>|>|</), $.redirect_operator),
+          ),
+          field('target', $.argument),
+        ),
+        seq(
+          field('operator', $.redirect_operator),
+          field('target', $.argument),
+        ),
+      ),
+    redirect_operator: ($) => token(/>>|>|</),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`.
     redirect_dup: ($) =>
-      seq(
-        field('operator', $.redirect_dup_operator),
-        field(
-          'target',
-          choice(
-            alias(token.immediate(/[0-9]/), $.file_descriptor),
-            $._expansion,
+      choice(
+        seq(
+          field(
+            'source',
+            alias($._redirect_source, $.file_descriptor),
           ),
+          field(
+            'operator',
+            alias(token.immediate(/[<>]&/), $.redirect_dup_operator),
+          ),
+          field('target', choice($.file_descriptor, $._expansion)),
+        ),
+        seq(
+          field('operator', $.redirect_dup_operator),
+          field('target', choice($.file_descriptor, $._expansion)),
         ),
       ),
-    redirect_dup_operator: ($) => token(/[0-9]?[<>]&/),
+    redirect_dup_operator: ($) => token(/[<>]&/),
+    file_descriptor: ($) => token.immediate(/[0-9]/),
 
     // ---------------------------------------------------------------------
     // Words: command names and arguments are runs of adjacent fragments.
@@ -666,8 +710,11 @@ module.exports = grammar({
     _label_name: ($) => token.immediate(/[^ \t\r\n:+;=,&|<>()]+/),
     _label_tail: ($) => alias(token(/[^\r\n]+/), $.label_text),
 
+    // Keep the body opaque. Expansion-shaped text inside REM is comment text,
+    // not an expansion that tooling should treat as live code.
     rem_comment: ($) =>
       seq(
+        quietPrefix($),
         alias($._rem, $.keyword),
         optional(alias($._line_text, $.comment_text)),
       ),

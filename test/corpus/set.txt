@@ -59,6 +59,7 @@ set /a count=count+1
   (set_statement
     (keyword)
     (set_arith
+      (set_flag)
       expression: (argument
         (text)))))
 
@@ -74,6 +75,7 @@ set /p name=Enter name:
   (set_statement
     (keyword)
     (set_prompt
+      (set_flag)
       name: (variable_name)
       prompt: (argument
         (text))
@@ -92,6 +94,7 @@ set /p "answer=Enter your choice: "
   (set_statement
     (keyword)
     (set_prompt
+      (set_flag)
       prompt: (string))))
 
 ====================
@@ -148,6 +151,7 @@ set /a x=2*(3+4)
   (set_statement
     (keyword)
     (set_arith
+      (set_flag)
       expression: (argument
         (text))
       expression: (argument
@@ -169,6 +173,7 @@ set /a x=a&b
     left: (set_statement
       (keyword)
       (set_arith
+        (set_flag)
         expression: (argument
           (text))))
     right: (command
@@ -186,6 +191,7 @@ set/a x=1
   (set_statement
     (keyword)
     (set_arith
+      (set_flag)
       expression: (argument
         (text)))))
 
@@ -201,6 +207,7 @@ set/p x=Prompt:
   (set_statement
     (keyword)
     (set_prompt
+      (set_flag)
       name: (variable_name)
       prompt: (argument
         (text)))))
@@ -215,13 +222,13 @@ leading input redirect on set prompt
 
 (program
   (set_statement
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
     (keyword)
     (set_prompt
+      (set_flag)
       prompt: (argument
         (text)))))
 

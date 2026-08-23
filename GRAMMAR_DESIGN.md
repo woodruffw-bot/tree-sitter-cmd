@@ -114,6 +114,7 @@ tokens. Its only state is a single block-depth counter:
 |-------|------|
 | `CONCAT` | zero-width join of adjacent word fragments into one argument |
 | `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
+| `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
 | `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
@@ -239,16 +240,21 @@ injectable while it is being edited.
 
 A leading digit is a redirection fd only at a token boundary and immediately
 followed by `<`/`>`. So `2>file` redirects, `echo 2>file` splits into `echo` then
-`2>`, and `abc2>file` keeps `2` as text. The fd digit is `token.immediate`
-against the operator, and a digit preceded by a bareword is consumed as text
-first. Redirection ordering is preserved positionally; last-wins and stream-merge
+`2>`, and `abc2>file` keeps `2` as text. The operator after an fd is
+`token.immediate`, and the external scanner only emits the fd when the next
+byte is `<` or `>`. A spaced digit remains an ordinary argument, as in
+`echo 2 >file`. In the CST, `_redirection` is a transparent supertype over
+`redirect_file` and `redirect_dup`. A leading fd is a `file_descriptor` in the
+`source` field, separate from the punctuation-only `operator` field.
+Redirection ordering is preserved positionally; last-wins and stream-merge
 semantics are runtime.
 
 ### REM and ::
 
 `REM` is a whole-word keyword followed by a delimiter and a free body to
-end-of-line. The body surfaces `%VAR%`/`!VAR!` for highlighting but is otherwise
-opaque, and does not honor line continuation (cmd's `ParseRem` does not splice).
+end-of-line. The body is one opaque `comment_text` node, including text that
+looks like `%VAR%` or `!VAR!`, and does not honor line continuation (cmd's
+`ParseRem` does not splice).
 `::` is a degenerate label used as a comment. A single colon followed by a
 character that cannot start a label, such as `:#`, `:!`, or `: `, is treated the
 same way. Digits remain valid label starts, so `:1` is a label rather than a
@@ -278,7 +284,7 @@ full list):
 
 - **Top level**: `program`, `command`, `command_name`, `quiet`.
 - **Operators**: `seq_list`, `or_list`, `and_list`, `pipeline`.
-- **Redirection**: `redirection`, `redirect_file`, `redirect_dup`,
+- **Redirection**: `_redirection`, `redirect_file`, `redirect_dup`,
   `redirect_operator`, `redirect_dup_operator`, `file_descriptor`.
 - **Blocks**: `block`.
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /

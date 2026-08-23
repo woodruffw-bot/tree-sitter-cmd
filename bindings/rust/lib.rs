@@ -39,7 +39,7 @@ pub const INJECTIONS_QUERY: &str = include_str!("../../queries/injections.scm");
 
 #[cfg(test)]
 mod tests {
-    use tree_sitter::{Query, QueryCursor, StreamingIterator};
+    use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
 
     fn language() -> tree_sitter::Language {
         super::LANGUAGE.into()
@@ -72,6 +72,22 @@ mod tests {
         texts
     }
 
+    fn field_children<'tree>(node: Node<'tree>, name: &str) -> Vec<Node<'tree>> {
+        let mut cursor = node.walk();
+        node.children_by_field_name(name, &mut cursor).collect()
+    }
+
+    fn only_field<'tree>(node: Node<'tree>, name: &str) -> Node<'tree> {
+        let children = field_children(node, name);
+        assert_eq!(
+            children.len(),
+            1,
+            "{} must have exactly one {name:?} field, got {children:?}",
+            node.kind(),
+        );
+        children[0]
+    }
+
     #[test]
     fn test_can_load_grammar() {
         let mut parser = tree_sitter::Parser::new();
@@ -82,24 +98,78 @@ mod tests {
 
     #[test]
     fn test_queries_compile() {
-        Query::new(&language(), super::HIGHLIGHTS_QUERY).expect("highlights query should compile");
+        let highlights = Query::new(&language(), super::HIGHLIGHTS_QUERY)
+            .expect("highlights query should compile");
         Query::new(&language(), super::INJECTIONS_QUERY).expect("injections query should compile");
+
+        for unsupported in ["keyword.operator", "label"] {
+            assert!(
+                !highlights.capture_names().contains(&unsupported),
+                "unsupported highlight capture {unsupported:?}",
+            );
+        }
     }
 
     #[test]
     fn test_highlights_query_captures_common_syntax() {
-        let source = "if not exist \"input.txt\" echo %PATH% & rem note\r\n";
+        let source = concat!(
+            ":start\r\n",
+            "if not exist \"input.txt\" echo %PATH% & rem note\r\n",
+            "set /a x=1 2>&1\r\n",
+            "set /p answer=Prompt:\r\n",
+            "goto start\r\n",
+        );
         let query = Query::new(&language(), super::HIGHLIGHTS_QUERY)
             .expect("highlights query should compile");
 
-        assert_eq!(capture_texts(source, &query, "keyword"), ["if", "rem"]);
         assert_eq!(
-            capture_texts(source, &query, "keyword.operator"),
-            ["not", "exist"]
+            capture_texts(source, &query, "keyword"),
+            ["if", "not", "exist", "rem", "set", "/a", "set", "/p", "goto"]
         );
         assert_eq!(capture_texts(source, &query, "string"), ["\"input.txt\""]);
-        assert_eq!(capture_texts(source, &query, "variable"), ["%PATH%"]);
-        assert_eq!(capture_texts(source, &query, "operator"), ["&"]);
+        assert_eq!(
+            capture_texts(source, &query, "variable"),
+            ["%PATH%", "answer"]
+        );
+        assert_eq!(
+            capture_texts(source, &query, "constant"),
+            ["start", "start"]
+        );
+        assert_eq!(capture_texts(source, &query, "number"), ["2", "1"]);
+        assert_eq!(capture_texts(source, &query, "operator"), ["&", ">&", "="]);
+    }
+
+    #[test]
+    fn test_statement_fields_have_one_concrete_node() {
+        let source = concat!(
+            "if exist x @echo yes else @@echo no\r\n",
+            "for %%i in (x) do @echo %%i\r\n",
+            "@echo left && @@echo right\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+        let root = tree.root_node();
+
+        let if_statement = root.named_child(0).expect("if statement");
+        let consequence = only_field(if_statement, "consequence");
+        let alternative = only_field(if_statement, "alternative");
+        assert_eq!(consequence.kind(), "command");
+        assert_eq!(alternative.kind(), "command");
+        assert_eq!(field_children(consequence, "quiet").len(), 1);
+        assert_eq!(field_children(alternative, "quiet").len(), 2);
+
+        let for_statement = root.named_child(1).expect("for statement");
+        let body = only_field(for_statement, "body");
+        assert_eq!(body.kind(), "command");
+        assert_eq!(field_children(body, "quiet").len(), 1);
+
+        let and_list = root.named_child(2).expect("and list");
+        let left = only_field(and_list, "left");
+        let right = only_field(and_list, "right");
+        assert_eq!(left.kind(), "command");
+        assert_eq!(right.kind(), "command");
+        assert_eq!(field_children(left, "quiet").len(), 1);
+        assert_eq!(field_children(right, "quiet").len(), 2);
     }
 
     #[test]
