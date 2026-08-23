@@ -1,0 +1,14 @@
+This is a third-party file included verbatim in tree-sitter-cmd solely as a
+parse-regression test fixture. It is NOT part of the tree-sitter-cmd grammar
+and is NOT covered by this repository's MIT license; it remains under the
+license of its upstream project, shown below.
+
+File:           microsoft-scalar-capture-perfview.bat
+Upstream:       Microsoft Scalar (Scripts/CapturePerfView.bat)
+Source:         https://github.com/microsoft/scalar/blob/1f66ccf37864e25fc27c0b786b425eb2695f814e/Scripts/CapturePerfView.bat
+Git blob:       2721c5db3645a7babf4506b14cf4011a0c311759
+SPDX-License-Identifier: MIT
+Copyright (c) Microsoft Corporation. All rights reserved.
+Full license:   https://github.com/microsoft/scalar/blob/1f66ccf37864e25fc27c0b786b425eb2695f814e/License.md
+
+Notable for tree-sitter-cmd because it exercises: deeply nested SET /A arithmetic, modulo, comma-separated assignments, compound assignment, and FOR /F over TIME output

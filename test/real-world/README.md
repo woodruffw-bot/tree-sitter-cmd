@@ -9,6 +9,8 @@ integration test reads each file as raw bytes and requires a parse tree without
 ```
 fixtures/      the committed scripts (plus a .LICENSE per file)
 sources.tsv    filename and source URL for each fixture
+FEATURE_COVERAGE.md
+               grammar-sensitive coverage and intentionally open gaps
 ```
 
 Run it:
@@ -25,7 +27,7 @@ MIT license; each remains under its upstream project's license. Every fixture
 has a sibling `<filename>.LICENSE` recording its origin, SPDX identifier,
 copyright, and a link to the full license text. Licenses currently represented:
 Apache-2.0 (incl. the LLVM exception), MIT, BSD-3-Clause, Artistic-2.0, PSF-2.0,
-and GPL-2.0-only. They are aggregated here for testing only.
+GPL-2.0-only, and GPL-2.0-or-later. They are aggregated here for testing only.
 
 The `mre-*.bat` files are different: they are original Minimal Reproducible
 Examples authored for this repo (MIT, like the grammar). They distill idioms from
