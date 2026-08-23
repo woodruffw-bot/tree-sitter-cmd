@@ -14,17 +14,18 @@
 ; Keywords
 ; ---------------------------------------------------------------------------
 (keyword) @keyword
-(not) @keyword.operator
-(condition_keyword) @keyword.operator
+(not) @keyword
+(condition_keyword) @keyword
 (if_flag) @keyword
 (for_flag) @keyword
+(set_flag) @keyword
 
 ; ---------------------------------------------------------------------------
 ; Commands & labels
 ; ---------------------------------------------------------------------------
 (command_name) @function
-(label (label_name) @label)
-(goto_statement target: (argument) @label)
+(label (label_name) @constant)
+(goto_statement target: (argument) @constant)
 
 ; ---------------------------------------------------------------------------
 ; Expansions / variables

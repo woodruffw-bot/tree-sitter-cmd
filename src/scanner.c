@@ -10,6 +10,9 @@
 //                  is no whitespace between them (the tree-sitter-bash trick).
 //   REM          - the `rem` comment keyword (whole-word; tree-sitter declines
 //                  to keyword-extract it).
+//   REDIRECT_SOURCE
+//                - a source file descriptor digit immediately followed by a
+//                  redirection operator.
 //   BLOCK_OPEN   - `(` that opens a command block or FOR set (structural).
 //   BLOCK_CLOSE  - `)` that closes a structural block / FOR set.
 //   LPAREN/RPAREN- a literal `(` / `)` appearing in an argument or IF operand.
@@ -42,6 +45,7 @@
 enum TokenType {
   CONCAT,
   REM,
+  REDIRECT_SOURCE,
   BLOCK_OPEN,
   BLOCK_CLOSE,
   LPAREN,
@@ -173,10 +177,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   bool want_rem = valid_symbols[REM];
+  bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
   bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_caret && !want_paren) {
+  if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
     return false;
   }
 
@@ -186,6 +191,19 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   int32_t c = lexer->lookahead;
+
+  // A source file descriptor is one digit directly adjacent to `<` or `>`.
+  // Looking ahead here avoids stealing ordinary numeric arguments such as the
+  // `2` in `echo 2 >file` or the `22` in `echo 22>file`.
+  if (want_redirect_source && c >= '0' && c <= '9') {
+    lexer->advance(lexer, false);
+    lexer->mark_end(lexer);
+    if (lexer->lookahead == '<' || lexer->lookahead == '>') {
+      lexer->result_symbol = REDIRECT_SOURCE;
+      return true;
+    }
+    return false;
+  }
 
   // A lone caret escaping a following `%`/`!` expansion: consume just the `^`
   // (so `%VAR%` / `!VAR!` is still recognised as its own token). Any other `^X`

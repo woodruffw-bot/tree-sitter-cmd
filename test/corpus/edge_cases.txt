@@ -38,8 +38,8 @@ quiet prefix on rem
 ---
 
 (program
-  quiet: (quiet)
   (rem_comment
+    quiet: (quiet)
     (keyword)
     (comment_text)))
 
@@ -52,8 +52,8 @@ quiet prefix on if
 ---
 
 (program
-  quiet: (quiet)
   (if_statement
+    quiet: (quiet)
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
@@ -124,17 +124,17 @@ set /p VAR=<"data.txt" 2>nul
   (set_statement
     (keyword)
     (set_prompt
+      (set_flag)
       name: (variable_name))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (string))))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (text))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (string)))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 ===========================
 keyword as command argument
@@ -222,9 +222,9 @@ stacked quiet prefixes
 ---
 
 (program
-  quiet: (quiet)
-  quiet: (quiet)
   (command
+    quiet: (quiet)
+    quiet: (quiet)
     name: (command_name)
     argument: (argument
       (text))))
@@ -257,6 +257,7 @@ set /p=Press any key...
   (set_statement
     (keyword)
     (set_prompt
+      (set_flag)
       prompt: (argument
         (text))
       prompt: (argument
@@ -277,12 +278,11 @@ call :sub <"%TEMP%\in.txt"
     (keyword)
     argument: (argument
       (text))
-    redirect: (redirection
-      (redirect_file
-        operator: (redirect_operator)
-        target: (argument
-          (string
-            (variable)))))))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (string
+          (variable))))))
 
 ===============================
 quoted set with embedded quotes
@@ -300,3 +300,57 @@ set "exe=call "%exe%.bat""
       (variable)
       (text)
       (string))))
+
+========================================
+quiet prefixes stay on concrete statements
+========================================
+
+if exist x @echo yes else @@echo no
+for %%i in (x) do @echo %%i
+@echo left && @@echo right
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument))
+    consequence: (command
+      quiet: (quiet)
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (command
+      quiet: (quiet)
+      quiet: (quiet)
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      quiet: (quiet)
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (and_list
+    left: (command
+      quiet: (quiet)
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (command
+      quiet: (quiet)
+      quiet: (quiet)
+      name: (command_name)
+      argument: (argument
+        (text)))))
