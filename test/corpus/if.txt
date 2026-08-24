@@ -36,6 +36,9 @@ if exist file(1).txt echo found
       kind: (condition_keyword)
       argument: (argument
         (text)
+        (text)
+        (text)
+        (text)
         (text)))
     consequence: (command
       name: (command_name)
@@ -130,7 +133,8 @@ if defined VAR echo set
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      argument: (argument))
+      argument: (argument
+        (text)))
     consequence: (command
       name: (command_name)
       argument: (argument
@@ -149,7 +153,8 @@ if errorlevel 1 goto error
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      argument: (argument))
+      argument: (argument
+        (text)))
     consequence: (goto_statement
       (keyword)
       target: (argument
@@ -174,7 +179,8 @@ if %n% GEQ 10 (
       left: (argument
         (variable))
       operator: (comparison_operator)
-      right: (argument))
+      right: (argument
+        (text)))
     consequence: (block
       (command
         name: (command_name)
@@ -200,12 +206,14 @@ if exist a if exist b echo both
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      argument: (argument))
+      argument: (argument
+        (text)))
     consequence: (if_statement
       (keyword)
       condition: (unary_condition
         kind: (condition_keyword)
-        argument: (argument))
+        argument: (argument
+          (text)))
       consequence: (command
         name: (command_name)
         argument: (argument
@@ -246,9 +254,11 @@ if 1==2 echo no & echo also-no
   (if_statement
     (keyword)
     condition: (comparison
-      left: (argument)
+      left: (argument
+        (text))
       operator: (comparison_operator)
-      right: (argument))
+      right: (argument
+        (text)))
     consequence: (seq_list
       left: (command
         name: (command_name)
@@ -271,9 +281,11 @@ if 1==1 echo j1|(echo j2) else echo j3
   (if_statement
     (keyword)
     condition: (comparison
-      left: (argument)
+      left: (argument
+        (text))
       operator: (comparison_operator)
-      right: (argument))
+      right: (argument
+        (text)))
     consequence: (pipeline
       left: (command
         name: (command_name)
@@ -302,9 +314,11 @@ if 1==0 (echo no) else echo yes & echo still-yes
   (if_statement
     (keyword)
     condition: (comparison
-      left: (argument)
+      left: (argument
+        (text))
       operator: (comparison_operator)
-      right: (argument))
+      right: (argument
+        (text)))
     consequence: (block
       (command
         name: (command_name)

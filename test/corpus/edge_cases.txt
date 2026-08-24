@@ -57,7 +57,8 @@ quiet prefix on if
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      argument: (argument))
+      argument: (argument
+        (text)))
     consequence: (command
       name: (command_name)
       argument: (argument
@@ -274,7 +275,7 @@ call :sub <"%TEMP%\in.txt"
 (program
   (call_statement
     (keyword)
-    argument: (argument
+    target: (argument
       (text))
     redirect: (redirect_file
       operator: (redirect_operator)
@@ -314,7 +315,8 @@ for %%i in (x) do @echo %%i
     (keyword)
     condition: (unary_condition
       kind: (condition_keyword)
-      argument: (argument))
+      argument: (argument
+        (text)))
     consequence: (command
       quiet: (quiet)
       name: (command_name)
