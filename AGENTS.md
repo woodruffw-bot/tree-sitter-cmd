@@ -6,6 +6,22 @@ This is a tree-sitter grammar for the Windows `cmd.exe` batch dialect (`.bat`,
 `.cmd`). The grammar lives in `grammar.js` and `src/scanner.c`; the design
 rationale is in `GRAMMAR_DESIGN.md`.
 
+## Grammar priorities
+
+- Static analysis is the primary use case. Prefer accurate, stable CST nodes
+  and fields, source fidelity, and local error recovery over highlighting
+  convenience.
+- Highlight and injection queries are secondary consumers of the CST. Queries
+  must follow the grammar. Do not add grammar states, visible nodes, aliases, or
+  recovery behavior only to simplify a query.
+- Model cmd syntax, not the option languages of invoked programs. Treat flags
+  and option payloads as opaque arguments unless they materially change cmd's
+  statement shape, token boundaries, or interpretation of following syntax.
+  For example, FOR `/R` may consume a path and FOR `/F usebackq` changes the
+  role of quote delimiters. Individual `/F` parsing keywords such as `tokens=`
+  and `delims=` remain opaque.
+- Do not infer a downstream language or tool from a command name or its flags.
+
 ## Writing style
 
 This applies to docs, comments, commit messages, and PR descriptions.
@@ -69,7 +85,9 @@ bindings/           rust crate
   string `'keyword'`) so `(keyword)` matches them and they appear in the tree.
 - Highlight captures in `queries/highlights.scm` use the standard capture names
   (`@keyword`, `@string`, `@operator`, `@variable`, `@comment`, `@number`,
-  `@punctuation.bracket`, and so on). A new visible node should get a capture.
+  `@punctuation.bracket`, and so on). Add a capture for a new visible node only
+  when a standard capture accurately describes it. Do not change the grammar to
+  make a highlight query easier to write.
 - When adding a construct, add a focused case to the matching `test/corpus/`
   file with its expected S-expression.
 - When adding a real-world fixture, follow `test/real-world/README.md`: drop the
