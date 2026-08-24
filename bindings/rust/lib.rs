@@ -177,6 +177,9 @@ mod tests {
         let source = concat!(
             "for /f %%a in ('ver') do echo %%a\r\n",
             "for /f %%a in ('echo normal') do echo %%a\r\n",
+            "for /f %%a in ('powershell -command \"ToString('yyyy-MM-dd')\"') do echo %%a\r\n",
+            "for /f %%a in ('%1 -c \"sys.stdout.write('nt')\"') do echo %%a\r\n",
+            "for /f %%a in ('\r\n  echo multiline\r\n') do echo %%a\r\n",
             "for /f %%a in (`not-a-command`) do echo %%a\r\n",
             "for /f \"tokens=*\" %%a in ('echo options') do echo %%a\r\n",
             "for /f \"delims=usebackq\" %%a in ('echo delimiter') do echo %%a\r\n",
@@ -197,6 +200,9 @@ mod tests {
             [
                 "ver",
                 "echo normal",
+                "powershell -command \"ToString('yyyy-MM-dd')\"",
+                "%1 -c \"sys.stdout.write('nt')\"",
+                "\r\n  echo multiline\r\n",
                 "echo options",
                 "echo delimiter",
                 "dir",
@@ -209,14 +215,30 @@ mod tests {
     }
 
     #[test]
-    fn test_unterminated_backquote_has_delimiter_free_content() {
+    fn test_unterminated_backquote_has_neutral_delimiter_free_content() {
         let source = "for /f \"usebackq\" %%a in (`echo unfinished";
-        let query = Query::new(&language(), "(command_content) @content")
-            .expect("command-content query should compile");
+        let query = Query::new(&language(), "(backquote_content) @content")
+            .expect("backquote-content query should compile");
 
         assert_eq!(
             capture_texts(source, &query, "content"),
             ["echo unfinished"]
         );
+    }
+
+    #[test]
+    fn test_for_rejects_illegal_mixed_switches() {
+        for source in [
+            "for /d /f %%a in (x) do echo %%a\r\n",
+            "for /f /r %%a in (x) do echo %%a\r\n",
+            "for /l /d %%a in (1,1,2) do echo %%a\r\n",
+            "for /r /l %%a in (x) do echo %%a\r\n",
+        ] {
+            let tree = parse(source);
+            assert!(
+                tree.root_node().has_error(),
+                "illegal mixed FOR switches parsed cleanly: {source:?}",
+            );
+        }
     }
 }

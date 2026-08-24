@@ -44,8 +44,8 @@
 ; ---------------------------------------------------------------------------
 (string) @string
 (caret_quoted_string) @string
-(backquote_string) @string.special
-(single_quote_string) @string.special
+(backquote_string) @string
+(single_quote_string) @string
 (escape_sequence) @string.escape
 (file_descriptor) @number
 

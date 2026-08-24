@@ -239,18 +239,22 @@ command-operator expression, so every command in `DO ECHO %%v & ECHO done`
 runs for each iteration. The IN list is read inside a block so `)` ends it and
 inner newlines are skipped. A FOR variable is `%%` plus any single non-separator
 character (`%%#`, `%%1` are valid). `FOR /L` accepts the non-comma numeric
-separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F` share one
-optional-argument path because of a lexer-state constraint, so they are unified
-behind a single `for_flag` rule (this is the one declared conflict). The `/F`
-command quoting depends on its options. By default, `'single-quoted'` is a
+separators `;`, `=`, and space, e.g. `(1;1=5)`. `/D` and `/R`
+may be combined in either order. Other mixed switch sets remain syntax errors.
+`/R` and `/F` each accept one optional argument. A slash-leading word is not an
+argument, so an illegal second switch is not hidden as an option or path.
+
+`/F` command quoting depends on its options. By default, `'single-quoted'` is a
 command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
 command and single quotes are literal. The `backquote_string` and
-`single_quote_string` nodes keep inner `)`/operators literal. Each has a
-delimiter-free `command_content` child. The injection query checks the `/F`
-option text and captures only the command form for the active quote mode. This
-also avoids range-adjustment directives that the Rust highlighter does not
-apply. An error-recovery pattern keeps an unterminated `usebackq` command
-injectable while it is being edited.
+`single_quote_string` nodes keep inner `)` and operators literal. Their content
+nodes are delimiter-free but neutral. The injection query checks the `/F` option
+text and captures only the command form for the active quote mode. This avoids
+assigning command semantics to the inactive delimiter and avoids range
+adjustment directives that the Rust highlighter does not apply. A
+single-quoted source may span lines. Apostrophes inside a double-quoted span are
+part of the source. An error-recovery pattern keeps an unterminated `usebackq`
+command injectable while it is being edited.
 
 ### Redirection
 
@@ -306,8 +310,8 @@ full list):
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
   `for_statement` (with `for_option` / `for_flag`, `loop_variable`, `for_set`,
-  and the `backquote_string` / `single_quote_string` quoted sources, whose
-  interior is a `command_content` node),
+  and the `backquote_string` / `single_quote_string` quoted items, whose
+  interiors are neutral `backquote_content` / `single_quote_content` nodes),
   `goto_statement`, `call_statement`, and `label` (with `label_name`,
   `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,

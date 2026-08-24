@@ -954,22 +954,6 @@
               "value": 3,
               "content": {
                 "type": "PATTERN",
-                "value": "\\/[dD]"
-              }
-            }
-          },
-          "named": true,
-          "value": "for_flag"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "TOKEN",
-            "content": {
-              "type": "PREC",
-              "value": 3,
-              "content": {
-                "type": "PATTERN",
                 "value": "\\/[lL]"
               }
             }
@@ -983,31 +967,15 @@
             {
               "type": "ALIAS",
               "content": {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "TOKEN",
-                    "content": {
-                      "type": "PREC",
-                      "value": 3,
-                      "content": {
-                        "type": "PATTERN",
-                        "value": "\\/[rR]"
-                      }
-                    }
-                  },
-                  {
-                    "type": "TOKEN",
-                    "content": {
-                      "type": "PREC",
-                      "value": 3,
-                      "content": {
-                        "type": "PATTERN",
-                        "value": "\\/[fF]"
-                      }
-                    }
+                "type": "TOKEN",
+                "content": {
+                  "type": "PREC",
+                  "value": 3,
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "\\/[fF]"
                   }
-                ]
+                }
               },
               "named": true,
               "value": "for_flag"
@@ -1034,6 +1002,195 @@
               ]
             }
           ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "PREC",
+                  "value": 3,
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "\\/[dD]"
+                  }
+                }
+              },
+              "named": true,
+              "value": "for_flag"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "TOKEN",
+                        "content": {
+                          "type": "PREC",
+                          "value": 3,
+                          "content": {
+                            "type": "PATTERN",
+                            "value": "\\/[rR]"
+                          }
+                        }
+                      },
+                      "named": true,
+                      "value": "for_flag"
+                    },
+                    {
+                      "type": "CHOICE",
+                      "members": [
+                        {
+                          "type": "FIELD",
+                          "name": "argument",
+                          "content": {
+                            "type": "ALIAS",
+                            "content": {
+                              "type": "SYMBOL",
+                              "name": "_for_arg"
+                            },
+                            "named": true,
+                            "value": "argument"
+                          }
+                        },
+                        {
+                          "type": "BLANK"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "TOKEN",
+                "content": {
+                  "type": "PREC",
+                  "value": 3,
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "\\/[rR]"
+                  }
+                }
+              },
+              "named": true,
+              "value": "for_flag"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "ALIAS",
+                          "content": {
+                            "type": "TOKEN",
+                            "content": {
+                              "type": "PREC",
+                              "value": 3,
+                              "content": {
+                                "type": "PATTERN",
+                                "value": "\\/[dD]"
+                              }
+                            }
+                          },
+                          "named": true,
+                          "value": "for_flag"
+                        },
+                        {
+                          "type": "CHOICE",
+                          "members": [
+                            {
+                              "type": "FIELD",
+                              "name": "argument",
+                              "content": {
+                                "type": "ALIAS",
+                                "content": {
+                                  "type": "SYMBOL",
+                                  "name": "_for_arg"
+                                },
+                                "named": true,
+                                "value": "argument"
+                              }
+                            },
+                            {
+                              "type": "BLANK"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "FIELD",
+                          "name": "argument",
+                          "content": {
+                            "type": "ALIAS",
+                            "content": {
+                              "type": "SYMBOL",
+                              "name": "_for_arg"
+                            },
+                            "named": true,
+                            "value": "argument"
+                          }
+                        },
+                        {
+                          "type": "CHOICE",
+                          "members": [
+                            {
+                              "type": "ALIAS",
+                              "content": {
+                                "type": "TOKEN",
+                                "content": {
+                                  "type": "PREC",
+                                  "value": 3,
+                                  "content": {
+                                    "type": "PATTERN",
+                                    "value": "\\/[dD]"
+                                  }
+                                }
+                              },
+                              "named": true,
+                              "value": "for_flag"
+                            },
+                            {
+                              "type": "BLANK"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -1041,22 +1198,8 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "ALIAS",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_cmd_text"
-              },
-              "named": true,
-              "value": "text"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "_fragment"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "_for_arg_lead"
         },
         {
           "type": "REPEAT",
@@ -1075,6 +1218,75 @@
           }
         }
       ]
+    },
+    "_for_arg_lead": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_for_arg_text"
+          },
+          "named": true,
+          "value": "text"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "escape_sequence"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_expansion"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_stray_sigil"
+          },
+          "named": true,
+          "value": "text"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_lparen"
+          },
+          "named": true,
+          "value": "text"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_rparen"
+          },
+          "named": true,
+          "value": "text"
+        }
+      ]
+    },
+    "_for_arg_text": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "[^/ \\t\\r\\n&|<>()^\"%!][^ \\t\\r\\n&|<>()^\"%!]*"
+      }
     },
     "for_set": {
       "type": "REPEAT1",
@@ -1121,20 +1333,8 @@
               "type": "FIELD",
               "name": "content",
               "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "IMMEDIATE_TOKEN",
-                  "content": {
-                    "type": "PREC",
-                    "value": 4,
-                    "content": {
-                      "type": "PATTERN",
-                      "value": "[^`\\r\\n]+"
-                    }
-                  }
-                },
-                "named": true,
-                "value": "command_content"
+                "type": "SYMBOL",
+                "name": "backquote_content"
               }
             },
             {
@@ -1163,6 +1363,17 @@
         }
       ]
     },
+    "backquote_content": {
+      "type": "IMMEDIATE_TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 4,
+        "content": {
+          "type": "PATTERN",
+          "value": "[^`\\r\\n]+"
+        }
+      }
+    },
     "single_quote_string": {
       "type": "SEQ",
       "members": [
@@ -1184,20 +1395,8 @@
               "type": "FIELD",
               "name": "content",
               "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "IMMEDIATE_TOKEN",
-                  "content": {
-                    "type": "PREC",
-                    "value": 4,
-                    "content": {
-                      "type": "PATTERN",
-                      "value": "[^'\\r\\n]+"
-                    }
-                  }
-                },
-                "named": true,
-                "value": "command_content"
+                "type": "SYMBOL",
+                "name": "single_quote_content"
               }
             },
             {
@@ -1213,6 +1412,51 @@
           }
         }
       ]
+    },
+    "single_quote_content": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "IMMEDIATE_TOKEN",
+            "content": {
+              "type": "PREC",
+              "value": 4,
+              "content": {
+                "type": "PATTERN",
+                "value": "[^'\"^\\r\\n]+"
+              }
+            }
+          },
+          {
+            "type": "IMMEDIATE_TOKEN",
+            "content": {
+              "type": "PREC",
+              "value": 4,
+              "content": {
+                "type": "PATTERN",
+                "value": "\"[^\"\\r\\n]*\""
+              }
+            }
+          },
+          {
+            "type": "IMMEDIATE_TOKEN",
+            "content": {
+              "type": "PREC",
+              "value": 4,
+              "content": {
+                "type": "PATTERN",
+                "value": "\\^[^\\r\\n]"
+              }
+            }
+          },
+          {
+            "type": "SYMBOL",
+            "name": "_newline"
+          }
+        ]
+      }
     },
     "goto_statement": {
       "type": "PREC_RIGHT",

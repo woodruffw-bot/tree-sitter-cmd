@@ -213,7 +213,7 @@
         "required": false,
         "types": [
           {
-            "type": "command_content",
+            "type": "backquote_content",
             "named": true
           }
         ]
@@ -508,7 +508,7 @@
       }
     },
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
@@ -1707,6 +1707,11 @@
     }
   },
   {
+    "type": "single_quote_content",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "single_quote_string",
     "named": true,
     "fields": {
@@ -1715,7 +1720,7 @@
         "required": false,
         "types": [
           {
-            "type": "command_content",
+            "type": "single_quote_content",
             "named": true
           }
         ]
@@ -1804,11 +1809,11 @@
     "named": true
   },
   {
-    "type": "caret_quoted_string",
+    "type": "backquote_content",
     "named": true
   },
   {
-    "type": "command_content",
+    "type": "caret_quoted_string",
     "named": true
   },
   {
