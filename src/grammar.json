@@ -518,7 +518,7 @@
             "name": "consequence",
             "content": {
               "type": "SYMBOL",
-              "name": "_unit"
+              "name": "_statement"
             }
           },
           {
@@ -544,7 +544,7 @@
                     "name": "alternative",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "_unit"
+                      "name": "_statement"
                     }
                   }
                 ]
@@ -936,7 +936,7 @@
             "name": "body",
             "content": {
               "type": "SYMBOL",
-              "name": "_unit"
+              "name": "_statement"
             }
           }
         ]

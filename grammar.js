@@ -264,8 +264,10 @@ module.exports = grammar({
           optional(alias(opt('/i'), $.if_flag)),
           optional(alias(ci('not'), $.not)),
           field('condition', $._if_condition),
-          field('consequence', $._unit),
-          optional(seq(kw($, 'else'), field('alternative', $._unit))),
+          // cmd parses the rest of each branch through its operator ladder.
+          // `prec.right` keeps a following ELSE attached to this IF.
+          field('consequence', $._statement),
+          optional(seq(kw($, 'else'), field('alternative', $._statement))),
         ),
       ),
 
@@ -337,7 +339,8 @@ module.exports = grammar({
           field('set', optional($.for_set)),
           alias($._block_close, ')'),
           kw($, 'do'),
-          field('body', $._unit),
+          // Operators after DO remain inside the loop body.
+          field('body', $._statement),
         ),
       ),
 
