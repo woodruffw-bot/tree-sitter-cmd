@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -80,6 +80,18 @@ fn manifest_entries(manifest: &Path) -> Vec<String> {
             index + 1,
         );
         assert!(
+            Path::new(name).file_name().and_then(|name| name.to_str()) == Some(name),
+            "{}:{}: fixture must be a file name: {name}",
+            manifest.display(),
+            index + 1,
+        );
+        assert!(
+            is_script(Path::new(name)),
+            "{}:{}: fixture must have a .bat or .cmd extension: {name}",
+            manifest.display(),
+            index + 1,
+        );
+        assert!(
             seen.insert(name),
             "{}:{}: duplicate fixture {name}",
             manifest.display(),
@@ -88,19 +100,28 @@ fn manifest_entries(manifest: &Path) -> Vec<String> {
         names.push(name.to_owned());
     }
 
+    assert!(
+        !names.is_empty(),
+        "{} must list at least one fixture",
+        manifest.display(),
+    );
     names
+}
+
+fn is_script(path: &Path) -> bool {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some(extension) => {
+            extension.eq_ignore_ascii_case("bat") || extension.eq_ignore_ascii_case("cmd")
+        }
+        None => false,
+    }
 }
 
 fn fixture_files(directory: &Path) -> BTreeSet<String> {
     fs::read_dir(directory)
         .unwrap_or_else(|error| panic!("reading {}: {error}", directory.display()))
         .map(|entry| entry.expect("reading fixture directory entry").path())
-        .filter(|path| {
-            matches!(
-                path.extension().and_then(|extension| extension.to_str()),
-                Some("bat" | "cmd")
-            )
-        })
+        .filter(|path| path.is_file() && is_script(path))
         .map(|path| {
             path.file_name()
                 .expect("fixture file name")
@@ -108,6 +129,92 @@ fn fixture_files(directory: &Path) -> BTreeSet<String> {
                 .into_owned()
         })
         .collect()
+}
+
+type StructuralContracts = BTreeMap<String, BTreeMap<String, usize>>;
+
+fn structural_contracts(path: &Path) -> StructuralContracts {
+    let text = fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
+    let mut contracts = StructuralContracts::new();
+
+    for (index, line) in text.lines().enumerate() {
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let mut fields = line.split('\t');
+        let fixture = fields.next().expect("split always has one field");
+        let kind = fields.next().unwrap_or_else(|| {
+            panic!(
+                "{}:{}: expected <filename>\\t<node-kind>\\t<minimum-count>",
+                path.display(),
+                index + 1,
+            )
+        });
+        let minimum = fields.next().unwrap_or_else(|| {
+            panic!(
+                "{}:{}: expected <filename>\\t<node-kind>\\t<minimum-count>",
+                path.display(),
+                index + 1,
+            )
+        });
+        assert!(
+            fields.next().is_none() && !fixture.is_empty() && !kind.is_empty(),
+            "{}:{}: malformed structural contract",
+            path.display(),
+            index + 1,
+        );
+        let minimum = minimum.parse::<usize>().unwrap_or_else(|error| {
+            panic!(
+                "{}:{}: invalid minimum count {minimum:?}: {error}",
+                path.display(),
+                index + 1,
+            )
+        });
+        assert!(
+            minimum > 0,
+            "{}:{}: minimum count must be greater than zero",
+            path.display(),
+            index + 1,
+        );
+
+        let previous = contracts
+            .entry(fixture.to_owned())
+            .or_default()
+            .insert(kind.to_owned(), minimum);
+        assert!(
+            previous.is_none(),
+            "{}:{}: duplicate contract for {fixture} node kind {kind}",
+            path.display(),
+            index + 1,
+        );
+    }
+
+    assert!(
+        !contracts.is_empty(),
+        "{} must list at least one structural contract",
+        path.display(),
+    );
+    contracts
+}
+
+fn collect_node_kinds(node: Node<'_>, counts: &mut BTreeMap<String, usize>) {
+    *counts.entry(node.kind().to_owned()).or_default() += 1;
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        collect_node_kinds(child, counts);
+    }
+}
+
+#[test]
+fn script_extensions_are_case_insensitive() {
+    assert!(is_script(Path::new("fixture.bat")));
+    assert!(is_script(Path::new("fixture.BAT")));
+    assert!(is_script(Path::new("fixture.Cmd")));
+    assert!(!is_script(Path::new("fixture.bat.LICENSE")));
 }
 
 #[test]
@@ -135,14 +242,32 @@ fn real_world_fixtures_parse_without_recovery() {
     let fixtures = real_world.join("fixtures");
     let names = manifest_entries(&real_world.join("sources.tsv"));
     let listed: BTreeSet<_> = names.iter().cloned().collect();
+    let contracts = structural_contracts(&real_world.join("contracts.tsv"));
+    let fixture_files = fixture_files(&fixtures);
 
+    assert!(!fixture_files.is_empty(), "fixture directory has no scripts");
     assert_eq!(
         listed,
-        fixture_files(&fixtures),
+        fixture_files,
         "sources.tsv and the fixture directory must list the same scripts",
     );
+    for name in &names {
+        let license = fixtures.join(format!("{name}.LICENSE"));
+        assert!(
+            license.is_file(),
+            "fixture {name} is missing its LICENSE sibling: {}",
+            license.display(),
+        );
+    }
+    for fixture in contracts.keys() {
+        assert!(
+            listed.contains(fixture),
+            "contracts.tsv refers to unlisted fixture {fixture}",
+        );
+    }
 
     let mut failures = Vec::new();
+    let mut parsed = 0;
     for name in names {
         let path = fixtures.join(&name);
         let source = match fs::read(&path) {
@@ -156,14 +281,29 @@ fn real_world_fixtures_parse_without_recovery() {
             failures.push(format!("{name}: Parser::parse returned None"));
             continue;
         };
+        parsed += 1;
 
         let mut problems = Vec::new();
         collect_problems(tree.root_node(), &source, &mut problems);
         for problem in problems {
             failures.push(format!("{name}:{problem}"));
         }
+
+        if let Some(contract) = contracts.get(&name) {
+            let mut node_kinds = BTreeMap::new();
+            collect_node_kinds(tree.root_node(), &mut node_kinds);
+            for (kind, minimum) in contract {
+                let actual = node_kinds.get(kind).copied().unwrap_or(0);
+                if actual < *minimum {
+                    failures.push(format!(
+                        "{name}: expected at least {minimum} {kind} nodes, found {actual}",
+                    ));
+                }
+            }
+        }
     }
 
+    assert!(parsed > 0, "no real-world fixtures were parsed");
     assert!(
         failures.is_empty(),
         "real-world parse failures:\n{}",
