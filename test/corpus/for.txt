@@ -120,6 +120,85 @@ for /d %%d in (*) do echo %%d
       argument: (argument
         (loop_variable)))))
 
+============================
+for /d /r with path
+============================
+
+for /d /r C:\src %%d in (*) do echo %%d
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      (for_flag)
+      argument: (argument
+        (text)))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+============================
+for /r /d without path
+============================
+
+for /r /d %%d in (*) do echo %%d
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      (for_flag))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+============================
+for /r /d with path
+============================
+
+for /r /d C:\src %%d in (*) do echo %%d
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      (for_flag)
+      argument: (argument
+        (text)))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
 ====================
 for /f with options
 ====================
@@ -167,7 +246,7 @@ for /f "usebackq" %%L in (`dir /b`) do echo %%L
     (keyword)
     set: (for_set
       (backquote_string
-        content: (command_content)))
+        content: (backquote_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -298,7 +377,57 @@ for /f %%a in ('echo (hi)') do echo %%a
     (keyword)
     set: (for_set
       (single_quote_string
-        content: (command_content)))
+        content: (single_quote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================================================
+for /f command with apostrophes inside double quotes
+====================================================
+
+for /f %%d in ('powershell -command "[DateTime]::UtcNow.ToString('yyyy-MM-dd')"') do echo %%d
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=======================================
+multiline for /f single-quoted command
+=======================================
+
+for /f %%a in ('
+  echo hi
+') do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -323,7 +452,7 @@ for /f "usebackq" %%a in (`echo hi
     (loop_variable)
     (keyword)
     (backquote_string
-      content: (command_content))))
+      content: (backquote_content))))
 
 ================================================
 for set with parentheses in a quoted item

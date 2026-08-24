@@ -345,23 +345,59 @@ module.exports = grammar({
       ),
 
     // FOR options. `/R [path]` and `/F [options]` each take one optional word.
-    // The option may be quoted (`/f "tokens=2 delims=,"`) or caret-escaped and
-    // unquoted (`/f tokens^=2-5^ delims^=.-_`). A tree-sitter lexer-state
-    // asymmetry lets only one for-flag accept a bareword argument, so `/R`/`/F`
-    // share a single rule with one optional `_for_arg` (which also admits the
-    // command-name word token the lexer offers in that state).
+    // `/D` and `/R` may be combined in either order. No other mixed switch set
+    // is valid. The optional argument cannot start with `/`, which keeps an
+    // illegal second switch from being accepted as an `/F` option or `/R` path.
+    // The argument may be quoted (`/f "tokens=2 delims=,"`) or caret-escaped and
+    // unquoted (`/f tokens^=2-5^ delims^=.-_`).
     for_option: ($) =>
       choice(
-        alias(opt('/d'), $.for_flag),
         alias(opt('/l'), $.for_flag),
         seq(
-          alias(choice(opt('/r'), opt('/f')), $.for_flag),
+          alias(opt('/f'), $.for_flag),
           optional(field('argument', alias($._for_arg, $.argument))),
+        ),
+        seq(
+          alias(opt('/d'), $.for_flag),
+          optional(
+            seq(
+              alias(opt('/r'), $.for_flag),
+              optional(field('argument', alias($._for_arg, $.argument))),
+            ),
+          ),
+        ),
+        seq(
+          alias(opt('/r'), $.for_flag),
+          optional(
+            choice(
+              seq(
+                alias(opt('/d'), $.for_flag),
+                optional(field('argument', alias($._for_arg, $.argument))),
+              ),
+              seq(
+                field('argument', alias($._for_arg, $.argument)),
+                optional(alias(opt('/d'), $.for_flag)),
+              ),
+            ),
+          ),
         ),
       ),
 
     _for_arg: ($) =>
-      wordOf($, choice(alias($._cmd_text, $.text), $._fragment), $._fragment),
+      wordOf($, $._for_arg_lead, $._fragment),
+    _for_arg_lead: ($) =>
+      choice(
+        alias($._for_arg_text, $.text),
+        $.string,
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
+        $._expansion,
+        alias($._stray_sigil, $.text),
+        alias($._lparen, $.text),
+        alias($._rparen, $.text),
+      ),
+    _for_arg_text: ($) =>
+      token(/[^/ \t\r\n&|<>()^"%!][^ \t\r\n&|<>()^"%!]*/),
 
     for_set: ($) =>
       repeat1(
@@ -373,41 +409,39 @@ module.exports = grammar({
         ),
       ),
 
-    // A backquoted FOR /F source. It is a command only with `usebackq` and may
-    // be unterminated. Keep the content in a delimiter-free child so injection
-    // queries do not need range adjustment directives, which the Rust
-    // highlighter does not apply.
+    // A backquoted FOR /F item. It is a command only with `usebackq` and may be
+    // unterminated. Keep the content in a neutral, delimiter-free child. The
+    // injection query assigns command semantics only when this quote mode is
+    // active.
     backquote_string: ($) =>
       seq(
         token(prec(2, '`')),
-        optional(
-          field(
-            'content',
-            alias(
-              token.immediate(prec(4, /[^`\r\n]+/)),
-              $.command_content,
-            ),
-          ),
-        ),
+        optional(field('content', $.backquote_content)),
         optional(token.immediate(prec(3, '`'))),
       ),
-    // A single-quoted FOR /F source. It is a command unless `usebackq` is active.
+    backquote_content: ($) => token.immediate(prec(4, /[^`\r\n]+/)),
+
+    // A single-quoted FOR /F item. It is a command unless `usebackq` is active.
     // The closing quote is required so a stray apostrophe in a plain FOR set
-    // (`for %%a in (it's)`) stays text. A properly quoted source keeps its inner
-    // parens/operators literal, e.g. `for /f %%a in ('wmic … where (x=1) …') do …`.
+    // (`for %%a in (it's)`) stays text. Double-quoted spans may contain literal
+    // apostrophes, as in embedded PowerShell and Python snippets. Newlines are
+    // also accepted because cmd permits a FOR /F command source to span lines.
+    // As with backquotes, the content node is neutral until a query applies the
+    // active quote mode.
     single_quote_string: ($) =>
       seq(
         token(prec(2, "'")),
-        optional(
-          field(
-            'content',
-            alias(
-              token.immediate(prec(4, /[^'\r\n]+/)),
-              $.command_content,
-            ),
-          ),
-        ),
+        optional(field('content', $.single_quote_content)),
         token.immediate("'"),
+      ),
+    single_quote_content: ($) =>
+      repeat1(
+        choice(
+          token.immediate(prec(4, /[^'"^\r\n]+/)),
+          token.immediate(prec(4, /"[^"\r\n]*"/)),
+          token.immediate(prec(4, /\^[^\r\n]/)),
+          $._newline,
+        ),
       ),
 
     // ---------------------------------------------------------------------
