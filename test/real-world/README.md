@@ -9,6 +9,7 @@ integration test reads each file as raw bytes and requires a parse tree without
 ```
 fixtures/      the committed scripts (plus a .LICENSE per file)
 sources.tsv    filename and source URL for each fixture
+contracts.tsv  minimum node counts for selected fixtures
 FEATURE_COVERAGE.md
                grammar-sensitive coverage and intentionally open gaps
 ```
@@ -42,3 +43,7 @@ Add cases as new constructs or bugs surface; do not rewrite existing ones.
 2. Add a `fixtures/<name>.LICENSE` sibling with its provenance and license.
 3. Add a row to `sources.tsv`: `<name>\t<source-url>`.
 4. Confirm `cargo test --test real_world` passes.
+
+Add a row to `contracts.tsv` when a fixture is meant to preserve a specific
+node kind. Contracts use the form `<filename>\t<node-kind>\t<minimum-count>`.
+They supplement the no-recovery check without fixing the full CST in place.

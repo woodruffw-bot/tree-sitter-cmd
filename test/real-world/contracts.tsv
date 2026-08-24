@@ -1,0 +1,13 @@
+# Minimum named-node counts for selected real-world fixtures.
+# Format: <filename>\t<node-kind>\t<minimum-count>
+#
+# Use stable node kinds that express why a fixture is in the corpus. Counts are
+# lower bounds so grammar improvements may add nodes without changing this file.
+gradlew.bat	if_statement	5
+gradlew.bat	goto_statement	3
+kafka-run-class.bat	for_statement	13
+kafka-run-class.bat	delayed_variable	10
+microsoft-printtrace.cmd	redirect_file	202
+npocmaka-binaryTree.bat	call_statement	10
+openvino-install-service.bat	delayed_variable	33
+reactos-remaster.cmd	label	6

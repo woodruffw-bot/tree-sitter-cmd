@@ -29,10 +29,19 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Prepare script corpus
+        run: |
+          mkdir -p .tree-sitter-cmd-fuzz-corpus
+          find test/real-world/fixtures -maxdepth 1 -type f \
+            \( -iname '*.bat' -o -iname '*.cmd' \) \
+            -exec cp -- {} .tree-sitter-cmd-fuzz-corpus/ \;
+          find .tree-sitter-cmd-fuzz-corpus \
+            -maxdepth 1 -type f -print -quit | grep -q .
+
       - name: Fuzz parser and external scanner
         uses: tree-sitter/fuzz-action@6a1dcff00aefd038ba418bd63732a9add4901266 # v4
         with:
-          corpus: test/real-world/fixtures
+          corpus: .tree-sitter-cmd-fuzz-corpus
           max-length: 16384
           max-time: ${{ github.event_name == 'pull_request' && 60 || 900 }}
           timeout: 10
