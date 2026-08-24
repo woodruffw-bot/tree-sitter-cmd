@@ -216,17 +216,22 @@ keyword, and ELSE's opening `(` to be on the same physical line; a `)` alone on 
 line followed by `ELSE` on the next is an error. This is enforced by not allowing
 a newline between the `then` body and the `else` branch. `prec.right` resolves
 the dangling-else to the nearest IF and lets `IF c1 IF c2 cmd` chain. IF does not
-take leading redirections.
+take leading redirections. The consequence and alternative each consume a full
+command-operator expression. For example, both commands in
+`IF 1==1 ECHO a & ECHO b` belong to the consequence. An `ELSE` after the
+consequence starts the alternative instead of becoming part of that expression.
 
 ### FOR
 
-All variants share `FOR [opt] %%v IN (set) DO body`. The IN list is read inside a
-block so `)` ends it and inner newlines are skipped. A FOR variable is `%%` plus
-any single non-separator character (`%%#`, `%%1` are valid). `FOR /L` accepts the
-non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F`
-share one optional-argument path because of a lexer-state constraint, so they are
-unified behind a single `for_flag` rule (this is the one declared conflict). The
-`/F` command quoting depends on its options. By default, `'single-quoted'` is a
+All variants share `FOR [opt] %%v IN (set) DO body`. The body consumes a full
+command-operator expression, so every command in `DO ECHO %%v & ECHO done`
+runs for each iteration. The IN list is read inside a block so `)` ends it and
+inner newlines are skipped. A FOR variable is `%%` plus any single non-separator
+character (`%%#`, `%%1` are valid). `FOR /L` accepts the non-comma numeric
+separators `;`, `=`, and space, e.g. `(1;1=5)`. `/R` and `/F` share one
+optional-argument path because of a lexer-state constraint, so they are unified
+behind a single `for_flag` rule (this is the one declared conflict). The `/F`
+command quoting depends on its options. By default, `'single-quoted'` is a
 command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
 command and single quotes are literal. The `backquote_string` and
 `single_quote_string` nodes keep inner `)`/operators literal. Each has a

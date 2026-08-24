@@ -550,11 +550,19 @@
         "required": true,
         "types": [
           {
+            "type": "and_list",
+            "named": true
+          },
+          {
             "type": "block",
             "named": true
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -574,7 +582,23 @@
             "named": true
           },
           {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "powershell_comment",
+            "named": true
+          },
+          {
             "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
             "named": true
           },
           {
@@ -700,11 +724,19 @@
         "required": false,
         "types": [
           {
+            "type": "and_list",
+            "named": true
+          },
+          {
             "type": "block",
             "named": true
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -724,7 +756,23 @@
             "named": true
           },
           {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "powershell_comment",
+            "named": true
+          },
+          {
             "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
             "named": true
           },
           {
@@ -752,11 +800,19 @@
         "required": true,
         "types": [
           {
+            "type": "and_list",
+            "named": true
+          },
+          {
             "type": "block",
             "named": true
           },
           {
             "type": "call_statement",
+            "named": true
+          },
+          {
+            "type": "colon_comment",
             "named": true
           },
           {
@@ -776,7 +832,23 @@
             "named": true
           },
           {
+            "type": "or_list",
+            "named": true
+          },
+          {
+            "type": "pipeline",
+            "named": true
+          },
+          {
+            "type": "powershell_comment",
+            "named": true
+          },
+          {
             "type": "rem_comment",
+            "named": true
+          },
+          {
+            "type": "seq_list",
             "named": true
           },
           {

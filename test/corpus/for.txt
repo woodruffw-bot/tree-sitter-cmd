@@ -346,3 +346,64 @@ for %%a in ("file (1).txt") do echo %%a
       name: (command_name)
       argument: (argument
         (loop_variable)))))
+
+=================================
+sequence belongs to for body
+=================================
+
+for %%A in (x y) do echo %%A & echo each
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text)))
+    (keyword)
+    body: (seq_list
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (loop_variable)))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
+=====================================
+operator precedence inside for body
+=====================================
+
+for %%A in (x) do first | second && third || fourth & fifth
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (seq_list
+      left: (or_list
+        left: (and_list
+          left: (pipeline
+            left: (command
+              name: (command_name))
+            right: (command
+              name: (command_name)))
+          right: (command
+            name: (command_name)))
+        right: (command
+          name: (command_name)))
+      right: (command
+        name: (command_name)))))

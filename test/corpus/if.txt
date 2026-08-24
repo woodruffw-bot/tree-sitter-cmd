@@ -212,3 +212,90 @@ if ^%V:~0,1% NEQ ^" echo x
       name: (command_name)
       argument: (argument
         (text)))))
+
+=======================================
+sequence belongs to the consequence
+=======================================
+
+if 1==2 echo no & echo also-no
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument)
+      operator: (comparison_operator)
+      right: (argument))
+    consequence: (seq_list
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
+===========================================
+pipeline consequence terminates at else
+===========================================
+
+if 1==1 echo j1|(echo j2) else echo j3
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument)
+      operator: (comparison_operator)
+      right: (argument))
+    consequence: (pipeline
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (block
+        (command
+          name: (command_name)
+          argument: (argument
+            (text)))))
+    (keyword)
+    alternative: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+===================================
+sequence belongs to alternative
+===================================
+
+if 1==0 (echo no) else echo yes & echo still-yes
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument)
+      operator: (comparison_operator)
+      right: (argument))
+    consequence: (block
+      (command
+        name: (command_name)
+        argument: (argument
+          (text))))
+    (keyword)
+    alternative: (seq_list
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
