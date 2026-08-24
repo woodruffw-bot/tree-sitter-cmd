@@ -1349,6 +1349,16 @@
             "named": true
           }
         ]
+      },
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "_redirection",
+            "named": true
+          }
+        ]
       }
     },
     "children": {

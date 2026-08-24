@@ -37,6 +37,23 @@ rem build & deploy | step
     (keyword)
     (comment_text)))
 
+=====================================
+redirected rem body stays opaque
+=====================================
+
+>nul rem %PATH% & echo hidden
+
+---
+
+(program
+  (rem_comment
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (keyword)
+    (comment_text)))
+
 ====================
 colon-colon comment
 ====================

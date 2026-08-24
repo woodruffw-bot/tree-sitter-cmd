@@ -140,6 +140,23 @@ mod tests {
     }
 
     #[test]
+    fn test_redirected_rem_comment_highlight_excludes_redirect() {
+        let source = ">nul rem note\r\n";
+        let query = Query::new(&language(), super::HIGHLIGHTS_QUERY)
+            .expect("highlights query should compile");
+
+        let comments = capture_texts(source, &query, "comment");
+        assert_eq!(
+            comments
+                .iter()
+                .map(|text| text.trim())
+                .collect::<Vec<_>>(),
+            ["rem", "note"]
+        );
+        assert!(comments.iter().all(|text| !text.contains(">nul")));
+    }
+
+    #[test]
     fn test_statement_fields_have_one_concrete_node() {
         let source = concat!(
             "if exist x @echo yes else @@echo no\r\n",

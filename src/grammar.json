@@ -280,6 +280,17 @@
             }
           },
           {
+            "type": "REPEAT",
+            "content": {
+              "type": "FIELD",
+              "name": "redirect",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_redirection"
+              }
+            }
+          },
+          {
             "type": "ALIAS",
             "content": {
               "type": "SYMBOL",
@@ -2481,6 +2492,17 @@
             "content": {
               "type": "SYMBOL",
               "name": "quiet"
+            }
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "FIELD",
+            "name": "redirect",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_redirection"
             }
           }
         },
