@@ -109,6 +109,47 @@ fn scanner_sensitive_edits_match_fresh_parses() {
     }
 }
 
+#[test]
+fn malformed_edit_keeps_error_inside_closed_block() {
+    let before = "(\necho inside\n)\necho after\n";
+    let needle = "echo inside";
+    let start = before.find(needle).expect("edit needle");
+    let (incremental, edited) = edited_tree(
+        before.as_bytes(),
+        start..start + needle.len(),
+        b"if",
+    );
+    let fresh = parser()
+        .parse(edited.as_slice(), None)
+        .expect("fresh malformed parse");
+
+    assert_eq!(
+        incremental.root_node().to_sexp(),
+        fresh.root_node().to_sexp(),
+        "incremental recovery must match a fresh parse",
+    );
+
+    let root = incremental.root_node();
+    let block = root.named_child(0).expect("recovered block");
+    let tail = root.named_child(1).expect("command after block");
+    let close_end = edited
+        .windows(2)
+        .position(|window| window == b")\n")
+        .expect("block close")
+        + 1;
+    let tail_start = edited
+        .windows(b"echo after".len())
+        .position(|window| window == b"echo after")
+        .expect("tail command");
+
+    assert_eq!(block.kind(), "block");
+    assert!(block.has_error(), "the malformed statement must stay marked");
+    assert_eq!(block.end_byte(), close_end);
+    assert_eq!(tail.kind(), "command");
+    assert!(!tail.has_error(), "the later command must remain clean");
+    assert_eq!(tail.start_byte(), tail_start);
+}
+
 fn parse_chunked(source: &[u8], chunk_size: usize) -> Tree {
     parser()
         .parse_with_options(

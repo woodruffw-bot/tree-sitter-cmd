@@ -75,13 +75,14 @@ if (%1) == () goto done
   (if_statement
     (keyword)
     condition: (comparison
-      left: (argument)
       left: (argument
-        (parameter))
-      left: (argument)
+        (text)
+        (parameter)
+        (text))
       operator: (comparison_operator)
-      right: (argument)
-      right: (argument))
+      right: (argument
+        (text)
+        (text)))
     consequence: (goto_statement
       (keyword)
       target: (argument
@@ -171,8 +172,7 @@ echo (see readme.txt)
       (text)
       (text))
     argument: (argument
-      (text))
-    argument: (argument
+      (text)
       (text))))
 
 ================================
@@ -185,11 +185,9 @@ echo.version(s) of the tool
 
 (program
   (command
-    name: (command_name)
-    argument: (argument
+    name: (command_name
       (text)
-      (text))
-    argument: (argument
+      (text)
       (text))
     argument: (argument
       (text))

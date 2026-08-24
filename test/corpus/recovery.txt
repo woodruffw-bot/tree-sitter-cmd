@@ -103,3 +103,23 @@ echo after
     name: (command_name)
     argument: (argument
       (text))))
+
+===========================================
+malformed statement keeps block close local
+===========================================
+
+(
+if
+)
+echo after
+
+---
+
+(program
+  (block
+    (ERROR
+      (keyword)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
