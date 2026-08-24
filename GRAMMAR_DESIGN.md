@@ -7,8 +7,11 @@ ReactOS `cmd.exe` reimplementation (`base/shell/cmd/parser.c`, `cmd.c`,
 work (wharflab/tree-sitter-batch, tree-sitter-bash).
 
 The grammar targets the Windows `cmd.exe` batch dialect. It is a recognizer and
-a highlightable concrete syntax tree, not an executable AST. The target scope is
-`source.dosbatch`, file types `.bat` and `.cmd`. License: MIT.
+a concrete syntax tree for static analysis, not an executable AST. Stable CST
+shape, source fidelity, and useful error recovery take priority over syntax
+highlighting. Highlight and injection queries are secondary consumers and must
+not drive grammar structure. The target scope is `source.dosbatch`, file types
+`.bat` and `.cmd`. License: MIT.
 
 ## 1. Scope
 
@@ -35,6 +38,14 @@ Out of scope (runtime behavior, not syntax):
   separate grammar downstream of cmd.
 - Runtime semantics of `&&`/`||` gating, `GOTO` target resolution, `SHIFT`
   renumbering, and `SETLOCAL` scoping.
+
+The grammar does not parse option languages belonging to invoked programs. It
+also keeps cmd built-in option payloads opaque unless an option materially
+changes cmd's own syntax. FOR `/R` is grammar-relevant because it may consume a
+path before the loop variable. FOR `/F usebackq` is grammar-relevant because it
+changes which quote delimiter marks a command source. Other `/F` parsing
+keywords, including `tokens=`, `delims=`, `skip=`, and `eol=`, remain text in a
+single argument node.
 
 Two deliberate conformance choices:
 
