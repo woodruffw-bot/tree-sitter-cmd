@@ -731,29 +731,33 @@
         {
           "type": "ALIAS",
           "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "_lparen"
-              },
-              {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "_if_word"
-                  },
-                  {
-                    "type": "BLANK"
-                  }
-                ]
-              },
-              {
-                "type": "SYMBOL",
-                "name": "_rparen"
-              }
-            ]
+            "type": "PREC",
+            "value": 1,
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_lparen"
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_if_word"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "_rparen"
+                }
+              ]
+            }
           },
           "named": true,
           "value": "argument"
@@ -818,6 +822,24 @@
           "content": {
             "type": "SYMBOL",
             "name": "_stray_sigil"
+          },
+          "named": true,
+          "value": "text"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_lparen"
+          },
+          "named": true,
+          "value": "text"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_rparen"
           },
           "named": true,
           "value": "text"
@@ -2199,15 +2221,32 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "SEQ",
+            "type": "CHOICE",
             "members": [
               {
-                "type": "SYMBOL",
-                "name": "_concat"
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_concat"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "_fragment"
+                  }
+                ]
               },
               {
-                "type": "SYMBOL",
-                "name": "_fragment"
+                "type": "ALIAS",
+                "content": {
+                  "type": "IMMEDIATE_TOKEN",
+                  "content": {
+                    "type": "PATTERN",
+                    "value": "=[^ \\t\\r\\n&|<>()^\"%!]*"
+                  }
+                },
+                "named": true,
+                "value": "text"
               }
             ]
           }
@@ -2522,7 +2561,7 @@
               "type": "ALIAS",
               "content": {
                 "type": "SYMBOL",
-                "name": "_line_text"
+                "name": "_rem_text"
               },
               "named": true,
               "value": "comment_text"
@@ -2677,6 +2716,10 @@
     {
       "type": "SYMBOL",
       "name": "_rem"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_rem_text"
     },
     {
       "type": "SYMBOL",

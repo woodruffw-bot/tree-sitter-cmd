@@ -153,3 +153,63 @@ PowerShell polyglot markers
   (powershell_comment
     (comment_text))
   (powershell_comment))
+
+=====================================
+short rem bodies stay opaque in blocks
+=====================================
+
+(
+  rem )
+  rem &
+  rem |
+  echo after
+)
+
+---
+
+(program
+  (block
+    (rem_comment
+      (keyword)
+      (comment_text))
+    (rem_comment
+      (keyword)
+      (comment_text))
+    (rem_comment
+      (keyword)
+      (comment_text))
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+========================================
+hyphen continues a rem-like command name
+========================================
+
+rem-foo arg
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+====================================
+leading redirection on a rem comment
+====================================
+
+>nul rem %X% & echo hidden
+
+---
+
+(program
+  (rem_comment
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (keyword)
+    (comment_text)))

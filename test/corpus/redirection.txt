@@ -87,6 +87,25 @@ cmd > out.txt 2>&1
       operator: (redirect_dup_operator)
       target: (file_descriptor))))
 
+=======================================
+descriptor after a quoted argument
+=======================================
+
+echo "hi"2>nul
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
 ====================
 leading redirection
 ====================

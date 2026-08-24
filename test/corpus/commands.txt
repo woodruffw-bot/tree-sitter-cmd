@@ -136,3 +136,28 @@ sigil can lead a command name
       (text))
     argument: (argument
       (text))))
+
+=======================================
+equals stays adjacent after word fragments
+=======================================
+
+echo %X%=value "x"=y %%i=value pre%X%=tail
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (variable)
+      (text))
+    argument: (argument
+      (string)
+      (text))
+    argument: (argument
+      (loop_variable)
+      (text))
+    argument: (argument
+      (text)
+      (variable)
+      (text))))

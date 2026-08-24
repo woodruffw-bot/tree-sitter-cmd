@@ -125,15 +125,20 @@ tokens. Its only state is a single block-depth counter:
 |-------|------|
 | `CONCAT` | zero-width join of adjacent word fragments into one argument |
 | `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
+| `REM_TEXT` | the opaque body of a `REM` comment through end of line |
 | `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
 | `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
-| `ERROR_SENTINEL` | an unused final token that makes the scanner decline Tree-sitter's all-symbol error-recovery state |
+| `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
-`name=value`.
+`name=value`. An argument-specific immediate token joins an adjacent `=` after
+another fragment, as in `%VAR%=suffix`, without changing that global boundary.
+During error recovery, the scanner declines zero-width tokens but still emits a
+real `BLOCK_CLOSE`. This keeps an error inside a block from consuming later
+commands.
 
 ## 4. The parenthesis model
 
@@ -262,19 +267,23 @@ A leading digit is a redirection fd only at a token boundary and immediately
 followed by `<`/`>`. So `2>file` redirects, `echo 2>file` splits into `echo` then
 `2>`, and `abc2>file` keeps `2` as text. The operator after an fd is
 `token.immediate`, and the external scanner only emits the fd when the next
-byte is `<` or `>`. A spaced digit remains an ordinary argument, as in
-`echo 2 >file`. In the CST, `_redirection` is a transparent supertype over
-`redirect_file` and `redirect_dup`. A leading fd is a `file_descriptor` in the
-`source` field, separate from the punctuation-only `operator` field.
-Redirection ordering is preserved positionally; last-wins and stream-merge
-semantics are runtime.
+byte is `<` or `>`. It checks this before joining adjacent fragments, so
+`echo "text"2>file` keeps `2` as the redirection source. A spaced digit remains
+an ordinary argument, as in `echo 2 >file`. In the CST, `_redirection` is a
+transparent supertype over `redirect_file` and `redirect_dup`. A leading fd is
+a `file_descriptor` in the `source` field, separate from the punctuation-only
+`operator` field. Redirection ordering is preserved positionally; last-wins and
+stream-merge semantics are runtime.
 
 ### REM and ::
 
 `REM` is a whole-word keyword followed by a delimiter and a free body to
 end-of-line. The body is one opaque `comment_text` node, including text that
 looks like `%VAR%` or `!VAR!`, and does not honor line continuation (cmd's
-`ParseRem` does not splice).
+`ParseRem` does not splice). The scanner consumes the body so a one-character
+body such as `&`, `|`, or `)` cannot be mistaken for an operator or block close.
+Leading redirections belong to the comment, while a hyphen continues a command
+name, so `>nul rem text` is a comment and `rem-tool` is a command.
 `::` is a degenerate label used as a comment. A single colon followed by a
 character that cannot start a label, such as `:#`, `:!`, or `: `, is treated the
 same way. Digits remain valid label starts, so `:1` is a label rather than a
@@ -365,7 +374,6 @@ scripts.
 - **Dangling caret continuation** (a caret at the end of the file, with no
   following line to splice onto) is an error node; continuation onto a following
   line, blank or not, is fine.
-- **Tree-shape imprecisions that still parse cleanly**: `%%` outside a FOR is
+- **Tree-shape imprecision that still parses cleanly**: `%%` outside a FOR is
   noded as a `loop_variable` (the documented batch-`%%x` vs `%%`-literal
-  ambiguity), and the `if (%1)==()` idiom emits the parens as sibling `argument`
-  nodes rather than one wrapped operand. Neither produces an error.
+  ambiguity).

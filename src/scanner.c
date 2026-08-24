@@ -10,6 +10,7 @@
 //                  is no whitespace between them (the tree-sitter-bash trick).
 //   REM          - the `rem` comment keyword (whole-word; tree-sitter declines
 //                  to keyword-extract it).
+//   REM_TEXT     - the opaque body of a REM comment through end of line.
 //   REDIRECT_SOURCE
 //                - a source file descriptor digit immediately followed by a
 //                  redirection operator.
@@ -45,6 +46,7 @@
 enum TokenType {
   CONCAT,
   REM,
+  REM_TEXT,
   REDIRECT_SOURCE,
   BLOCK_OPEN,
   BLOCK_CLOSE,
@@ -82,10 +84,32 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
   }
 }
 
-// A character that terminates a word: whitespace, newlines, command operators
-// and parentheses. `=` is also a boundary so CONCAT cannot starve `==` /
-// `name=value`.
-static bool is_word_boundary(int32_t c) {
+// A character that terminates a word. At block depth zero, parentheses may be
+// literal parts of an argument. Inside a block, a close parenthesis remains a
+// boundary because it closes the innermost structural block.
+static bool is_word_boundary(const Scanner *s, int32_t c) {
+  switch (c) {
+    case ' ':
+    case '\t':
+    case '\r':
+    case '\n':
+    case '&':
+    case '|':
+    case '<':
+    case '>':
+    case '=':
+      return true;
+    case '(':
+    case ')':
+      return s->depth > 0;
+    default:
+      return false;
+  }
+}
+
+// cmd recognizes REM at an internal-command separator. Other punctuation, such
+// as the hyphen in `rem-foo`, continues the command name.
+static bool is_rem_boundary(int32_t c) {
   switch (c) {
     case ' ':
     case '\t':
@@ -97,18 +121,19 @@ static bool is_word_boundary(int32_t c) {
     case '>':
     case '(':
     case ')':
+    case ':':
+    case '.':
+    case ',':
+    case '/':
+    case ';':
     case '=':
+    case '[':
+    case ']':
+    case '\\':
       return true;
     default:
       return false;
   }
-}
-
-// A character that may continue an identifier/command word; `rem` is only a
-// comment keyword when not directly followed by one of these.
-static bool is_ident_char(int32_t c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-         (c >= '0' && c <= '9') || c == '_';
 }
 
 static void skip_ws(TSLexer *lexer) {
@@ -130,7 +155,7 @@ static bool scan_rem(TSLexer *lexer) {
   if (c != 'm' && c != 'M') return false;
   lexer->advance(lexer, false);
   lexer->mark_end(lexer);
-  if (lexer->eof(lexer) || !is_ident_char(lexer->lookahead)) {
+  if (lexer->eof(lexer) || is_rem_boundary(lexer->lookahead)) {
     lexer->result_symbol = REM;
     return true;
   }
@@ -139,16 +164,41 @@ static bool scan_rem(TSLexer *lexer) {
 
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
-  // During error recovery Tree-sitter makes every external symbol valid. Do not
-  // emit scanner tokens in that state. In particular, CONCAT and STRING_END can
-  // match without consuming input, so accepting either would impede recovery.
-  if (valid_symbols[ERROR_SENTINEL]) return false;
-
   Scanner *s = payload;
+
+  // During error recovery Tree-sitter makes every external symbol valid. Do not
+  // emit zero-width tokens in that state. A real close parenthesis must still
+  // close an open block so a malformed statement does not consume later lines.
+  if (valid_symbols[ERROR_SENTINEL]) {
+    skip_ws(lexer);
+    if (s->depth > 0 && lexer->lookahead == ')') {
+      lexer->advance(lexer, false);
+      s->depth--;
+      lexer->result_symbol = BLOCK_CLOSE;
+      return true;
+    }
+    return false;
+  }
+
+  // A descriptor after a quoted or expanded fragment competes with CONCAT.
+  // Prefer the descriptor only when the digit is followed by `<` or `>`. If it
+  // is not, return a zero-width CONCAT at the marked start of the token.
+  if (valid_symbols[REDIRECT_SOURCE] && valid_symbols[CONCAT] &&
+      lexer->lookahead >= '0' && lexer->lookahead <= '9') {
+    lexer->mark_end(lexer);
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '<' || lexer->lookahead == '>') {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = REDIRECT_SOURCE;
+    } else {
+      lexer->result_symbol = CONCAT;
+    }
+    return true;
+  }
 
   // CONCAT: adjacency only, no whitespace skipping.
   if (valid_symbols[CONCAT] && !lexer->eof(lexer) &&
-      !is_word_boundary(lexer->lookahead)) {
+      !is_word_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;
   }
@@ -174,6 +224,23 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
     return false;
+  }
+
+  // REM text is opaque. Consume it before operator and parenthesis tokens can
+  // compete with a one-character comment body.
+  if (valid_symbols[REM_TEXT]) {
+    skip_ws(lexer);
+    if (lexer->eof(lexer) || lexer->lookahead == '\r' ||
+        lexer->lookahead == '\n') {
+      return false;
+    }
+    while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+           lexer->lookahead != '\n') {
+      lexer->advance(lexer, false);
+    }
+    lexer->mark_end(lexer);
+    lexer->result_symbol = REM_TEXT;
+    return true;
   }
 
   bool want_rem = valid_symbols[REM];

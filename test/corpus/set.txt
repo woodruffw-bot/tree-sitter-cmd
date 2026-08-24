@@ -153,11 +153,9 @@ set /a x=2*(3+4)
     (set_arith
       (set_flag)
       expression: (argument
-        (text))
-      expression: (argument
         (text)
-        (text))
-      expression: (argument
+        (text)
+        (text)
         (text)))))
 
 ============================================

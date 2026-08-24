@@ -109,6 +109,7 @@ module.exports = grammar({
   externals: ($) => [
     $._concat,
     $._rem,
+    $._rem_text,
     $._redirect_source,
     $._block_open,
     $._block_close,
@@ -310,7 +311,10 @@ module.exports = grammar({
     _if_operand: ($) =>
       choice(
         alias($._if_word, $.argument),
-        alias(seq($._lparen, optional($._if_word), $._rparen), $.argument),
+        alias(
+          prec(1, seq($._lparen, optional($._if_word), $._rparen)),
+          $.argument,
+        ),
       ),
     _if_word: ($) => wordOf($, $._if_fragment),
     _if_fragment: ($) =>
@@ -322,6 +326,8 @@ module.exports = grammar({
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
+        alias($._lparen, $.text),
+        alias($._rparen, $.text),
       ),
     _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
 
@@ -655,7 +661,23 @@ module.exports = grammar({
         ),
       ),
 
-    argument: ($) => wordOf($, $._fragment),
+    // `=` remains a word boundary in the scanner so IF `a==b` and SET
+    // `name=value` can recognize their delimiters. In an ordinary argument,
+    // however, an immediately-adjacent `=` continues the current word. The
+    // immediate branch joins it without changing the scanner's global rule.
+    argument: ($) =>
+      seq(
+        $._fragment,
+        repeat(
+          choice(
+            seq($._concat, $._fragment),
+            alias(
+              token.immediate(/=[^ \t\r\n&|<>()^"%!]*/),
+              $.text,
+            ),
+          ),
+        ),
+      ),
 
     _fragment: ($) =>
       choice(
@@ -756,7 +778,7 @@ module.exports = grammar({
         quietPrefix($),
         repeat(field('redirect', $._redirection)),
         alias($._rem, $.keyword),
-        optional(alias($._line_text, $.comment_text)),
+        optional(alias($._rem_text, $.comment_text)),
       ),
     colon_comment: ($) =>
       choice(
