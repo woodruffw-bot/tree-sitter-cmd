@@ -37,7 +37,7 @@ call :subroutine arg1 arg2
 (program
   (call_statement
     (keyword)
-    argument: (argument
+    target: (argument
       (text))
     argument: (argument
       (text))
@@ -55,7 +55,7 @@ call other.bat %*
 (program
   (call_statement
     (keyword)
-    argument: (argument
+    target: (argument
       (text))
     argument: (argument
       (all_arguments))))
@@ -85,7 +85,7 @@ call:sub arg1 arg2
 (program
   (call_statement
     (keyword)
-    argument: (argument
+    target: (argument
       (text))
     argument: (argument
       (text))

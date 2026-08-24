@@ -311,15 +311,14 @@ module.exports = grammar({
     _if_operand: ($) =>
       choice(
         alias($._if_word, $.argument),
-        alias(
-          prec(1, seq($._lparen, optional($._if_word), $._rparen)),
-          $.argument,
-        ),
+        alias($._parenthesized_if_operand, $.argument),
       ),
+    _parenthesized_if_operand: ($) =>
+      prec(1, seq($._lparen, optional($._if_word), $._rparen)),
     _if_word: ($) => wordOf($, $._if_fragment),
     _if_fragment: ($) =>
       choice(
-        $._if_text,
+        alias($._if_text, $.text),
         $.string,
         $.escape_sequence,
         // A lone caret escaping a following `%`/`!` (e.g. `if ^%V:~0,1% …`).
@@ -473,16 +472,22 @@ module.exports = grammar({
       ),
 
     // CALL :label args  /  CALL file args  /  CALL command. Redirections may
-    // follow (e.g. `call "%~f0" %* <input`).
+    // precede or follow the target (e.g. `call "%~f0" %* <input`).
     call_statement: ($) =>
       prec.right(
         seq(
           quietPrefix($),
           kw($, 'call'),
-          repeat(
-            choice(
-              field('argument', $.argument),
-              field('redirect', $._redirection),
+          repeat(field('redirect', $._redirection)),
+          optional(
+            seq(
+              field('target', $.argument),
+              repeat(
+                choice(
+                  field('argument', $.argument),
+                  field('redirect', $._redirection),
+                ),
+              ),
             ),
           ),
         ),

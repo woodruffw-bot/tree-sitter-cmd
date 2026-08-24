@@ -135,7 +135,7 @@ call :Init &:# inline comment
   (seq_list
     left: (call_statement
       (keyword)
-      argument: (argument
+      target: (argument
         (text)))
     right: (colon_comment
       (comment_text))))

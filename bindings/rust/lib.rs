@@ -190,6 +190,25 @@ mod tests {
     }
 
     #[test]
+    fn test_if_operands_and_call_target_have_one_field() {
+        let source = "if (a)==(b) call :sub arg\r\n";
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        let if_statement = tree.root_node().named_child(0).expect("if statement");
+        let comparison = only_field(if_statement, "condition");
+        let left = only_field(comparison, "left");
+        let right = only_field(comparison, "right");
+        assert_eq!(&source[left.byte_range()], "(a)");
+        assert_eq!(&source[right.byte_range()], "(b)");
+
+        let call = only_field(if_statement, "consequence");
+        let target = only_field(call, "target");
+        assert_eq!(&source[target.byte_range()], ":sub");
+        assert_eq!(field_children(call, "argument").len(), 1);
+    }
+
+    #[test]
     fn test_injections_follow_for_f_quote_mode() {
         let source = concat!(
             "for /f %%a in ('ver') do echo %%a\r\n",
