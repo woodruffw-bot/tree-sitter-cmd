@@ -4,7 +4,8 @@
 ; ---------------------------------------------------------------------------
 ; Comments
 ; ---------------------------------------------------------------------------
-(rem_comment) @comment
+(rem_comment
+  (keyword) @comment)
 (colon_comment) @comment
 (powershell_comment) @comment
 (comment_text) @comment

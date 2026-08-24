@@ -212,13 +212,15 @@ module.exports = grammar({
         $.set_statement,
       ),
 
-    // A parenthesised compound. Newlines inside act like `&`. The parentheses
-    // are supplied by the external scanner (which tracks block vs literal-paren
-    // nesting), so `echo (text)` is literal but `( echo a )` is a block.
+    // A parenthesised compound. Newlines inside act like `&`. Redirections may
+    // appear before or after the block. The parentheses are supplied by the
+    // external scanner (which tracks block vs literal-paren nesting), so
+    // `echo (text)` is literal but `( echo a )` is a block.
     block: ($) =>
       prec.right(
         seq(
           quietPrefix($),
+          repeat(field('redirect', $._redirection)),
           alias($._block_open, '('),
           optional($._block_body),
           alias($._block_close, ')'),
@@ -752,6 +754,7 @@ module.exports = grammar({
     rem_comment: ($) =>
       seq(
         quietPrefix($),
+        repeat(field('redirect', $._redirection)),
         alias($._rem, $.keyword),
         optional(alias($._line_text, $.comment_text)),
       ),

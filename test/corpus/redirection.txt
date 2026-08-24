@@ -130,6 +130,29 @@ echo b) > combined.txt
       target: (argument
         (text)))))
 
+================================
+block with leading redirections
+================================
+
+>out.txt 2>&1 (echo hi)
+
+---
+
+(program
+  (block
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor))
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
 =====================================
 expanded file descriptor destinations
 =====================================
