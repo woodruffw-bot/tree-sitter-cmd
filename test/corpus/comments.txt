@@ -114,9 +114,9 @@ echo hi &:: trailing
     right: (colon_comment
       (comment_text))))
 
-=====================================
-single-colon non-label comments
-=====================================
+==========================================
+single-colon definitions and inline comment
+==========================================
 
 :# hash comment
 :! bang comment
@@ -126,12 +126,12 @@ call :Init &:# inline comment
 ---
 
 (program
-  (colon_comment
-    (comment_text))
-  (colon_comment
-    (comment_text))
-  (colon_comment
-    (comment_text))
+  (label
+    name: (label_name))
+  (label
+    name: (label_name))
+  (label
+    name: (label_name))
   (seq_list
     left: (call_statement
       (keyword)

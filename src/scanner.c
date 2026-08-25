@@ -33,6 +33,10 @@
 //   SET_IGNORED_SUFFIX
 //                - opaque text after the last quote of a quoted SET binding.
 //                  cmd discards this text when it truncates at the last quote.
+//   LABEL_LEADING_SPACE
+//                - horizontal space after a definition colon, emitted only
+//                  when a valid label-name byte follows. This keeps a `:` line
+//                  containing only whitespace on the colon-comment path.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STRING_END tokens cannot stall recovery.
@@ -64,6 +68,7 @@ enum TokenType {
   SET_INNER_QUOTE,
   SET_STRING_END,
   SET_IGNORED_SUFFIX,
+  LABEL_LEADING_SPACE,
   ERROR_SENTINEL,
 };
 
@@ -171,6 +176,30 @@ static void skip_ws(TSLexer *lexer) {
   }
 }
 
+static bool is_label_name_start(int32_t c) {
+  switch (c) {
+    case 0:
+    case ' ':
+    case '\t':
+    case '\r':
+    case '\n':
+    case ':':
+    case '+':
+    case ';':
+    case ',':
+    case '=':
+    case '&':
+    case '|':
+    case '<':
+    case '>':
+    case '(':
+    case ')':
+      return false;
+    default:
+      return true;
+  }
+}
+
 // Match `rem` (any case) followed by a word boundary. Leading whitespace is
 // assumed already skipped.
 static bool scan_rem(TSLexer *lexer) {
@@ -204,6 +233,25 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->advance(lexer, false);
       s->depth--;
       lexer->result_symbol = BLOCK_CLOSE;
+      return true;
+    }
+    return false;
+  }
+
+  // A label definition may ignore horizontal space after its colon, but only
+  // when a real name follows. Looking ahead here prevents the higher-precedence
+  // label rule from consuming a whitespace-only colon line and recovering a
+  // missing name instead of using the colon-comment rule.
+  if (valid_symbols[LABEL_LEADING_SPACE]) {
+    bool has_space = false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+      has_space = true;
+    }
+    if (has_space && !lexer->eof(lexer) &&
+        is_label_name_start(lexer->lookahead)) {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = LABEL_LEADING_SPACE;
       return true;
     }
     return false;

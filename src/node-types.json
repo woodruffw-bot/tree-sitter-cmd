@@ -371,7 +371,18 @@
   {
     "type": "colon_comment",
     "named": true,
-    "fields": {},
+    "fields": {
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": false,
       "required": false,
@@ -673,16 +684,6 @@
     "type": "goto_statement",
     "named": true,
     "fields": {
-      "argument": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "argument",
-            "named": true
-          }
-        ]
-      },
       "quiet": {
         "multiple": true,
         "required": false,
@@ -708,7 +709,7 @@
         "required": false,
         "types": [
           {
-            "type": "argument",
+            "type": "label_reference",
             "named": true
           }
         ]
@@ -910,6 +911,16 @@
             "named": true
           }
         ]
+      },
+      "quiet": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "quiet",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
@@ -922,6 +933,52 @@
         }
       ]
     }
+  },
+  {
+    "type": "label_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_expansion",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "label_reference",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "label_name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "label_text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "label_text",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "or_list",
@@ -1868,6 +1925,10 @@
     "named": false
   },
   {
+    "type": ":",
+    "named": false
+  },
+  {
     "type": "=",
     "named": false
   },
@@ -1917,14 +1978,6 @@
   },
   {
     "type": "keyword",
-    "named": true
-  },
-  {
-    "type": "label_name",
-    "named": true
-  },
-  {
-    "type": "label_text",
     "named": true
   },
   {

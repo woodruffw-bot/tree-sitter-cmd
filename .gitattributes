@@ -5,6 +5,9 @@
 # or whitespace-fix them.
 test/real-world/fixtures/** -text whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
 
+# This corpus intentionally contains a colon line whose body is only spaces.
+test/corpus/label_targets.txt whitespace=-blank-at-eol
+
 # Generated source files
 src/*.json linguist-generated
 src/parser.c linguist-generated

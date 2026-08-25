@@ -112,6 +112,8 @@ fn scanner_sensitive_edits_match_fresh_parses() {
             "tail\"",
             "tail",
         ),
+        (": target\necho after\n", "target", "  "),
+        ("goto :loop\necho after\n", "loop", ""),
     ];
 
     for (before, needle, replacement) in cases {
@@ -184,6 +186,10 @@ fn chunked_input_matches_contiguous_input() {
         "  echo one ^\r\n",
         "    two^) %PATH%\r\n",
         ")\r\n",
+        ":   \r\n",
+        ": target\r\n",
+        "(goto :loop ; ignored)\r\n",
+        "goto :\r\n",
     )
     .as_bytes();
     let contiguous = parser().parse(source, None).expect("contiguous parse");
