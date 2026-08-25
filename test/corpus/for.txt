@@ -9,7 +9,7 @@ for %%i in (*.txt *.log) do echo %%i
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -35,7 +35,7 @@ for/f %%i in (x) do echo %%i
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -59,7 +59,7 @@ for /l %%n in (1,1,10) do echo %%n
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -85,7 +85,34 @@ for /r C:\src %%f in (*.c) do echo %%f
       (for_flag)
       argument: (argument
         (text)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=================================================
+for /r path begins with an outer-loop reference
+=================================================
+
+for /r %%a\sub %%b in (*) do echo %%b
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (loop_variable)
+        (text)))
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -109,7 +136,7 @@ for /d %%d in (*) do echo %%d
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -136,7 +163,7 @@ for /d /r C:\src %%d in (*) do echo %%d
       (for_flag)
       argument: (argument
         (text)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -161,7 +188,7 @@ for /r /d %%d in (*) do echo %%d
     option: (for_option
       (for_flag)
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -188,7 +215,7 @@ for /r /d C:\src %%d in (*) do echo %%d
       (for_flag)
       argument: (argument
         (text)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -214,7 +241,7 @@ for /f "tokens=1,2 delims=," %%a in (data.csv) do echo %%a %%b
       (for_flag)
       argument: (argument
         (string)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -242,7 +269,7 @@ for /f "usebackq" %%L in (`dir /b`) do echo %%L
       (for_flag)
       argument: (argument
         (string)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (backquote_string
@@ -266,7 +293,7 @@ for %%g in (a b) do (
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -280,9 +307,9 @@ for %%g in (a b) do (
         argument: (argument
           (loop_variable))))))
 
-===============================
-for variable is any single char
-===============================
+========================
+hash binder declaration
+========================
 
 for %%# in (1 2) do echo %%#
 
@@ -291,7 +318,7 @@ for %%# in (1 2) do echo %%#
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -303,6 +330,108 @@ for %%# in (1 2) do echo %%#
       name: (command_name)
       argument: (argument
         (loop_variable)))))
+
+=======================================
+digit and punctuation declarations
+=======================================
+
+for %%0 in (zero) do echo %%0
+for %%@ in (at) do echo %%@
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=================================
+modified loop variable references
+=================================
+
+for %%A in (file.txt) do echo %%~fA %%~nxA
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))
+      argument: (argument
+        (loop_variable)))))
+
+========================================
+modified loop variable declaration errors
+========================================
+
+for %%~fA in (file.txt) do echo %%A
+
+---
+
+(program
+  (ERROR
+    (keyword))
+  (command
+    (command_name
+      (loop_variable))
+    (argument
+      (text))
+    (argument
+      (text)
+      (text)
+      (text))
+    (argument
+      (text))
+    (argument
+      (text))
+    (argument
+      (loop_variable))))
+
+=========================================
+loop references outside a FOR are not declarations
+=========================================
+
+echo %%A %%~fA
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (loop_variable))
+    argument: (argument
+      (loop_variable))))
 
 =====================================
 for /f caret-escaped unquoted options
@@ -325,7 +454,7 @@ for /f tokens^=2-5^ delims^=.-_ %%j in (data) do echo %%j
         (text)
         (escape_sequence)
         (text)))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -349,7 +478,7 @@ for /l %%A in (1;1=5) do echo %%A
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -373,7 +502,7 @@ for /f %%a in ('echo (hi)') do echo %%a
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (single_quote_string
@@ -397,7 +526,7 @@ for /f %%d in ('powershell -command "[DateTime]::UtcNow.ToString('yyyy-MM-dd')"'
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (single_quote_string
@@ -423,7 +552,7 @@ for /f %%a in ('
     (keyword)
     option: (for_option
       (for_flag))
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (single_quote_string
@@ -449,7 +578,7 @@ for /f "usebackq" %%a in (`echo hi
       (for_flag)
       argument: (argument
         (string)))
-    (loop_variable)
+    (loop_variable_declaration)
     (keyword)
     (backquote_string
       content: (backquote_content))))
@@ -465,7 +594,7 @@ for %%a in ("file (1).txt") do echo %%a
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -487,7 +616,7 @@ for %%A in (x y) do echo %%A & echo each
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument
@@ -516,7 +645,7 @@ for %%A in (x) do first | second && third || fourth & fifth
 (program
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument

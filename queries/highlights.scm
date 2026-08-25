@@ -39,6 +39,7 @@
 (parameter) @variable.parameter
 (all_arguments) @variable.parameter
 (parameter_tilde) @variable.parameter
+(loop_variable_declaration) @variable.parameter
 (loop_variable) @variable.parameter
 (percent_literal) @constant
 

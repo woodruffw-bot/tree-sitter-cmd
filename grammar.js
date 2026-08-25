@@ -344,7 +344,7 @@ module.exports = grammar({
           quietPrefix($),
           kw($, 'for'),
           optional(field('option', $.for_option)),
-          field('variable', $.loop_variable),
+          field('variable', $._loop_variable_declaration),
           kw($, 'in'),
           alias($._block_open, '('),
           field('set', optional($.for_set)),
@@ -869,6 +869,7 @@ module.exports = grammar({
         $.all_arguments,
         $.parameter_tilde,
         $.loop_variable,
+        alias($._loop_variable_modified, $.loop_variable),
         $.percent_literal,
       ),
 
@@ -886,9 +887,14 @@ module.exports = grammar({
     // %~modifiers[$ENV:]N argument modifiers, e.g. %~dp0, %~$PATH:1.
     parameter_tilde: ($) =>
       token(new RegExp('%~' + TILDE_MODS + PATH_SEARCH + '[0-9]')),
-    // %%x FOR loop variable (batch context), optionally with ~modifiers.
-    loop_variable: ($) =>
-      token(new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?' + FOR_VAR)),
+    // The unmodified token is shared by references and declarations. The
+    // binder position aliases it to `loop_variable_declaration`, while the
+    // modified form is reachable only through `_expansion` as a reference.
+    _loop_variable_declaration: ($) =>
+      alias($.loop_variable, $.loop_variable_declaration),
+    loop_variable: ($) => token(new RegExp('%%' + FOR_VAR)),
+    _loop_variable_modified: ($) =>
+      token(new RegExp('%%~' + TILDE_MODS + PATH_SEARCH + FOR_VAR)),
     // %% literal percent sign.
     percent_literal: ($) => token(/%%/),
 
