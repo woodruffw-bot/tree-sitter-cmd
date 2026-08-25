@@ -26,6 +26,13 @@
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
 //                  quote still closes (cmd runs an open quote to end of line).
+//   SET_INNER_QUOTE / SET_STRING_END
+//                - quotes inside a quoted SET binding and its last wrapper
+//                  quote. Like STRING_END, SET_STRING_END also matches
+//                  zero-width at end of line / end of input.
+//   SET_IGNORED_SUFFIX
+//                - opaque text after the last quote of a quoted SET binding.
+//                  cmd discards this text when it truncates at the last quote.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STRING_END tokens cannot stall recovery.
@@ -54,6 +61,9 @@ enum TokenType {
   RPAREN,
   CARET_ESCAPE,
   STRING_END,
+  SET_INNER_QUOTE,
+  SET_STRING_END,
+  SET_IGNORED_SUFFIX,
   ERROR_SENTINEL,
 };
 
@@ -100,6 +110,25 @@ static bool is_word_boundary(const Scanner *s, int32_t c) {
     case '=':
       return true;
     case '(':
+    case ')':
+      return s->depth > 0;
+    default:
+      return false;
+  }
+}
+
+// A boundary for quoted SET parameters. A close parenthesis only ends the
+// parameter while a structural block is open; at depth zero it is ordinary
+// command text, like it is for generic arguments.
+static bool is_set_boundary(const Scanner *s, int32_t c) {
+  switch (c) {
+    case '\r':
+    case '\n':
+    case '&':
+    case '|':
+    case '<':
+    case '>':
+      return true;
     case ')':
       return s->depth > 0;
     default:
@@ -201,6 +230,95 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       !is_word_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;
+  }
+
+  // SET_INNER_QUOTE / SET_STRING_END: cmd uses the last quote in a quoted SET
+  // binding as the wrapper close. Earlier quotes are literal value fragments.
+  // Stop lookahead at command operators so quotes in a later command do not
+  // extend the SET binding.
+  if (valid_symbols[SET_INNER_QUOTE] || valid_symbols[SET_STRING_END]) {
+    if (lexer->eof(lexer)) {
+      if (valid_symbols[SET_STRING_END]) {
+        lexer->result_symbol = SET_STRING_END;
+        return true;
+      }
+      return false;
+    }
+    int32_t la = lexer->lookahead;
+    if (la == '\r' || la == '\n') {
+      if (valid_symbols[SET_STRING_END]) {
+        lexer->result_symbol = SET_STRING_END;
+        return true;
+      }
+      return false;
+    }
+    if (la == '"') {
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+
+      bool has_later_quote = false;
+      while (!lexer->eof(lexer)) {
+        la = lexer->lookahead;
+        if (is_set_boundary(s, la)) {
+          break;
+        }
+        if (la == '^') {
+          lexer->advance(lexer, false);
+          if (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+              lexer->lookahead != '\n') {
+            lexer->advance(lexer, false);
+          }
+          continue;
+        }
+        if (la == '"') {
+          has_later_quote = true;
+          break;
+        }
+        lexer->advance(lexer, false);
+      }
+
+      if (has_later_quote && valid_symbols[SET_INNER_QUOTE]) {
+        lexer->result_symbol = SET_INNER_QUOTE;
+        return true;
+      }
+      if (!has_later_quote && valid_symbols[SET_STRING_END]) {
+        lexer->result_symbol = SET_STRING_END;
+        return true;
+      }
+      return false;
+    }
+  }
+
+  // Text after the final wrapper quote is still part of the source parameter,
+  // but cmd discards it after finding that quote. Keep it in one opaque node so
+  // analyzers neither attach it to the value nor mistake it for another
+  // command. Whitespace alone remains an extra. Caret escapes keep an operator
+  // or close parenthesis inside the ignored suffix.
+  if (valid_symbols[SET_IGNORED_SUFFIX]) {
+    bool has_content = false;
+    while (!lexer->eof(lexer) &&
+           !is_set_boundary(s, lexer->lookahead)) {
+      int32_t la = lexer->lookahead;
+      if (la != ' ' && la != '\t') has_content = true;
+      lexer->advance(lexer, false);
+      if (la == '^' && !lexer->eof(lexer)) {
+        if (lexer->lookahead == '\r') {
+          lexer->advance(lexer, false);
+          if (lexer->lookahead == '\n') {
+            lexer->advance(lexer, false);
+            continue;
+          }
+          break;
+        }
+        lexer->advance(lexer, false);
+      }
+    }
+    if (has_content) {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = SET_IGNORED_SUFFIX;
+      return true;
+    }
+    return false;
   }
 
   // STRING_END: terminate a double-quoted string. Checked before whitespace

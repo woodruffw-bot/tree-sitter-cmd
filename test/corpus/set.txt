@@ -44,8 +44,208 @@ set "PATH=%PATH%;C:\bin"
   (set_statement
     (keyword)
     (set_quoted
-      (string
-        (variable)))))
+      name: (variable_name)
+      value: (argument
+        (variable)
+        (text)))))
+
+====================================
+dynamic assignment names keep parts
+====================================
+
+set %~1r=%value%
+set _nt!nt!=!line!
+set "%arg_name%=true"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        (parameter_tilde)
+        (text))
+      value: (argument
+        (variable))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        (text)
+        (delayed_variable))
+      value: (argument
+        (delayed_variable))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name
+        (variable))
+      value: (argument
+        (text)))))
+
+=========================================
+literal sigils in assignment names
+=========================================
+
+set foo!bar=value
+set 100%=literal
+set "foo!bar=quoted"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        (text)
+        (text)
+        (text))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        (text)
+        (text))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name
+        (text)
+        (text)
+        (text))
+      value: (argument
+        (text)))))
+
+====================================================
+dynamic assignment name keeps trailing whitespace
+====================================================
+
+set foo%X% =value
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        (text)
+        (variable)
+        (text))
+      value: (argument
+        (text)))))
+
+============================
+quoted empty assignment value
+============================
+
+set "changed="
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name))))
+
+=========================================
+quoted assignment uses the last set quote
+=========================================
+
+set "x=a"b"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text)))))
+
+====================================================
+text after the final assignment quote is ignored
+====================================================
+
+set "x=a"tail
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text))
+      ignored: (set_ignored_suffix))))
+
+==================================================
+ignored assignment suffix follows a continuation
+==================================================
+
+set "x=a"tail^
+more
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text))
+      ignored: (set_ignored_suffix))))
+
+=====================================================
+top-level close parenthesis does not stop last quote
+=====================================================
+
+set "x=a")b"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text)))))
+
+==========================================
+later command quotes do not extend the set
+==========================================
+
+set "x=y" & echo "z"
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        name: (variable_name)
+        value: (argument
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (string)))))
 
 ====================
 arithmetic
@@ -95,7 +295,45 @@ set /p "answer=Enter your choice: "
     (keyword)
     (set_prompt
       (set_flag)
-      prompt: (string))))
+      name: (variable_name)
+      prompt: (argument
+        (text)))))
+
+================================
+quoted prompt with a dynamic name
+================================
+
+set /p "!slot!=Prompt: "
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name
+        (delayed_variable))
+      prompt: (argument
+        (text)))))
+
+============================================
+text after the final prompt quote is ignored
+============================================
+
+set /p "answer=Prompt"tail
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text))
+      ignored: (set_ignored_suffix))))
 
 ====================
 display all
@@ -114,6 +352,20 @@ display prefix
 ====================
 
 set PATH
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name))))
+
+=====================
+quoted display prefix
+=====================
+
+set "PATH"
 
 ---
 

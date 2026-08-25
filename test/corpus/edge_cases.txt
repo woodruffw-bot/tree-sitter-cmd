@@ -240,7 +240,9 @@ set err%%i=0
   (set_statement
     (keyword)
     (set_assignment
-      name: (variable_name)
+      name: (variable_name
+        (text)
+        (loop_variable))
       value: (argument
         (text)))))
 
@@ -295,10 +297,13 @@ set "exe=call "%exe%.bat""
   (set_statement
     (keyword)
     (set_quoted
-      (string)
-      (variable)
-      (text)
-      (string))))
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (variable)
+        (text)
+        (text)))))
 
 ========================================
 quiet prefixes stay on concrete statements

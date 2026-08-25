@@ -102,6 +102,16 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         ("remote note\necho tail\n", "remote note", "rem note"),
         ("echo one ^\r\n  two\r\n", "one ^", "one^"),
+        (
+            "set \"x=a\"tail\r\necho after\r\n",
+            "tail",
+            "tail\"",
+        ),
+        (
+            "set \"x=a\"tail\"\r\necho after\r\n",
+            "tail\"",
+            "tail",
+        ),
     ];
 
     for (before, needle, replacement) in cases {

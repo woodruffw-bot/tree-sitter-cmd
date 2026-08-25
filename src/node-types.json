@@ -1571,10 +1571,21 @@
   {
     "type": "set_display",
     "named": true,
-    "fields": {},
+    "fields": {
+      "ignored": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "set_ignored_suffix",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": false,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "variable_name",
@@ -1587,6 +1598,16 @@
     "type": "set_prompt",
     "named": true,
     "fields": {
+      "ignored": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "set_ignored_suffix",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": false,
@@ -1604,36 +1625,16 @@
           {
             "type": "argument",
             "named": true
-          },
-          {
-            "type": "string",
-            "named": true
           }
         ]
       }
     },
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": true,
       "types": [
         {
-          "type": "_expansion",
-          "named": true
-        },
-        {
-          "type": "escape_sequence",
-          "named": true
-        },
-        {
           "type": "set_flag",
-          "named": true
-        },
-        {
-          "type": "string",
-          "named": true
-        },
-        {
-          "type": "text",
           "named": true
         }
       ]
@@ -1642,10 +1643,41 @@
   {
     "type": "set_quoted",
     "named": true,
-    "fields": {},
+    "fields": {
+      "ignored": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "set_ignored_suffix",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "variable_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "argument",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "_expansion",
@@ -1789,6 +1821,29 @@
     }
   },
   {
+    "type": "variable_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "_expansion",
+          "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "\"",
     "named": false
   },
@@ -1909,15 +1964,15 @@
     "named": true
   },
   {
+    "type": "set_ignored_suffix",
+    "named": true
+  },
+  {
     "type": "text",
     "named": true
   },
   {
     "type": "variable",
-    "named": true
-  },
-  {
-    "type": "variable_name",
     "named": true
   },
   {
