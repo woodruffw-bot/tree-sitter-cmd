@@ -26,7 +26,9 @@
 ; ---------------------------------------------------------------------------
 (command_name) @function
 (label (label_name) @constant)
-(goto_statement target: (argument) @constant)
+(goto_statement
+  target: (label_reference
+    name: (label_name) @constant))
 
 ; ---------------------------------------------------------------------------
 ; Expansions / variables

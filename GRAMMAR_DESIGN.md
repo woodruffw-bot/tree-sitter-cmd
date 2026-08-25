@@ -296,14 +296,13 @@ looks like `%VAR%` or `!VAR!`, and does not honor line continuation (cmd's
 body such as `&`, `|`, or `)` cannot be mistaken for an operator or block close.
 Leading redirections belong to the comment, while a hyphen continues a command
 name, so `>nul rem text` is a comment and `rem-tool` is a command.
-`::` is a degenerate label used as a comment. A single colon followed by a
-character that cannot start a label, such as `:#`, `:!`, or `: `, is treated the
-same way. Digits remain valid label starts, so `:1` is a label rather than a
-comment. Colon comments are statements, so they are accepted both at the start
-of a line and after an operator. This covers `dir &:: note` and
-`call :init &:# note`. Like `REM`, they run to end of line. Colon comments
-inside a block are unsafe in real cmd, but the grammar parses them without
-cascading; a linter layer could warn.
+`::` is a degenerate label used as a comment. A single colon at the start of a
+physical line defines a label when a valid name follows it. Leading whitespace
+after the colon is ignored, and spaces may occur inside the name. At command
+position after an operator, a colon instead starts a comment through end of
+line. This covers `dir &:note`, `dir &:: note`, and `call :init &:# note`.
+Colon comments inside a block are unsafe in real cmd, but the grammar parses
+them without cascading; a linter layer could warn.
 
 Batch and PowerShell polyglots commonly use `<#` and `#>` marker lines. The
 grammar represents those lines as `powershell_comment` nodes so their marker
@@ -333,8 +332,8 @@ full list):
   `for_statement` (with `for_option` / `for_flag`, `loop_variable`, `for_set`,
   and the `backquote_string` / `single_quote_string` quoted items, whose
   interiors are neutral `backquote_content` / `single_quote_content` nodes),
-  `goto_statement`, `call_statement`, and `label` (with `label_name`,
-  `label_text`).
+  `goto_statement` (with `label_reference`, `label_name`, and `label_text`),
+  `call_statement`, and `label` (with `label_name` and `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,
   `set_quoted`, and `set_display` branches and `variable_name`.
 - **Expansions** (the `_expansion` supertype): `variable`, `delayed_variable`,

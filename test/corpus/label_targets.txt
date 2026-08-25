@@ -1,0 +1,196 @@
+========================================
+quiet label with spacing and ignored tail
+========================================
+
+@   :     dest9>rubbish
+
+---
+
+(program
+  (label
+    quiet: (quiet)
+    name: (label_name)
+    (label_text)))
+
+======================
+label name with spaces
+======================
+
+:label with spaces
+
+---
+
+(program
+  (label
+    name: (label_name)))
+
+=================================
+colon ends a label definition name
+=================================
+
+:dest10:this is ignored
+
+---
+
+(program
+  (label
+    name: (label_name)
+    (label_text)))
+
+================================
+colon ends a goto reference name
+================================
+
+goto :dest10:this is ignored
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text))))
+
+=========================================
+spaced separator ends a goto reference name
+=========================================
+
+goto :loop ; ignored
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text))))
+
+=================================
+spaces belong to the goto target
+=================================
+
+goto :eof foo bar
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name))))
+
+================================
+dynamic goto target keeps expansion
+================================
+
+goto :%nextlabel%
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name
+        (variable)))))
+
+=====================================
+double colon has no resolvable target
+=====================================
+
+goto ::dest8 foo
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      (label_text))))
+
+========================
+quiet colon forms
+========================
+
+@:target
+@:: comment
+
+---
+
+(program
+  (label
+    quiet: (quiet)
+    name: (label_name))
+  (colon_comment
+    quiet: (quiet)
+    (comment_text)))
+
+========================================
+label-like colon is a comment after an op
+========================================
+
+echo before &:not-a-label & echo ignored
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (colon_comment
+      (comment_text))))
+
+=============================================
+goto suffix stops before a block close
+=============================================
+
+(goto :loop ; ignored)
+echo after
+
+---
+
+(program
+  (block
+    (goto_statement
+      (keyword)
+      target: (label_reference
+        name: (label_name)
+        (label_text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================
+empty colon stays a goto target
+=================================
+
+goto :
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference)))
+
+===========================================
+whitespace-only colon lines stay comments
+===========================================
+
+:
+:   
+: target
+
+---
+
+(program
+  (colon_comment)
+  (colon_comment
+    (comment_text))
+  (label
+    name: (label_name)))

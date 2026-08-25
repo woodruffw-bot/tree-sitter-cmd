@@ -9,8 +9,8 @@ goto end
 (program
   (goto_statement
     (keyword)
-    target: (argument
-      (text))))
+    target: (label_reference
+      name: (label_name))))
 
 ====================
 goto eof
@@ -23,8 +23,8 @@ goto :eof
 (program
   (goto_statement
     (keyword)
-    target: (argument
-      (text))))
+    target: (label_reference
+      name: (label_name))))
 
 ====================
 call label with args
@@ -71,8 +71,8 @@ goto:eof
 (program
   (goto_statement
     (keyword)
-    target: (argument
-      (text))))
+    target: (label_reference
+      name: (label_name))))
 
 ================================
 call with colon glued to keyword

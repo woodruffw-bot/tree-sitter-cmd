@@ -120,6 +120,7 @@ module.exports = grammar({
     $._set_inner_quote,
     $._set_string_end,
     $._set_ignored_suffix,
+    $._label_leading_space,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -457,22 +458,46 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // GOTO / CALL
     // ---------------------------------------------------------------------
-    // GOTO label  /  GOTO :EOF. cmd ignores trailing tokens/separators after
-    // the label (e.g. `goto :loop ;`), so tolerate trailing arguments.
+    // GOTO label  /  GOTO :EOF. The target is the rest of the command up to a
+    // cmd operator or redirection. Spaces may be part of a label name. A colon
+    // or standard separator ends the lookup name, but its ignored suffix stays
+    // in the CST as label text.
     goto_statement: ($) =>
       prec.right(
         seq(
           quietPrefix($),
           kw($, 'goto'),
-          optional(
-            seq(
-              field('target', $.argument),
-              repeat(field('argument', $.argument)),
-            ),
-          ),
+          optional(field('target', $.label_reference)),
           repeat(field('redirect', $._redirection)),
         ),
       ),
+
+    label_reference: ($) =>
+      choice(
+        seq(
+          optional($._label_reference_prefix),
+          field(
+            'name',
+            alias($._label_reference_name, $.label_name),
+          ),
+          optional(alias($._label_reference_tail, $.label_text)),
+        ),
+        // Keep an empty or doubly-prefixed target, such as `goto ::name`, as a
+        // target without inventing a resolvable label name.
+        seq(
+          ':',
+          optional(alias($._label_reference_tail, $.label_text)),
+        ),
+      ),
+    _label_reference_prefix: ($) =>
+      seq(':', optional(token.immediate(/[ \t]+/))),
+    _label_reference_name: ($) =>
+      repeat1(choice($._label_reference_text, $._expansion, $._stray_sigil)),
+    _label_reference_text: ($) =>
+      token(
+        /[^ \t\r\n:+;,=&|<>()%!](?:[^:\r\n+;,=&|<>()%!]*[^ \t:\r\n+;,=&|<>()%!])?/,
+      ),
+    _label_reference_tail: ($) => token(/[:+;,=][^\r\n&|<>)]*/),
 
     // CALL :label args  /  CALL file args  /  CALL command. Redirections may
     // precede or follow the target (e.g. `call "%~f0" %* <input`).
@@ -871,13 +896,24 @@ module.exports = grammar({
     // Labels and comments
     // ---------------------------------------------------------------------
     label: ($) =>
-      seq(
-        token(/:/),
-        field('name', alias($._label_name, $.label_name)),
-        optional($._label_tail),
+      prec(
+        2,
+        seq(
+          quietPrefix($),
+          token(/:/),
+          optional($._label_leading_space),
+          field('name', alias($._label_name, $.label_name)),
+          optional(alias($._label_tail, $.label_text)),
+        ),
       ),
-    _label_name: ($) => token.immediate(/[^ \t\r\n:+;=,&|<>()]+/),
-    _label_tail: ($) => alias(token(/[^\r\n]+/), $.label_text),
+    _label_name: ($) =>
+      token.immediate(
+        prec(
+          2,
+          /[^ \t\r\n:+;,=&|<>()](?:[^:\r\n+;,=&|<>()]*[^ \t:\r\n+;,=&|<>()])?/,
+        ),
+      ),
+    _label_tail: ($) => token(/[^\r\n]+/),
 
     // Keep the body opaque. Expansion-shaped text inside REM is comment text,
     // not an expansion that tooling should treat as live code.
@@ -889,11 +925,17 @@ module.exports = grammar({
         optional(alias($._rem_text, $.comment_text)),
       ),
     colon_comment: ($) =>
-      choice(
-        seq(token(/::/), optional(alias($._line_text, $.comment_text))),
+      prec(
+        1,
         seq(
-          token(prec(1, /:[^$0-9A-Za-z_\r\n:]/)),
-          optional(alias($._line_text, $.comment_text)),
+          quietPrefix($),
+          choice(
+            seq(token(/::/), optional(alias($._line_text, $.comment_text))),
+            // A colon at command position consumes the rest of that physical
+            // line. At top level, the higher-precedence `label` rule wins for
+            // a valid label definition.
+            seq(token(/:/), optional(alias($._line_text, $.comment_text))),
+          ),
         ),
       ),
     // Batch and PowerShell polyglots use these markers so PowerShell sees a

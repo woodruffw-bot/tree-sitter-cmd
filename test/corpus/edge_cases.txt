@@ -86,8 +86,8 @@ if (%1) == () goto done
         (text)))
     consequence: (goto_statement
       (keyword)
-      target: (argument
-        (text)))))
+      target: (label_reference
+        name: (label_name)))))
 
 =================================
 double-colon comment inside block
