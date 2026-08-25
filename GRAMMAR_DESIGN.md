@@ -217,6 +217,18 @@ taken into the string. A quote inside a `%VAR:"=%` style substitution stays part
 of the single `variable` token (the lexer matches the whole `%...%` first), so
 those do not affect string termination.
 
+Quoted `SET "name=value"` and `SET /P "name=prompt"` bindings use a separate
+last-quote terminator. Quotes before the last one are retained as value text,
+while the last quote closes the wrapper. This keeps `name`, `value`, and
+`prompt` fields stable without hiding expansions. Unquoted and quoted binding
+names also retain expansion children, which represents computed names such as
+`%~1r` and `_nt!nt!` without reparsing a leaf token.
+
+The same wrapper is accepted for a no-`=` display prefix (`SET "PATH"`). Text
+after its final quote is preserved as an opaque `set_ignored_suffix` field on
+quoted assignments, prompts, and displays: cmd truncates the parameter at the
+last quote, so that suffix is source text but is not part of the binding value.
+
 `SET` also accepts caret-escaped wrapper quotes, as in
 `set ^"macro=call helper^"`. These are represented as one
 `caret_quoted_string`. They do not use normal string grouping because the carets

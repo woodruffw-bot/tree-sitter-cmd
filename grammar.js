@@ -117,6 +117,9 @@ module.exports = grammar({
     $._rparen,
     $._caret_escape,
     $._string_end,
+    $._set_inner_quote,
+    $._set_string_end,
+    $._set_ignored_suffix,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -537,7 +540,28 @@ module.exports = grammar({
               '=',
               repeat(field('prompt', $.argument)),
             ),
-            seq(field('prompt', $.string), repeat($._fragment)),
+            prec.right(
+              seq(
+                '"',
+                optional(
+                  field('name', alias($._set_name, $.variable_name)),
+                ),
+                '=',
+                optional(
+                  field(
+                    'prompt',
+                    alias($._set_quoted_value, $.argument),
+                  ),
+                ),
+                $._set_string_end,
+                optional(
+                  field(
+                    'ignored',
+                    alias($._set_ignored_suffix, $.set_ignored_suffix),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -547,25 +571,104 @@ module.exports = grammar({
         alias(opt('/a'), $.set_flag),
         repeat(field('expression', $.argument)),
       ),
-    // SET "name=value". cmd treats the span up to the last quote as name=value,
-    // so the value may itself contain quotes. Caret-escaped wrapper quotes are
-    // also common in macro definitions and remain one quoted assignment.
+    // SET "name=value". Keep the binding fields visible instead of hiding the
+    // assignment in a generic string. Earlier quotes remain value text and the
+    // SET-specific terminator leaves the final quote as the wrapper close.
+    // Caret-escaped wrapper quotes are also common in macro definitions. They
+    // remain opaque because their caret and quote phase ordering differs from
+    // ordinary quoted assignments.
     set_quoted: ($) =>
       prec.right(
-        seq(choice($.string, $.caret_quoted_string), repeat($._fragment)),
+        choice(
+          seq(
+            '"',
+            optional(field('name', alias($._set_name, $.variable_name))),
+            '=',
+            optional(
+              field('value', alias($._set_quoted_value, $.argument)),
+            ),
+            $._set_string_end,
+            optional(
+              field(
+                'ignored',
+                alias($._set_ignored_suffix, $.set_ignored_suffix),
+              ),
+            ),
+          ),
+          seq($.caret_quoted_string, repeat($._fragment)),
+        ),
+      ),
+    _set_quoted_value: ($) =>
+      prec.right(
+        1,
+        repeat1(
+          choice(
+            alias($._string_text, $.text),
+            $._expansion,
+            alias($._string_sigil, $.text),
+            alias($._set_inner_quote, $.text),
+          ),
+        ),
       ),
     caret_quoted_string: ($) =>
       token(/\^"(?:[^\r\n^]|\^[^"\r\n])*(?:\^"|")/),
-    // SET  /  SET prefix  (display)
-    set_display: ($) => alias($._set_name, $.variable_name),
+    // SET  /  SET prefix  (display). The quoted spelling uses the same
+    // last-quote wrapper rule as an assignment; cmd strips that wrapper before
+    // taking the no-`=` display path.
+    set_display: ($) =>
+      choice(
+        alias($._set_name, $.variable_name),
+        seq(
+          '"',
+          optional(alias($._set_name, $.variable_name)),
+          $._set_string_end,
+          optional(
+            field(
+              'ignored',
+              alias($._set_ignored_suffix, $.set_ignored_suffix),
+            ),
+          ),
+        ),
+      ),
 
-    // A SET variable name stops at `=` but may contain expansion sigils
-    // (e.g. `err%%i` when building indexed variables inside a FOR loop) and even
-    // internal spaces — cmd takes everything from after the switch up to the
-    // first `=` as the name (`set sim salabim=magic` names "sim salabim"). The
-    // first char is non-space so the name never starts on the separator after
-    // `SET`, and the `/a`/`/p` switch tokens still win their slot by precedence.
-    _set_name: ($) => token(/[^ \t\r\n&|<>()^"=][^\r\n&|<>()^"=]*/),
+    // A SET variable name stops at `=` and may contain expansions (for example
+    // `%~1r` or `_nt!nt!`) and internal spaces. Keep expansions as children of
+    // `variable_name` so a static analyzer can recover the computed binding.
+    // A leading plain-text fragment is non-space, which prevents the separator
+    // after SET from becoming part of the name. Text after a special fragment
+    // may begin with whitespace so the complete name range reaches `=`. `/a`
+    // and `/p` still win their slot through token precedence.
+    _set_name: ($) =>
+      choice(
+        $._set_name_text,
+        prec.right(
+          seq(
+            repeat(alias($._set_name_text, $.text)),
+            $._set_name_special,
+            repeat($._set_name_fragment),
+          ),
+        ),
+      ),
+    _set_name_special: ($) =>
+      choice(
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
+        $._expansion,
+        alias($._stray_sigil, $.text),
+      ),
+    _set_name_fragment: ($) =>
+      choice(
+        alias($._set_name_tail_text, $.text),
+        $._set_name_special,
+      ),
+    _set_name_text: ($) =>
+      token(/[^ \t\r\n&|<>()^"%!=][^\r\n&|<>()^"%!=]*/),
+    // Once a special fragment has established that this is a compound name,
+    // adjacent text may begin with whitespace. Keeping this token immediate
+    // prevents trailing name whitespace before `=` from being consumed as an
+    // extra and lost from the `variable_name` range.
+    _set_name_tail_text: ($) =>
+      token.immediate(/[^\r\n&|<>()^"%!=]+/),
 
     // ---------------------------------------------------------------------
     // Redirections
