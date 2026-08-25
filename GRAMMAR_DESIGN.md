@@ -254,10 +254,14 @@ consequence starts the alternative instead of becoming part of that expression.
 All variants share `FOR [opt] %%v IN (set) DO body`. The body consumes a full
 command-operator expression, so every command in `DO ECHO %%v & ECHO done`
 runs for each iteration. The IN list is read inside a block so `)` ends it and
-inner newlines are skipped. A FOR variable is `%%` plus any single non-separator
-character (`%%#`, `%%1` are valid). `FOR /L` accepts the non-comma numeric
-separators `;`, `=`, and space, e.g. `(1;1=5)`. `/D` and `/R`
-may be combined in either order. Other mixed switch sets remain syntax errors.
+inner newlines are skipped. A `loop_variable_declaration` is exactly `%%` plus
+one permitted binder (`%%#`, `%%0`, and `%%@` are valid). Modifiers such as
+`~f` are accepted only on `loop_variable` references. The plain `%%x` terminal
+is shared between those CST roles so an outer-loop reference can begin a `/R`
+path (for example, `%%a\sub`) without stealing the following binder. `FOR /L`
+accepts the non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`.
+`/D` and `/R` may be combined in either order. Other mixed switch sets remain
+syntax errors.
 `/R` and `/F` each accept one optional argument. A slash-leading word is not an
 argument, so an illegal second switch is not hidden as an option or path.
 
@@ -329,9 +333,10 @@ full list):
 - **Blocks**: `block`.
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
-  `for_statement` (with `for_option` / `for_flag`, `loop_variable`, `for_set`,
-  and the `backquote_string` / `single_quote_string` quoted items, whose
-  interiors are neutral `backquote_content` / `single_quote_content` nodes),
+  `for_statement` (with `for_option` / `for_flag`,
+  `loop_variable_declaration`, `for_set`, and the `backquote_string` /
+  `single_quote_string` quoted items, whose interiors are neutral
+  `backquote_content` / `single_quote_content` nodes),
   `goto_statement` (with `label_reference`, `label_name`, and `label_text`),
   `call_statement`, and `label` (with `label_name` and `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,
@@ -385,6 +390,7 @@ scripts.
 - **Dangling caret continuation** (a caret at the end of the file, with no
   following line to splice onto) is an error node; continuation onto a following
   line, blank or not, is fine.
-- **Tree-shape imprecision that still parses cleanly**: `%%` outside a FOR is
-  noded as a `loop_variable` (the documented batch-`%%x` vs `%%`-literal
-  ambiguity).
+- **FOR reference scope**: the grammar cannot resolve which one-character FOR
+  variables are in scope. A lexical `%%x` form can therefore be a
+  `loop_variable` reference outside a FOR body. It is never a
+  `loop_variable_declaration` outside the declaration slot after `FOR`.

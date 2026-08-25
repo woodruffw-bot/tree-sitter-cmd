@@ -336,7 +336,7 @@ for %%i in (x) do @echo %%i
         (text))))
   (for_statement
     (keyword)
-    variable: (loop_variable)
+    variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
       (argument

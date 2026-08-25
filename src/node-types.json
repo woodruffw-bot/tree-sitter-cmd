@@ -663,7 +663,7 @@
         "required": true,
         "types": [
           {
-            "type": "loop_variable",
+            "type": "loop_variable_declaration",
             "named": true
           }
         ]
@@ -1982,6 +1982,10 @@
   },
   {
     "type": "loop_variable",
+    "named": true
+  },
+  {
+    "type": "loop_variable_declaration",
     "named": true
   },
   {

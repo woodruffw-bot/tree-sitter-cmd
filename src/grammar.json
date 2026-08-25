@@ -912,7 +912,7 @@
             "name": "variable",
             "content": {
               "type": "SYMBOL",
-              "name": "loop_variable"
+              "name": "_loop_variable_declaration"
             }
           },
           {
@@ -2907,6 +2907,15 @@
           "name": "loop_variable"
         },
         {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_loop_variable_modified"
+          },
+          "named": true,
+          "value": "loop_variable"
+        },
+        {
           "type": "SYMBOL",
           "name": "percent_literal"
         }
@@ -2947,11 +2956,27 @@
         "value": "%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[0-9]"
       }
     },
+    "_loop_variable_declaration": {
+      "type": "ALIAS",
+      "content": {
+        "type": "SYMBOL",
+        "name": "loop_variable"
+      },
+      "named": true,
+      "value": "loop_variable_declaration"
+    },
     "loop_variable": {
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "%%(?:~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?)?[^ \\t\\r\\n%~*&|<>()=\"]"
+        "value": "%%[^ \\t\\r\\n%~*&|<>()=\"]"
+      }
+    },
+    "_loop_variable_modified": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PATTERN",
+        "value": "%%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[^ \\t\\r\\n%~*&|<>()=\"]"
       }
     },
     "percent_literal": {
