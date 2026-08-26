@@ -376,6 +376,20 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
 
+    // The missing-body branch can be valid while the condition still has an
+    // adjacent fragment. Preserve that adjacency before considering a body;
+    // spacing means the operand has ended and must not synthesize a join.
+    if (!skipped_space && valid_symbols[STANDARD_CONCAT] &&
+        !is_standard_word_boundary(s, lexer->lookahead)) {
+      lexer->result_symbol = STANDARD_CONCAT;
+      return true;
+    }
+    if (!skipped_space && valid_symbols[CONCAT] &&
+        !is_word_boundary(s, lexer->lookahead)) {
+      lexer->result_symbol = CONCAT;
+      return true;
+    }
+
     // Usually decline here so the internal lexer can distinguish the final IF
     // operand from the following command. Continue only for body starts whose
     // external tokens must be considered in this same scanner call.

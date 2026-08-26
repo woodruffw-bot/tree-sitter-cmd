@@ -1081,15 +1081,6 @@
           "value": "text"
         },
         {
-          "type": "SYMBOL",
-          "name": "_if_rparen_fragment"
-        }
-      ]
-    },
-    "_if_rparen_fragment": {
-      "type": "SEQ",
-      "members": [
-        {
           "type": "ALIAS",
           "content": {
             "type": "SYMBOL",
@@ -1097,32 +1088,8 @@
           },
           "named": true,
           "value": "text"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "ALIAS",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_if_rparen_suffix"
-              },
-              "named": true,
-              "value": "text"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
         }
       ]
-    },
-    "_if_rparen_suffix": {
-      "type": "IMMEDIATE_TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "[.\\/\\[\\]\\\\][^ \\t\\r\\n&|<>()^\"%!,;=]*"
-      }
     },
     "_if_text": {
       "type": "TOKEN",

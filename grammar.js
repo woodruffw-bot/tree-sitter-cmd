@@ -420,18 +420,8 @@ module.exports = grammar({
         $._expansion,
         alias($._stray_sigil, $.text),
         alias($._lparen, $.text),
-        $._if_rparen_fragment,
-      ),
-    // Keep punctuation immediately following a literal close parenthesis in
-    // the operand. Without this combined fragment, command-leading punctuation
-    // can prematurely start the consequence (`if exist file(1).txt ...`).
-    _if_rparen_fragment: ($) =>
-      seq(
         alias($._rparen, $.text),
-        optional(alias($._if_rparen_suffix, $.text)),
       ),
-    _if_rparen_suffix: ($) =>
-      token.immediate(/[.\/\[\]\\][^ \t\r\n&|<>()^"%!,;=]*/),
     _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!,;=]+/),
 
     // ---------------------------------------------------------------------
