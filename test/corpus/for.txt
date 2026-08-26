@@ -63,6 +63,10 @@ for /l %%n in (1,1,10) do echo %%n
     (keyword)
     set: (for_set
       (argument
+        (text))
+      (argument
+        (text))
+      (argument
         (text)))
     (keyword)
     body: (command
@@ -481,6 +485,10 @@ for /l %%A in (1;1=5) do echo %%A
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
+      (argument
+        (text))
+      (argument
+        (text))
       (argument
         (text)))
     (keyword)

@@ -110,7 +110,11 @@ appear in the tree and highlight via `(keyword)`. `_cmd_text` ends a bareword at
 cmd's internal-command delimiters (`:.\,/;=[]`), so `goto:eof`, `call:label`,
 and `set/a` recognize the command without requiring a space. `_cmd_path` keeps
 dotted executable names and explicit paths such as `if.exe` from being mistaken
-for internal commands. A leading drive letter also stays intact.
+for internal commands. A leading drive letter also stays intact. A hidden
+`_standard_separator` consumes `,`, `;`, and `=` only where cmd fetches a new
+grammar token, including command heads, IF and FOR syntax, FOR-set items, GOTO
+targets, and redirection targets. Ordinary command and SET value tails keep the
+same punctuation as text.
 
 `extras` is `[/[ \t]/, token(/\^\r?\n/)]`. The line continuation is an anonymous,
 invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
@@ -124,6 +128,8 @@ tokens. Its only state is a single block-depth counter:
 | Token | Role |
 |-------|------|
 | `CONCAT` | zero-width join of adjacent word fragments into one argument |
+| `STANDARD_CONCAT` | the same join, but stops at cmd's `,`, `;`, and `=` separators |
+| `REDIRECT_TARGET_SEPARATOR_AHEAD` | selects a separator-aware filename without consuming source bytes |
 | `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
 | `REM_TEXT` | the opaque body of a `REM` comment through end of line |
 | `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
@@ -134,7 +140,9 @@ tokens. Its only state is a single block-depth counter:
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
-`name=value`. An argument-specific immediate token joins an adjacent `=` after
+`name=value`. `STANDARD_CONCAT` also stops at `,` and `;`. It is used by the
+separator-aware word rules, while ordinary arguments continue across that
+punctuation. An argument-specific immediate token joins an adjacent `=` after
 another fragment, as in `%VAR%=suffix`, without changing that global boundary.
 During error recovery, the scanner declines zero-width tokens but still emits a
 real `BLOCK_CLOSE`. This keeps an error inside a block from consuming later
@@ -248,6 +256,12 @@ take leading redirections. The consequence and alternative each consume a full
 command-operator expression. For example, both commands in
 `IF 1==1 ECHO a & ECHO b` belong to the consequence. An `ELSE` after the
 consequence starts the alternative instead of becoming part of that expression.
+The separator slot immediately before a binary comparison operator accepts only
+`,` and `;`, not `=`. This matches cmd's special-case token fetch: `=` must stay
+available for the two-byte `==` operator. Thus `IF left==right ...` is a valid
+comparison, while `IF left=equ=right ...` is malformed rather than an `EQU`
+comparison padded with equals separators. After the operator, all three standard
+separators apply again before the right operand.
 
 ### FOR
 
@@ -260,6 +274,7 @@ one permitted binder (`%%#`, `%%0`, and `%%@` are valid). Modifiers such as
 is shared between those CST roles so an outer-loop reference can begin a `/R`
 path (for example, `%%a\sub`) without stealing the following binder. `FOR /L`
 accepts the non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`.
+These separators split the set into three `argument` nodes just as commas do.
 `/D` and `/R` may be combined in either order. Other mixed switch sets remain
 syntax errors.
 `/R` and `/F` each accept one optional argument. A slash-leading word is not an
@@ -281,7 +296,9 @@ command injectable while it is being edited.
 
 A leading digit is a redirection fd only at a token boundary and immediately
 followed by `<`/`>`. So `2>file` redirects, `echo 2>file` splits into `echo` then
-`2>`, and `abc2>file` keeps `2` as text. The operator after an fd is
+`2>`, and `abc2>file` keeps `2` as text. Redirection filenames use cmd's standard
+separators, so punctuation before a filename is skipped and punctuation after
+it ends the target. The operator after an fd is
 `token.immediate`, and the external scanner only emits the fd when the next
 byte is `<` or `>`. It checks this before joining adjacent fragments, so
 `echo "text"2>file` keeps `2` as the redirection source. A spaced digit remains
