@@ -118,6 +118,58 @@ goto preserves redirections in source order
       target: (argument
         (text)))))
 
+=========================================
+bare goto and call retain recovery state
+=========================================
+
+goto
+call
+echo tail
+
+---
+
+(program
+  (ERROR
+    (keyword))
+  (ERROR
+    (keyword))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================================
+redirection-only goto and call have missing targets
+=================================================
+
+goto >log
+call <input
+echo tail
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    target: (label_reference
+      (MISSING ":")))
+  (call_statement
+    (keyword)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    target: (argument
+      (MISSING text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
 =================================================
 call preserves redirections in source order
 =================================================

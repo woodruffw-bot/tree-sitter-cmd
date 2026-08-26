@@ -2136,53 +2136,40 @@
             }
           },
           {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "FIELD",
-                    "name": "target",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "label_reference"
-                    }
-                  },
-                  {
-                    "type": "REPEAT",
-                    "content": {
-                      "type": "SEQ",
-                      "members": [
-                        {
-                          "type": "FIELD",
-                          "name": "redirect",
-                          "content": {
-                            "type": "SYMBOL",
-                            "name": "_redirection"
-                          }
-                        },
-                        {
-                          "type": "CHOICE",
-                          "members": [
-                            {
-                              "type": "SYMBOL",
-                              "name": "_standard_separator"
-                            },
-                            {
-                              "type": "BLANK"
-                            }
-                          ]
-                        }
-                      ]
-                    }
+            "type": "FIELD",
+            "name": "target",
+            "content": {
+              "type": "SYMBOL",
+              "name": "label_reference"
+            }
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "redirect",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_redirection"
                   }
-                ]
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_standard_separator"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            }
           }
         ]
       }
@@ -2439,66 +2426,53 @@
             }
           },
           {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "FIELD",
-                    "name": "target",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "argument"
-                    }
-                  },
-                  {
-                    "type": "REPEAT",
-                    "content": {
+            "type": "FIELD",
+            "name": "target",
+            "content": {
+              "type": "SYMBOL",
+              "name": "argument"
+            }
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "argument",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "argument"
+                  }
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "redirect",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_redirection"
+                      }
+                    },
+                    {
                       "type": "CHOICE",
                       "members": [
                         {
-                          "type": "FIELD",
-                          "name": "argument",
-                          "content": {
-                            "type": "SYMBOL",
-                            "name": "argument"
-                          }
+                          "type": "SYMBOL",
+                          "name": "_standard_separator"
                         },
                         {
-                          "type": "SEQ",
-                          "members": [
-                            {
-                              "type": "FIELD",
-                              "name": "redirect",
-                              "content": {
-                                "type": "SYMBOL",
-                                "name": "_redirection"
-                              }
-                            },
-                            {
-                              "type": "CHOICE",
-                              "members": [
-                                {
-                                  "type": "SYMBOL",
-                                  "name": "_standard_separator"
-                                },
-                                {
-                                  "type": "BLANK"
-                                }
-                              ]
-                            }
-                          ]
+                          "type": "BLANK"
                         }
                       ]
                     }
-                  }
-                ]
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
+                  ]
+                }
+              ]
+            }
           }
         ]
       }

@@ -344,6 +344,32 @@ fn malformed_redirections_retain_recovery_state() {
 }
 
 #[test]
+fn required_goto_and_call_targets_retain_recovery_state() {
+    let cases: &[(&[u8], &str)] = &[
+        (b"goto\necho tail\n", "ERROR"),
+        (b"call\necho tail\n", "ERROR"),
+        (b"goto >log\necho tail\n", "goto_statement"),
+        (b"call <input\necho tail\n", "call_statement"),
+    ];
+
+    for &(source, controller_kind) in cases {
+        let tree = parser().parse(source, None).expect("malformed parse");
+        let root = tree.root_node();
+        assert!(root.has_error(), "missing target parsed without recovery");
+        assert_eq!(root.named_child_count(), 2);
+
+        let controller = root.named_child(0).expect("controller");
+        let tail = root.named_child(1).expect("tail command");
+        assert_eq!(controller.kind(), controller_kind);
+        assert!(controller.has_error(), "controller lost missing-target state");
+        assert_eq!(controller.end_position().row, 0);
+        assert_eq!(tail.kind(), "command");
+        assert_eq!(tail.start_position().row, 1);
+        assert!(!tail.has_error(), "next-line command entered recovery");
+    }
+}
+
+#[test]
 fn real_world_fixtures_parse_without_recovery() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let real_world = root.join("test/real-world");

@@ -605,12 +605,8 @@ module.exports = grammar({
           kw($, 'goto'),
           optional($._standard_separator),
           repeat(redirected($)),
-          optional(
-            seq(
-              field('target', $.label_reference),
-              repeat(redirected($)),
-            ),
-          ),
+          field('target', $.label_reference),
+          repeat(redirected($)),
         ),
       ),
 
@@ -659,15 +655,11 @@ module.exports = grammar({
           repeat(redirected($)),
           kw($, 'call'),
           repeat(redirected($)),
-          optional(
-            seq(
-              field('target', $.argument),
-              repeat(
-                choice(
-                  field('argument', $.argument),
-                  redirected($),
-                ),
-              ),
+          field('target', $.argument),
+          repeat(
+            choice(
+              field('argument', $.argument),
+              redirected($),
             ),
           ),
         ),
