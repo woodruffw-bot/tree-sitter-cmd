@@ -209,6 +209,21 @@ fn collect_node_kinds(node: Node<'_>, counts: &mut BTreeMap<String, usize>) {
     }
 }
 
+fn assert_no_empty_command_names(node: Node<'_>) {
+    if node.kind() == "command_name" {
+        assert_ne!(
+            node.start_byte(),
+            node.end_byte(),
+            "recovery synthesized an empty command_name",
+        );
+    }
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        assert_no_empty_command_names(child);
+    }
+}
+
 #[test]
 fn script_extensions_are_case_insensitive() {
     assert!(is_script(Path::new("fixture.bat")));
@@ -225,6 +240,14 @@ fn recovery_node_diagnostics_include_locations() {
             "1:14 (bytes 13..13): MISSING text",
         ),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
+        (
+            b"if exist marker\n",
+            "1:16 (bytes 15..15): MISSING command",
+        ),
+        (
+            b"for %%i in (one) do\n",
+            "1:20 (bytes 19..19): MISSING command",
+        ),
     ];
 
     for &(source, expected) in cases {
@@ -235,6 +258,69 @@ fn recovery_node_diagnostics_include_locations() {
             problems.iter().any(|problem| problem.contains(expected)),
             "missing {expected:?} in {problems:?}",
         );
+    }
+}
+
+#[test]
+fn malformed_control_flow_bodies_stay_local() {
+    let next_line_cases: &[(&[u8], &str, &str)] = &[
+        (
+            b"if exist marker\necho tail\n",
+            "if_statement",
+            "command",
+        ),
+        (
+            b"for %%i in (one) do\necho tail\n",
+            "for_statement",
+            "command",
+        ),
+        (
+            b"if exist marker echo yes else\necho tail\n",
+            "if_statement",
+            "command",
+        ),
+        (
+            b"if exist marker\ngoto tail\n",
+            "if_statement",
+            "goto_statement",
+        ),
+        (
+            b"for %%i in (one) do\n(echo tail)\n",
+            "for_statement",
+            "block",
+        ),
+    ];
+
+    for &(source, controller_kind, tail_kind) in next_line_cases {
+        let tree = parser().parse(source, None).expect("malformed parse");
+        let root = tree.root_node();
+        assert!(root.has_error(), "missing body parsed without recovery");
+        assert_eq!(root.named_child_count(), 2);
+
+        let controller = root.named_child(0).expect("controller");
+        let tail = root.named_child(1).expect("tail command");
+        assert_eq!(controller.kind(), controller_kind);
+        assert!(controller.has_error(), "controller lost missing-body state");
+        assert_eq!(controller.end_position().row, 0);
+        assert_eq!(tail.kind(), tail_kind);
+        assert_eq!(tail.start_position().row, 1);
+        assert!(!tail.has_error(), "next-line command entered recovery");
+        assert_no_empty_command_names(root);
+    }
+
+    for source in [
+        b"if exist marker".as_slice(),
+        b"for %%i in (one) do".as_slice(),
+        b"if exist marker echo yes else".as_slice(),
+    ] {
+        let tree = parser().parse(source, None).expect("malformed EOF parse");
+        let root = tree.root_node();
+        assert!(root.has_error(), "missing EOF body parsed cleanly");
+        assert!(
+            root.named_child(0).expect("controller").has_error(),
+            "controller lost EOF missing-body state",
+        );
+        assert_no_empty_command_names(root);
     }
 }
 

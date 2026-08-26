@@ -588,6 +588,10 @@
           },
           {
             "type": "command",
+            "named": false
+          },
+          {
+            "type": "command",
             "named": true
           },
           {
@@ -752,6 +756,10 @@
           },
           {
             "type": "command",
+            "named": false
+          },
+          {
+            "type": "command",
             "named": true
           },
           {
@@ -825,6 +833,10 @@
           {
             "type": "colon_comment",
             "named": true
+          },
+          {
+            "type": "command",
+            "named": false
           },
           {
             "type": "command",
@@ -2031,6 +2043,10 @@
     "named": false
   },
   {
+    "type": "_body_boundary",
+    "named": false
+  },
+  {
     "type": "`",
     "named": false
   },
@@ -2045,6 +2061,10 @@
   {
     "type": "caret_quoted_string",
     "named": true
+  },
+  {
+    "type": "command",
+    "named": false
   },
   {
     "type": "condition_keyword",

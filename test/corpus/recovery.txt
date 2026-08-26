@@ -144,3 +144,94 @@ echo after
     name: (command_name)
     argument: (argument
       (text))))
+
+=======================================================
+incomplete control flow does not consume the next line
+=======================================================
+
+if exist marker
+echo after-if
+for %%i in (one) do
+echo after-for
+if exist marker echo yes else
+echo after-else
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+==================================================
+incomplete control flow at EOF retains error state
+==================================================
+
+if exist marker
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (MISSING "command")))
+
+==================================================
+incomplete FOR body at EOF retains error state
+==================================================
+
+for %%i in (one) do
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (MISSING "command")))

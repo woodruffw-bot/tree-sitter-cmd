@@ -123,7 +123,8 @@ while `echo a ^\nb` stays two arguments. Newline is a statement terminator and
 stays structural. `\r` is swallowed by matching every newline as `/\r?\n/`.
 
 The external scanner (`src/scanner.c`) owns the genuinely context-sensitive
-tokens. Its only state is a single block-depth counter:
+tokens. Its state is a block-depth counter plus a two-step missing-body boundary
+counter:
 
 | Token | Role |
 |-------|------|
@@ -138,6 +139,8 @@ tokens. Its only state is a single block-depth counter:
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
+| `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
+| `COMMAND_START` | deliberately unavailable after those markers, producing a genuine anonymous MISSING `"command"` error |
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
@@ -147,7 +150,13 @@ punctuation. An argument-specific immediate token joins an adjacent `=` after
 another fragment, as in `%VAR%=suffix`, without changing that global boundary.
 During error recovery, the scanner declines zero-width tokens but still emits a
 real `BLOCK_CLOSE`. This keeps an error inside a block from consuming later
-commands.
+commands. Missing controller bodies are the exception before recovery begins:
+the two boundary markers are aliased to anonymous implementation terminals, and
+the required `COMMAND_START` is never emitted. The named CST therefore contains
+no normal placeholder node: the body is a genuine MISSING `"command"`, and the
+next physical line remains a separate statement. Two markers make that local
+recovery cheaper than skipping the boundary even when a file has several
+missing bodies.
 
 ## 4. The parenthesis model
 
@@ -260,6 +269,9 @@ take leading redirections. The consequence and alternative each consume a full
 command-operator expression. For example, both commands in
 `IF 1==1 ECHO a & ECHO b` belong to the consequence. An `ELSE` after the
 consequence starts the alternative instead of becoming part of that expression.
+An absent consequence or alternative records a MISSING `"command"` at the
+controller's own line boundary; it never becomes an empty `command_name` or
+adopts the following physical line.
 The separator slot immediately before a binary comparison operator accepts only
 `,` and `;`, not `=`. This matches cmd's special-case token fetch: `=` must stay
 available for the two-byte `==` operator. Thus `IF left==right ...` is a valid
@@ -271,7 +283,8 @@ separators apply again before the right operand.
 
 All variants share `FOR [opt] %%v IN (set) DO body`. The body consumes a full
 command-operator expression, so every command in `DO ECHO %%v & ECHO done`
-runs for each iteration. The IN list is read inside a block so `)` ends it and
+runs for each iteration. A missing body uses the same line-local MISSING
+`"command"` recovery as IF. The IN list is read inside a block so `)` ends it and
 inner newlines are skipped. A `loop_variable_declaration` is exactly `%%` plus
 one permitted binder (`%%#`, `%%0`, and `%%@` are valid). Modifiers such as
 `~f` are accepted only on `loop_variable` references. The plain `%%x` terminal

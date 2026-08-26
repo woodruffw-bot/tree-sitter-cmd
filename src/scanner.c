@@ -46,6 +46,17 @@
 //   SET_BINDING_END
 //                - zero-width confirmation that the next non-horizontal byte
 //                  after a redirected unquoted SET name is its `=` delimiter.
+//   BODY_BOUNDARY
+//                - zero-width marker at newline or EOF when an IF/ELSE/FOR body
+//                  is absent. The grammar aliases it to an anonymous
+//                  implementation terminal; its visibility to error recovery
+//                  makes skipping the real boundary costlier than recording
+//                  the required MISSING command.
+//   BODY_BOUNDARY_AGAIN
+//                - the second hidden marker at the same physical boundary.
+//   COMMAND_START
+//                - deliberately declined after BODY_BOUNDARY, so Tree-sitter
+//                  records a genuine anonymous MISSING command for the body.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STANDARD_CONCAT / target-lookahead /
@@ -82,11 +93,15 @@ enum TokenType {
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
   SET_BINDING_END,
+  BODY_BOUNDARY,
+  BODY_BOUNDARY_AGAIN,
+  COMMAND_START,
   ERROR_SENTINEL,
 };
 
 typedef struct {
   uint32_t depth; // number of currently-open structural blocks
+  uint8_t body_boundaries;
 } Scanner;
 
 void *tree_sitter_cmd_external_scanner_create(void) {
@@ -99,7 +114,8 @@ void tree_sitter_cmd_external_scanner_destroy(void *payload) { ts_free(payload);
 unsigned tree_sitter_cmd_external_scanner_serialize(void *payload, char *buffer) {
   Scanner *s = payload;
   memcpy(buffer, &s->depth, sizeof(s->depth));
-  return sizeof(s->depth);
+  buffer[sizeof(s->depth)] = (char)s->body_boundaries;
+  return sizeof(s->depth) + 1;
 }
 
 void tree_sitter_cmd_external_scanner_deserialize(void *payload,
@@ -107,8 +123,12 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
                                                   unsigned length) {
   Scanner *s = payload;
   s->depth = 0;
+  s->body_boundaries = 0;
   if (length >= sizeof(s->depth)) {
     memcpy(&s->depth, buffer, sizeof(s->depth));
+  }
+  if (length > sizeof(s->depth)) {
+    s->body_boundaries = (uint8_t)buffer[sizeof(s->depth)];
   }
 }
 
@@ -304,6 +324,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
   Scanner *s = payload;
 
+  if (s->body_boundaries > 0 && !lexer->eof(lexer) &&
+      lexer->lookahead != '\r' && lexer->lookahead != '\n') {
+    s->body_boundaries = 0;
+  }
+
   // During error recovery Tree-sitter makes every external symbol valid. Do not
   // emit zero-width tokens in that state. A real close parenthesis must still
   // close an open block so a malformed statement does not consume later lines.
@@ -316,6 +341,60 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
     return false;
+  }
+
+  if ((valid_symbols[BODY_BOUNDARY] || valid_symbols[BODY_BOUNDARY_AGAIN]) &&
+      s->body_boundaries < 2) {
+    if (s->body_boundaries == 0 && !valid_symbols[BODY_BOUNDARY]) return false;
+    enum TokenType boundary_symbol =
+        s->body_boundaries == 1 && valid_symbols[BODY_BOUNDARY_AGAIN]
+            ? BODY_BOUNDARY_AGAIN
+            : BODY_BOUNDARY;
+    bool skipped_space = false;
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, true);
+      skipped_space = true;
+    }
+    if (lexer->lookahead == '\r') {
+      lexer->mark_end(lexer);
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '\n') {
+        s->body_boundaries = boundary_symbol == BODY_BOUNDARY_AGAIN
+                                 ? 0
+                                 : s->body_boundaries + 1;
+        lexer->result_symbol = boundary_symbol;
+        return true;
+      }
+      return false;
+    }
+    if (lexer->eof(lexer) || lexer->lookahead == '\n') {
+      lexer->mark_end(lexer);
+      s->body_boundaries = boundary_symbol == BODY_BOUNDARY_AGAIN
+                               ? 0
+                               : s->body_boundaries + 1;
+      lexer->result_symbol = boundary_symbol;
+      return true;
+    }
+
+    // Usually decline here so the internal lexer can distinguish the final IF
+    // operand from the following command. Continue only for body starts whose
+    // external tokens must be considered in this same scanner call.
+    int32_t c = lexer->lookahead;
+    if (c == '(' && skipped_space && valid_symbols[BLOCK_OPEN]) {
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      if (lexer->lookahead == ')' && valid_symbols[LPAREN]) {
+        lexer->result_symbol = LPAREN;
+        return true;
+      }
+      s->depth++;
+      lexer->result_symbol = BLOCK_OPEN;
+      return true;
+    }
+    if (c != '(' && c != ')' && c != '^' && c != 'r' && c != 'R' &&
+        (c < '0' || c > '9')) {
+      return false;
+    }
   }
 
   // A label definition may ignore horizontal space after its colon, but only
