@@ -45,6 +45,27 @@ if exist file(1).txt echo found
       argument: (argument
         (text)))))
 
+=========================================
+adjacent expansion and path stay one operand
+=========================================
+
+if exist %ROOT%\file echo found
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (variable)
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
 ====================
 compact if flag
 ====================
