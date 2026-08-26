@@ -43,10 +43,13 @@
 //                - horizontal space after a definition colon, emitted only
 //                  when a valid label-name byte follows. This keeps a `:` line
 //                  containing only whitespace on the colon-comment path.
+//   SET_BINDING_END
+//                - zero-width confirmation that the next non-horizontal byte
+//                  after a redirected unquoted SET name is its `=` delimiter.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STANDARD_CONCAT / target-lookahead /
-//                    STRING_END tokens cannot stall recovery.
+//                    binding-end / STRING_END tokens cannot stall recovery.
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
 // command/set is expected and literal in an argument; `)` closes a block only
@@ -78,6 +81,7 @@ enum TokenType {
   SET_STRING_END,
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
+  SET_BINDING_END,
   ERROR_SENTINEL,
 };
 
@@ -328,6 +332,20 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         is_label_name_start(lexer->lookahead)) {
       lexer->mark_end(lexer);
       lexer->result_symbol = LABEL_LEADING_SPACE;
+      return true;
+    }
+    return false;
+  }
+
+  // A redirect may split an unquoted SET binding name. Confirm the final gap
+  // only when an actual assignment delimiter follows; otherwise a display's
+  // terminal redirect must remain on the statement rather than inducing a
+  // recovered, missing `=`.
+  if (valid_symbols[SET_BINDING_END]) {
+    skip_ws(lexer);
+    if (lexer->lookahead == '=') {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = SET_BINDING_END;
       return true;
     }
     return false;

@@ -14,6 +14,110 @@ set x=1
       value: (argument
         (text)))))
 
+====================================================
+assignment name is segmented around redirections
+====================================================
+
+set x>out.txt =value
+set PATH >value.txt EXTRA=one
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      value: (argument
+        (text)))))
+
+============================================
+prompt name is segmented around redirections
+============================================
+
+set /p na>out.txt me=prompt
+set /p foo >out bar=prompt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      prompt: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      prompt: (argument
+        (text)))))
+
+=======================================================
+spaced redirect can split an assignment variable name
+=======================================================
+
+set foo >out bar=value
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      value: (argument
+        (text)))))
+
+=======================================================
+adjacent redirect target stops at assignment delimiter
+=======================================================
+
+set x>out=value
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      value: (argument
+        (text)))))
+
 ===============================
 assignment with spaces in value
 ===============================
@@ -519,3 +623,172 @@ set ^"X=foo^" & echo "hi"
       name: (command_name)
       argument: (argument
         (string)))))
+
+=======================================================
+assignment preserves redirections in source order
+=======================================================
+
+>pre.txt set >mid.txt x=one >value.txt two >post.txt
+
+---
+
+(program
+  (set_statement
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (keyword)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      value: (argument
+        (text)))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+===================================================
+prompt preserves redirections in source order
+===================================================
+
+set /p >prompt.txt name=one <input.txt two >post.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (variable_name)
+      prompt: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      prompt: (argument
+        (text)))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+=======================================================
+arithmetic preserves redirections in source order
+=======================================================
+
+set /a >arith.txt x=1 >value.txt y=2 >post.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_arith
+      (set_flag)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      expression: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      expression: (argument
+        (text)))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+===================================================
+quoted set preserves redirections in source order
+===================================================
+
+set "x=one" >value.txt two >post.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      ignored: (set_ignored_suffix))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+======================================================
+quoted prompt ignores suffix after its last wrapper
+======================================================
+
+set /p "name=one" >value.txt two >post.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      ignored: (set_ignored_suffix))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+====================================================
+display preserves redirections in source order
+====================================================
+
+set PATH >value.txt EXTRA >post.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (variable_name))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))

@@ -91,3 +91,63 @@ call:sub arg1 arg2
       (text))
     argument: (argument
       (text))))
+
+=================================================
+goto preserves redirections in source order
+=================================================
+
+>pre.txt goto >mid.txt :done ignored >post.txt
+
+---
+
+(program
+  (goto_statement
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (keyword)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    target: (label_reference
+      name: (label_name))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+=================================================
+call preserves redirections in source order
+=================================================
+
+>pre.txt call >mid.txt :sub first >arg.txt second >post.txt
+
+---
+
+(program
+  (call_statement
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    (keyword)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    target: (argument
+      (text))
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))

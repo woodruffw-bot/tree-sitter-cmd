@@ -111,14 +111,10 @@ if left=equ=right echo invalid
         (text))))
   (ERROR
     (keyword)
-    (argument
-      (text)
-      (ERROR)
-      (text)))
+    (text)
+    (text))
   (command
     name: (command_name)
-    argument: (argument
-      (text))
     argument: (argument
       (text))))
 

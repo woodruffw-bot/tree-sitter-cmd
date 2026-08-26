@@ -239,6 +239,25 @@ fn recovery_node_diagnostics_include_locations() {
 }
 
 #[test]
+fn malformed_redirections_retain_recovery_state() {
+    let cases: &[&[u8]] = &[
+        b"echo >\n",
+        b"cmd 2>&\n",
+        b"cmd 2>&x\n",
+        b"cmd 2>&^\n1\n",
+    ];
+
+    for &source in cases {
+        let tree = parser().parse(source, None).expect("malformed parse");
+        assert!(
+            tree.root_node().has_error(),
+            "malformed redirection parsed without recovery: {}",
+            tree.root_node().to_sexp(),
+        );
+    }
+}
+
+#[test]
 fn real_world_fixtures_parse_without_recovery() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let real_world = root.join("test/real-world");

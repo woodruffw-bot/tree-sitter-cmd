@@ -21,6 +21,26 @@ echo after
     argument: (argument
       (text))))
 
+====================================================
+invalid duplication target remains parser recovery
+====================================================
+
+cmd 2>&x
+echo tail
+
+---
+
+(program
+  (command
+    name: (command_name))
+  (ERROR
+    (file_descriptor)
+    (redirect_dup_operator))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
 ======================================
 unclosed block records missing delimiter
 ======================================

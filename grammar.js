@@ -111,6 +111,36 @@ function redirected($) {
   );
 }
 
+/**
+ * Expansion spellings that must begin at the current byte. Duplication targets
+ * use these aliases so global extras cannot turn a caret continuation into
+ * spacing before a target.
+ */
+function immediateExpansion($) {
+  return choice(
+    alias(
+      token.immediate(/%[^%0-9~*\r\n][^%\r\n]*%/),
+      $.variable,
+    ),
+    alias(token.immediate(/![^!\r\n]+!/), $.delayed_variable),
+    alias(token.immediate(/%[0-9]/), $.parameter),
+    alias(token.immediate(/%\*/), $.all_arguments),
+    alias(
+      token.immediate(
+        new RegExp('%~' + TILDE_MODS + PATH_SEARCH + '[0-9]'),
+      ),
+      $.parameter_tilde,
+    ),
+    alias(
+      token.immediate(
+        new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?' + FOR_VAR),
+      ),
+      $.loop_variable,
+    ),
+    alias(token.immediate(/%%/), $.percent_literal),
+  );
+}
+
 /** Attach `@` prefixes and skip separators before the command they suppress. */
 function quietPrefix($) {
   return repeat(
@@ -141,6 +171,7 @@ module.exports = grammar({
     $._set_string_end,
     $._set_ignored_suffix,
     $._label_leading_space,
+    $._set_binding_end,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -162,7 +193,15 @@ module.exports = grammar({
   // adjacency, handled by `_concat`). See GRAMMAR_DESIGN.md §4.1.
   extras: ($) => [/[ \t]/, token(/\^\r?\n/)],
 
-  conflicts: ($) => [[$.for_option]],
+  conflicts: ($) => [
+    [$.for_option],
+    [$.set_assignment],
+    [$._set_prompt_body],
+    [$.set_arith],
+    [$.set_quoted],
+    [$.set_display],
+    [$.set_display, $._set_binding_name],
+  ],
 
   rules: {
     // A batch file is a sequence of physical lines. Every line is terminated by
@@ -518,15 +557,22 @@ module.exports = grammar({
     // GOTO label  /  GOTO :EOF. The target is the rest of the command up to a
     // cmd operator or redirection. Spaces may be part of a label name. A colon
     // or standard separator ends the lookup name, but its ignored suffix stays
-    // in the CST as label text.
+    // in the CST as label text. cmd removes redirections before interpreting
+    // that target, so preserve them before the keyword and around the target.
     goto_statement: ($) =>
       prec.right(
         seq(
           quietPrefix($),
+          repeat(redirected($)),
           kw($, 'goto'),
           optional($._standard_separator),
-          optional(field('target', $.label_reference)),
           repeat(redirected($)),
+          optional(
+            seq(
+              field('target', $.label_reference),
+              repeat(redirected($)),
+            ),
+          ),
         ),
       ),
 
@@ -566,11 +612,13 @@ module.exports = grammar({
     _label_reference_tail: ($) => token(/[:+;,=][^\r\n&|<>)]*/),
 
     // CALL :label args  /  CALL file args  /  CALL command. Redirections may
-    // precede or follow the target (e.g. `call "%~f0" %* <input`).
+    // precede the keyword or appear anywhere in the argument tail (e.g.
+    // `>log call "%~f0" <input %*`).
     call_statement: ($) =>
       prec.right(
         seq(
           quietPrefix($),
+          repeat(redirected($)),
           kw($, 'call'),
           repeat(redirected($)),
           optional(
@@ -596,25 +644,50 @@ module.exports = grammar({
           quietPrefix($),
           repeat(redirected($)),
           kw($, 'set'),
+          // Redirections before the payload remain statement children. Once a
+          // SET branch starts, that branch keeps later redirections in source
+          // order with the surrounding payload fragments.
           optional(
             choice(
-              $.set_prompt,
-              $.set_arith,
-              $.set_assignment,
-              $.set_quoted,
-              $.set_display,
+              $._set_payload,
+              seq(
+                repeat1(field('redirect', $._redirection)),
+                $._set_payload,
+              ),
             ),
           ),
-          repeat(redirected($)),
+          // Keep terminal redirections on the statement, matching the existing
+          // CST. Branch rules consume a redirection only when more payload
+          // follows it.
+          repeat(field('redirect', $._redirection)),
         ),
+      ),
+    _set_payload: ($) =>
+      choice(
+        $.set_prompt,
+        $.set_arith,
+        $.set_assignment,
+        $.set_quoted,
+        $.set_display,
       ),
 
     // SET name=value  (the value is the rest of the logical line)
     set_assignment: ($) =>
       seq(
-        field('name', alias($._set_name, $.variable_name)),
+        field(
+          'name',
+          alias($._set_binding_name, $.variable_name),
+        ),
         '=',
-        repeat(field('value', $.argument)),
+        repeat(
+          choice(
+            field('value', $.argument),
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              field('value', $.argument),
+            ),
+          ),
+        ),
       ),
     // SET /P [name]=prompt. The name may be empty (the `<nul set /p=text` trick
     // for printing without a trailing newline). cmd also accepts the prompt in
@@ -625,42 +698,59 @@ module.exports = grammar({
       prec.right(
         seq(
           alias(opt('/p'), $.set_flag),
-          choice(
-            seq(
-              optional(field('name', alias($._set_name, $.variable_name))),
-              '=',
-              repeat(field('prompt', $.argument)),
+          repeat(field('redirect', $._redirection)),
+          $._set_prompt_body,
+        ),
+      ),
+    _set_prompt_body: ($) =>
+      choice(
+        seq(
+          optional(
+            field(
+              'name',
+              alias($._set_binding_name, $.variable_name),
             ),
-            prec.right(
+          ),
+          '=',
+          repeat(
+            choice(
+              field('prompt', $.argument),
               seq(
-                '"',
-                optional(
-                  field('name', alias($._set_name, $.variable_name)),
-                ),
-                '=',
-                optional(
-                  field(
-                    'prompt',
-                    alias($._set_quoted_value, $.argument),
-                  ),
-                ),
-                $._set_string_end,
-                optional(
-                  field(
-                    'ignored',
-                    alias($._set_ignored_suffix, $.set_ignored_suffix),
-                  ),
-                ),
+                repeat1(field('redirect', $._redirection)),
+                field('prompt', $.argument),
               ),
             ),
           ),
+        ),
+        seq(
+          '"',
+          optional(
+            field('name', alias($._set_name, $.variable_name)),
+          ),
+          '=',
+          optional(
+            field(
+              'prompt',
+              alias($._set_quoted_value, $.argument),
+            ),
+          ),
+          $._set_string_end,
+          optional($._set_ignored_tail),
         ),
       ),
     // SET /A expression  (refined to an arithmetic sub-grammar in M7)
     set_arith: ($) =>
       seq(
         alias(opt('/a'), $.set_flag),
-        repeat(field('expression', $.argument)),
+        repeat(
+          choice(
+            field('expression', $.argument),
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              field('expression', $.argument),
+            ),
+          ),
+        ),
       ),
     // SET "name=value". Keep the binding fields visible instead of hiding the
     // assignment in a generic string. Earlier quotes remain value text and the
@@ -669,24 +759,30 @@ module.exports = grammar({
     // remain opaque because their caret and quote phase ordering differs from
     // ordinary quoted assignments.
     set_quoted: ($) =>
-      prec.right(
-        choice(
+      choice(
+        seq(
+          '"',
+          optional(field('name', alias($._set_name, $.variable_name))),
+          '=',
+          optional(
+            field('value', alias($._set_quoted_value, $.argument)),
+          ),
+          $._set_string_end,
+          optional($._set_ignored_tail),
+        ),
+        prec.right(
           seq(
-            '"',
-            optional(field('name', alias($._set_name, $.variable_name))),
-            '=',
-            optional(
-              field('value', alias($._set_quoted_value, $.argument)),
-            ),
-            $._set_string_end,
-            optional(
-              field(
-                'ignored',
-                alias($._set_ignored_suffix, $.set_ignored_suffix),
+            $.caret_quoted_string,
+            repeat(
+              choice(
+                $._fragment,
+                seq(
+                  repeat1(field('redirect', $._redirection)),
+                  $._fragment,
+                ),
               ),
             ),
           ),
-          seq($.caret_quoted_string, repeat($._fragment)),
         ),
       ),
     _set_quoted_value: ($) =>
@@ -701,22 +797,62 @@ module.exports = grammar({
           ),
         ),
       ),
+    _set_ignored_tail: ($) =>
+      repeat1(
+        choice(
+          field(
+            'ignored',
+            alias($._set_ignored_suffix, $.set_ignored_suffix),
+          ),
+          seq(
+            repeat1(field('redirect', $._redirection)),
+            field(
+              'ignored',
+              alias($._set_ignored_suffix, $.set_ignored_suffix),
+            ),
+          ),
+        ),
+      ),
     caret_quoted_string: ($) =>
       token(/\^"(?:[^\r\n^]|\^[^"\r\n])*(?:\^"|")/),
-    // SET  /  SET prefix  (display). The quoted spelling uses the same
-    // last-quote wrapper rule as an assignment; cmd strips that wrapper before
-    // taking the no-`=` display path.
+    // SET  /  SET prefix  (display). Redirections can split an unquoted query;
+    // retain each surviving segment so tools can reconstruct the cmd input.
+    // The quoted spelling keeps the same last-quote wrapper rule as an
+    // assignment, and cmd strips that wrapper before taking the display path.
     set_display: ($) =>
       choice(
-        alias($._set_name, $.variable_name),
+        seq(
+          alias($._set_name, $.variable_name),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              alias($._set_name, $.variable_name),
+            ),
+          ),
+        ),
         seq(
           '"',
           optional(alias($._set_name, $.variable_name)),
           $._set_string_end,
-          optional(
-            field(
-              'ignored',
-              alias($._set_ignored_suffix, $.set_ignored_suffix),
+          optional($._set_ignored_tail),
+        ),
+      ),
+
+    // Redirections are removed before SET interprets its payload. Keep a
+    // logical name as one node even when source redirections split its text.
+    // The assignment form also permits a final redirect immediately before
+    // `=`. The zero-width end token verifies that the next non-horizontal byte
+    // really is `=`, so a display's terminal redirect is not recovered as an
+    // assignment with a missing delimiter.
+    _set_binding_name: ($) =>
+      seq(
+        $._set_name,
+        repeat(
+          seq(
+            repeat1(field('redirect', $._redirection)),
+            choice(
+              $._set_name,
+              $._set_binding_end,
             ),
           ),
         ),
@@ -801,7 +937,10 @@ module.exports = grammar({
         ),
       ),
 
-    // Handle duplication: `2>&1`, `>&2`, `<&3`.
+    // Handle duplication: `2>&1`, `>&2`, `<&3`. cmd skips its standard
+    // separators before the target, but this parser phase does not treat a
+    // caret-newline as such a separator. Keep both the spacing and target
+    // immediate so the global continuation extra cannot bridge that boundary.
     redirect_dup: ($) =>
       choice(
         seq(
@@ -813,15 +952,24 @@ module.exports = grammar({
             'operator',
             alias(token.immediate(/[<>]&/), $.redirect_dup_operator),
           ),
-          optional($._standard_separator),
-          field('target', choice($.file_descriptor, $._expansion)),
+          $._redirect_dup_target,
         ),
         seq(
           field('operator', $.redirect_dup_operator),
-          optional($._standard_separator),
-          field('target', choice($.file_descriptor, $._expansion)),
+          $._redirect_dup_target,
         ),
       ),
+    _redirect_dup_target: ($) =>
+      seq(
+        optional($._redirect_dup_spacing),
+        field('target', $._redirect_dup_valid_target),
+      ),
+    _redirect_dup_valid_target: ($) =>
+      choice(
+        alias(token.immediate(/[0-9]/), $.file_descriptor),
+        immediateExpansion($),
+      ),
+    _redirect_dup_spacing: ($) => token.immediate(/[ \t,;=]+/),
     redirect_dup_operator: ($) => token(/[<>]&/),
     file_descriptor: ($) => token.immediate(/[0-9]/),
 
