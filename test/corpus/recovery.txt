@@ -123,3 +123,332 @@ echo after
     name: (command_name)
     argument: (argument
       (text))))
+
+=================================================
+incomplete if does not consume the next line
+=================================================
+
+if exist marker
+echo after
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+==================================================
+incomplete for does not consume the next line
+==================================================
+
+for %%i in (one) do
+echo after
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=========================================================
+repeated incomplete if statements stay independent
+=========================================================
+
+if exist marker
+echo after
+if exist other
+echo after-two
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+===================================================
+adjacent mixed controllers keep each missing body
+===================================================
+
+if exist marker
+for %%i in (one) do
+if exist other echo yes else
+echo tail
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (missing_statement))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (missing_statement))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================================
+blank line after for stays outside missing body
+=================================================
+
+for %%i in (one) do
+
+echo tail
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================================
+blank line after else stays outside alternative
+=================================================
+
+if exist marker echo yes else
+
+echo tail
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+====================================================
+repeated incomplete else branches stay attached
+====================================================
+
+if exist first echo one else
+echo after
+if exist second echo two else
+echo after-two
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (missing_statement))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=============================================
+block close stays outside missing for body
+=============================================
+
+(
+for %%i in (one) do
+)
+echo tail
+
+---
+
+(program
+  (block
+    (for_statement
+      (keyword)
+      variable: (loop_variable_declaration)
+      (keyword)
+      set: (for_set
+        (argument
+          (text)))
+      (keyword)
+      body: (missing_statement)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================================
+same-line block close follows missing for body
+=================================================
+
+(
+for %%i in (one) do )
+echo tail
+
+---
+
+(program
+  (block
+    (for_statement
+      (keyword)
+      variable: (loop_variable_declaration)
+      (keyword)
+      set: (for_set
+        (argument
+          (text)))
+      (keyword)
+      body: (missing_statement)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================================
+caret continuations can supply controller bodies
+=================================================
+
+if exist marker ^
+  echo consequence
+for %%i in (one) do ^
+  echo body
+if exist marker echo yes else ^
+  echo alternative
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))

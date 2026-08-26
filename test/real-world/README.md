@@ -4,7 +4,7 @@ Known-good, real-world Windows batch/cmd scripts, checked in and parsed by CI to
 guard against regressions. Unlike the unit corpus in `../corpus/` (small inputs
 with expected S-expressions), these are whole upstream files. The Rust
 integration test reads each file as raw bytes and requires a parse tree without
-`ERROR` or `MISSING` nodes.
+`ERROR`, Tree-sitter `MISSING`, or `missing_statement` sentinel nodes.
 
 ```
 fixtures/      the committed scripts (plus a .LICENSE per file)

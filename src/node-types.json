@@ -603,6 +603,10 @@
             "named": true
           },
           {
+            "type": "missing_statement",
+            "named": true
+          },
+          {
             "type": "or_list",
             "named": true
           },
@@ -767,6 +771,10 @@
             "named": true
           },
           {
+            "type": "missing_statement",
+            "named": true
+          },
+          {
             "type": "or_list",
             "named": true
           },
@@ -840,6 +848,10 @@
           },
           {
             "type": "if_statement",
+            "named": true
+          },
+          {
+            "type": "missing_statement",
             "named": true
           },
           {
@@ -1986,6 +1998,10 @@
   },
   {
     "type": "loop_variable_declaration",
+    "named": true
+  },
+  {
+    "type": "missing_statement",
     "named": true
   },
   {

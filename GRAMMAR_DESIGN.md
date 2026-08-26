@@ -119,7 +119,7 @@ while `echo a ^\nb` stays two arguments. Newline is a statement terminator and
 stays structural. `\r` is swallowed by matching every newline as `/\r?\n/`.
 
 The external scanner (`src/scanner.c`) owns the genuinely context-sensitive
-tokens. Its only state is a single block-depth counter:
+tokens. Its only serialized state is the block-depth counter:
 
 | Token | Role |
 |-------|------|
@@ -131,6 +131,7 @@ tokens. Its only state is a single block-depth counter:
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
+| `MISSING_STATEMENT` | visible zero-width sentinel for an absent IF/ELSE/FOR body at newline, EOF, or a structural block close |
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
@@ -138,7 +139,22 @@ tokens. Its only state is a single block-depth counter:
 another fragment, as in `%VAR%=suffix`, without changing that global boundary.
 During error recovery, the scanner declines zero-width tokens but still emits a
 real `BLOCK_CLOSE`. This keeps an error inside a block from consuming later
-commands.
+commands. IF consequences, ELSE alternatives, and FOR bodies use a separate
+normal-parse sentinel. When one of those fields is expected at an unescaped
+physical newline or EOF, the scanner emits a zero-width `missing_statement`.
+Inside a block it also emits the sentinel before a structural close parenthesis.
+The controller stays structured, the absent field has an explicit node type,
+and the next physical line or block close remains outside it.
+
+`missing_statement` is an intentional CST diagnostic, not Tree-sitter error
+recovery. Its node is not marked missing, and a tree containing one does not set
+`has_error`. Static analyzers should query this node alongside `ERROR` and
+Tree-sitter missing nodes when rejecting malformed input. The scanner offers it
+only where `_same_line_statement` is valid, so it cannot stand in for an
+ordinary command elsewhere. A caret-newline remains the normal continuation
+extra and is consumed before the sentinel can match, so a continued body stays
+part of the same logical command line. No recovery phase or stack-cost tuning is
+needed, and incremental reparses serialize only the existing block depth.
 
 ## 4. The parenthesis model
 

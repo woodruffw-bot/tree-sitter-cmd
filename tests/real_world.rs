@@ -30,10 +30,13 @@ fn escaped_line(source: &[u8], byte: usize) -> String {
 }
 
 fn collect_problems(node: Node<'_>, source: &[u8], problems: &mut Vec<String>) {
-    if node.is_error() || node.is_missing() {
+    let is_body_sentinel = node.kind() == "missing_statement";
+    if node.is_error() || node.is_missing() || is_body_sentinel {
         let point = node.start_position();
         let description = if node.is_missing() {
             format!("MISSING {}", node.kind())
+        } else if is_body_sentinel {
+            "MISSING_STATEMENT".to_owned()
         } else {
             "ERROR".to_owned()
         };
@@ -218,10 +221,14 @@ fn script_extensions_are_case_insensitive() {
 }
 
 #[test]
-fn recovery_node_diagnostics_include_locations() {
+fn problem_node_diagnostics_include_locations() {
     let cases: &[(&[u8], &str)] = &[
         (b"echo before >\necho after\n", "1:13 (bytes 12..13): ERROR"),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
+        (
+            b"if exist marker\n",
+            "1:16 (bytes 15..15): MISSING_STATEMENT",
+        ),
     ];
 
     for &(source, expected) in cases {

@@ -121,6 +121,7 @@ module.exports = grammar({
     $._set_string_end,
     $._set_ignored_suffix,
     $._label_leading_space,
+    $.missing_statement,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -273,10 +274,22 @@ module.exports = grammar({
           field('condition', $._if_condition),
           // cmd parses the rest of each branch through its operator ladder.
           // `prec.right` keeps a following ELSE attached to this IF.
-          field('consequence', $._statement),
-          optional(seq(kw($, 'else'), field('alternative', $._statement))),
+          field('consequence', $._same_line_statement),
+          optional(
+            seq(
+              kw($, 'else'),
+              field('alternative', $._same_line_statement),
+            ),
+          ),
         ),
       ),
+
+    // IF consequences, ELSE alternatives, and FOR bodies must start on the
+    // same logical command line. At an unescaped newline, block close, or EOF,
+    // the scanner supplies a visible sentinel rather than adopting the next
+    // physical line. A caret-newline remains an extra and can continue into the
+    // body normally.
+    _same_line_statement: ($) => choice($._statement, $.missing_statement),
 
     _if_condition: ($) => choice($.comparison, $.unary_condition),
 
@@ -351,7 +364,7 @@ module.exports = grammar({
           alias($._block_close, ')'),
           kw($, 'do'),
           // Operators after DO remain inside the loop body.
-          field('body', $._statement),
+          field('body', $._same_line_statement),
         ),
       ),
 

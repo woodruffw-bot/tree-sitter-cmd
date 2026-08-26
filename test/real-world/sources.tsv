@@ -2,9 +2,10 @@
 # Format: <filename>\t<source-url>
 #
 # The fixtures themselves are checked in (see ./fixtures/) and parsed by the
-# Rust integration test. Each fixture must parse without ERROR or MISSING
-# nodes. Each fixture has a sibling <filename>.LICENSE recording its upstream
-# project and license; the files remain under those licenses (see ./README.md).
+# Rust integration test. Each fixture must parse without ERROR, Tree-sitter
+# MISSING, or missing_statement sentinel nodes. Each fixture has a sibling
+# <filename>.LICENSE recording its upstream project and license; the files
+# remain under those licenses (see ./README.md).
 #
 # Add new cases by dropping the file in ./fixtures/, adding a .LICENSE sibling,
 # and adding a row here.

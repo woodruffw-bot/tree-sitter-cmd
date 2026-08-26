@@ -37,6 +37,10 @@
 //                - horizontal space after a definition colon, emitted only
 //                  when a valid label-name byte follows. This keeps a `:` line
 //                  containing only whitespace on the colon-comment path.
+//   MISSING_STATEMENT
+//                - a visible zero-width sentinel at an unescaped newline, EOF,
+//                  or structural block close when an IF/ELSE/FOR body is
+//                  expected.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STRING_END tokens cannot stall recovery.
@@ -69,6 +73,7 @@ enum TokenType {
   SET_STRING_END,
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
+  MISSING_STATEMENT,
   ERROR_SENTINEL,
 };
 
@@ -412,13 +417,22 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   bool want_rem = valid_symbols[REM];
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
+  bool want_missing_statement = valid_symbols[MISSING_STATEMENT];
   bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
+  if (!want_rem && !want_redirect_source && !want_caret &&
+      !want_missing_statement && !want_paren) {
     return false;
   }
 
   skip_ws(lexer);
+  if (want_missing_statement &&
+      (lexer->eof(lexer) || lexer->lookahead == '\r' ||
+       lexer->lookahead == '\n' ||
+       (s->depth > 0 && lexer->lookahead == ')'))) {
+    lexer->result_symbol = MISSING_STATEMENT;
+    return true;
+  }
   if (lexer->eof(lexer)) {
     return false;
   }

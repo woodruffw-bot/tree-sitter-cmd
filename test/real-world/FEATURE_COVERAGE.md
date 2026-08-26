@@ -3,7 +3,8 @@
 This matrix highlights grammar-sensitive constructs in the operational and
 interactive fixtures added by the corpus-breadth sweep. It is not an inventory
 of every command in the full corpus. The Rust integration test requires every
-fixture below to parse without `ERROR` or `MISSING` nodes.
+fixture below to parse without `ERROR`, Tree-sitter `MISSING`, or
+`missing_statement` sentinel nodes.
 
 | Fixture | Real-world role | Grammar-sensitive coverage | Preserved form |
 | --- | --- | --- | --- |
