@@ -162,6 +162,56 @@ fn malformed_edit_keeps_error_inside_closed_block() {
     assert_eq!(tail.start_byte(), tail_start);
 }
 
+#[test]
+fn deleting_control_flow_body_keeps_next_line_separate() {
+    let cases = [
+        (
+            "if exist marker echo body\necho tail\n",
+            " echo body",
+            "if_statement",
+        ),
+        (
+            "for %%i in (one) do echo body\necho tail\n",
+            " echo body",
+            "for_statement",
+        ),
+        (
+            "if exist marker echo yes else echo no\necho tail\n",
+            " echo no",
+            "if_statement",
+        ),
+    ];
+
+    for (before, needle, controller_kind) in cases {
+        let start = before.find(needle).expect("body text");
+        let (incremental, edited) = edited_tree(
+            before.as_bytes(),
+            start..start + needle.len(),
+            b"",
+        );
+        let fresh = parser()
+            .parse(edited.as_slice(), None)
+            .expect("fresh malformed parse");
+
+        assert_eq!(incremental.root_node().to_sexp(), fresh.root_node().to_sexp());
+        assert!(incremental.root_node().has_error());
+        assert!(fresh.root_node().has_error());
+
+        for tree in [&incremental, &fresh] {
+            let root = tree.root_node();
+            assert_eq!(root.named_child_count(), 2);
+            let controller = root.named_child(0).expect("controller");
+            let tail = root.named_child(1).expect("tail command");
+            assert_eq!(controller.kind(), controller_kind);
+            assert!(controller.has_error());
+            assert_eq!(controller.end_position().row, 0);
+            assert_eq!(tail.kind(), "command");
+            assert_eq!(tail.start_position().row, 1);
+            assert!(!tail.has_error());
+        }
+    }
+}
+
 fn parse_chunked(source: &[u8], chunk_size: usize) -> Tree {
     parser()
         .parse_with_options(

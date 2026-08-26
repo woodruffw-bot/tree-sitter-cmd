@@ -172,6 +172,9 @@ module.exports = grammar({
     $._set_ignored_suffix,
     $._label_leading_space,
     $._set_binding_end,
+    $.body_boundary,
+    $.body_boundary_again,
+    $._command_start,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -346,8 +349,19 @@ module.exports = grammar({
           field('condition', $._if_condition),
           // cmd parses the rest of each branch through its operator ladder.
           // `prec.right` keeps a following ELSE attached to this IF.
-          field('consequence', $._statement),
-          optional(seq(kw($, 'else'), field('alternative', $._statement))),
+          choice(
+            field('consequence', $._statement),
+            $._missing_consequence,
+          ),
+          optional(
+            seq(
+              kw($, 'else'),
+              choice(
+                field('alternative', $._statement),
+                $._missing_alternative,
+              ),
+            ),
+          ),
         ),
       ),
 
@@ -436,8 +450,32 @@ module.exports = grammar({
           optional($._standard_separator),
           kw($, 'do'),
           // Operators after DO remain inside the loop body.
-          field('body', $._statement),
+          choice(
+            field('body', $._statement),
+            $._missing_for_body,
+          ),
         ),
+      ),
+
+    // An absent controller body retains only Tree-sitter's anonymous MISSING
+    // command in the CST. The boundary markers are implementation terminals.
+    _missing_consequence: ($) =>
+      seq(
+        alias($.body_boundary, '_body_boundary'),
+        alias($.body_boundary_again, '_body_boundary'),
+        field('consequence', alias($._command_start, 'command')),
+      ),
+    _missing_alternative: ($) =>
+      seq(
+        alias($.body_boundary, '_body_boundary'),
+        alias($.body_boundary_again, '_body_boundary'),
+        field('alternative', alias($._command_start, 'command')),
+      ),
+    _missing_for_body: ($) =>
+      seq(
+        alias($.body_boundary, '_body_boundary'),
+        alias($.body_boundary_again, '_body_boundary'),
+        field('body', alias($._command_start, 'command')),
       ),
 
     // FOR options. `/R [path]` and `/F [options]` each take one optional word.

@@ -89,6 +89,34 @@ if (%1) == () goto done
       target: (label_reference
         name: (label_name)))))
 
+=============================================
+compact parenthesized comparison before CALL
+=============================================
+
+if (a)==(b) call :sub arg
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text)
+        (text)
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)
+        (text)
+        (text)))
+    consequence: (call_statement
+      (keyword)
+      target: (argument
+        (text))
+      argument: (argument
+        (text)))))
+
 =================================
 double-colon comment inside block
 =================================

@@ -707,12 +707,21 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "consequence",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_statement"
-            }
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "consequence",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_statement"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_missing_consequence"
+              }
+            ]
           },
           {
             "type": "CHOICE",
@@ -733,12 +742,21 @@
                     "value": "keyword"
                   },
                   {
-                    "type": "FIELD",
-                    "name": "alternative",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "_statement"
-                    }
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "FIELD",
+                        "name": "alternative",
+                        "content": {
+                          "type": "SYMBOL",
+                          "name": "_statement"
+                        }
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "_missing_alternative"
+                      }
+                    ]
                   }
                 ]
               },
@@ -1274,15 +1292,132 @@
             "value": "keyword"
           },
           {
-            "type": "FIELD",
-            "name": "body",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_statement"
-            }
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "body",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_statement"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_missing_for_body"
+              }
+            ]
           }
         ]
       }
+    },
+    "_missing_consequence": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary_again"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "FIELD",
+          "name": "consequence",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_command_start"
+            },
+            "named": false,
+            "value": "command"
+          }
+        }
+      ]
+    },
+    "_missing_alternative": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary_again"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "FIELD",
+          "name": "alternative",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_command_start"
+            },
+            "named": false,
+            "value": "command"
+          }
+        }
+      ]
+    },
+    "_missing_for_body": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "body_boundary_again"
+          },
+          "named": false,
+          "value": "_body_boundary"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_command_start"
+            },
+            "named": false,
+            "value": "command"
+          }
+        }
+      ]
     },
     "for_option": {
       "type": "CHOICE",
@@ -4577,6 +4712,18 @@
     {
       "type": "SYMBOL",
       "name": "_set_binding_end"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "body_boundary"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "body_boundary_again"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_command_start"
     },
     {
       "type": "SYMBOL",
