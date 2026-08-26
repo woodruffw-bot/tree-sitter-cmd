@@ -179,6 +179,13 @@ expanded file descriptor destinations
 cmd 2>&%1
 cmd >&%FD%
 cmd 2>&!FD!
+cmd 2>&%A&B%
+cmd 2>&!A&B!
+cmd 2>&%*
+cmd 2>&%~dp0
+cmd 2>&%~$PATH:1
+cmd 2>&%%i
+cmd 2>&%%
 
 ---
 
@@ -199,7 +206,68 @@ cmd 2>&!FD!
     redirect: (redirect_dup
       source: (file_descriptor)
       operator: (redirect_dup_operator)
-      target: (delayed_variable))))
+      target: (delayed_variable)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (variable)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (delayed_variable)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (all_arguments)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (parameter_tilde)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (parameter_tilde)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (loop_variable)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (percent_literal))))
+
+========================================================
+expanded destinations may contain structural punctuation
+========================================================
+
+(
+  cmd 2>&%x)y%
+)
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      redirect: (redirect_dup
+        source: (file_descriptor)
+        operator: (redirect_dup_operator)
+        target: (variable)))))
 
 =========================================
 source descriptors and numeric arguments
@@ -251,3 +319,44 @@ cmd 2>&1
       source: (file_descriptor)
       operator: (redirect_dup_operator)
       target: (file_descriptor))))
+
+====================================================
+standard separators before duplication target
+====================================================
+
+cmd 2>& 1
+cmd <& 0
+cmd 2>& ,;=1
+cmd <&	; 0
+cmd >& ; %FD%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    redirect: (redirect_dup
+      operator: (redirect_dup_operator)
+      target: (variable))))

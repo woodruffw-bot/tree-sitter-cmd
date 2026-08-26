@@ -11,6 +11,9 @@ rationale is in `GRAMMAR_DESIGN.md`.
 - Static analysis is the primary use case. Prefer accurate, stable CST nodes
   and fields, source fidelity, and local error recovery over highlighting
   convenience.
+- Syntax errors must remain errors in the CST. Do not replace Tree-sitter
+  `ERROR` or missing state with a normal named node that only represents a
+  diagnostic or makes malformed input parse cleanly.
 - Highlight and injection queries are secondary consumers of the CST. Queries
   must follow the grammar. Do not add grammar states, visible nodes, aliases, or
   recovery behavior only to simplify a query.

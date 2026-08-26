@@ -137,6 +137,7 @@ tokens. Its only state is a single block-depth counter:
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
+| `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
 `=` is a word boundary in the scanner so `CONCAT` cannot starve `==` or
@@ -244,6 +245,9 @@ make the quote characters literal during cmd tokenization. A caret-escaped
 closing wrapper ends the node immediately, so later operators and commands stay
 outside the assignment.
 
+Redirections inside a quoted binding's ignored suffix remain positional
+`redirect` fields, while a terminal redirect stays on `set_statement`.
+
 ### IF / ELSE
 
 Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)
@@ -302,11 +306,29 @@ it ends the target. The operator after an fd is
 `token.immediate`, and the external scanner only emits the fd when the next
 byte is `<` or `>`. It checks this before joining adjacent fragments, so
 `echo "text"2>file` keeps `2` as the redirection source. A spaced digit remains
-an ordinary argument, as in `echo 2 >file`. In the CST, `_redirection` is a
-transparent supertype over `redirect_file` and `redirect_dup`. A leading fd is
-a `file_descriptor` in the `source` field, separate from the punctuation-only
-`operator` field. Redirection ordering is preserved positionally; last-wins and
+an ordinary argument, as in `echo 2 >file`. A duplication operator skips cmd's
+horizontal and standard separators (`space`, tab, `,`, `;`, `=`) before its
+target, so `2>& ,;=1` has the same `source`, `operator`, and `target` fields as
+`2>&1`. Complete expansion targets remain structured expansion nodes. A missing
+or malformed duplication target has no accepting recovery production, so it
+remains a genuine Tree-sitter `ERROR` or missing node.
+
+In the CST, `_redirection` is a transparent supertype over `redirect_file` and
+`redirect_dup`. A leading fd is a `file_descriptor` in the `source` field,
+separate from the punctuation-only `operator` field. Ordinary commands, GOTO,
+CALL, and SET preserve redirections before and within their argument tails. IF
+and FOR still reject leading redirections, matching cmd. Redirections are
+removed before SET interprets an unquoted assignment or `/P` name, so one
+`variable_name` may contain positional `redirect` children between its surviving
+source segments. A redirect inside other SET payload text is a `redirect` field
+on the matching `set_*` node. Terminal SET redirects remain fields on
+`set_statement`. Redirection ordering is preserved positionally; last-wins and
 stream-merge semantics are runtime.
+
+Because file targets stop at contextual standard separators, the adjacent
+spelling `set x>out=value` keeps `out` as the redirect target and reconnects
+`x` to the assignment delimiter. The `variable_name` therefore contains the
+source-backed redirect while the following value remains a normal field.
 
 ### REM and ::
 
@@ -346,7 +368,7 @@ full list):
 - **Top level**: `program`, `command`, `command_name`, `quiet`.
 - **Operators**: `seq_list`, `or_list`, `and_list`, `pipeline`.
 - **Redirection**: `_redirection`, `redirect_file`, `redirect_dup`,
-  `redirect_operator`, `redirect_dup_operator`, `file_descriptor`.
+  `redirect_operator`, `redirect_dup_operator`, and `file_descriptor`.
 - **Blocks**: `block`.
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
@@ -357,7 +379,8 @@ full list):
   `goto_statement` (with `label_reference`, `label_name`, and `label_text`),
   `call_statement`, and `label` (with `label_name` and `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,
-  `set_quoted`, and `set_display` branches and `variable_name`.
+  `set_quoted`, and `set_display` branches, `variable_name`, and the opaque
+  `set_ignored_suffix`.
 - **Expansions** (the `_expansion` supertype): `variable`, `delayed_variable`,
   `parameter`, `all_arguments`, `parameter_tilde`, `loop_variable`, and
   `percent_literal`. The `:~off,len` substring and `:search=replace`
