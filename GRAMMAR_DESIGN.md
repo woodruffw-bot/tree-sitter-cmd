@@ -309,6 +309,15 @@ single-quoted source may span lines. Apostrophes inside a double-quoted span are
 part of the source. An error-recovery pattern keeps an unterminated `usebackq`
 command injectable while it is being edited.
 
+### GOTO and CALL
+
+`GOTO` requires a `label_reference` target and `CALL` requires an `argument`
+target. Redirections may occur before those targets, but never replace them.
+Bare or redirection-only forms therefore retain genuine Tree-sitter `ERROR` or
+MISSING state; they are not accepted as targetless statement nodes. Recovery
+also stops at the physical line boundary so a following command is not adopted
+as the missing target.
+
 ### Redirection
 
 A leading digit is a redirection fd only at a token boundary and immediately

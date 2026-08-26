@@ -348,7 +348,7 @@
       },
       "target": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "argument",
@@ -710,7 +710,7 @@
       },
       "target": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "label_reference",
