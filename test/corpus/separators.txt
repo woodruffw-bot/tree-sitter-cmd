@@ -1,0 +1,335 @@
+============================================
+standard separators at command boundaries
+============================================
+
+;echo first
+echo,tail
+echo left &,;=echo right
+(=;echo block)
+@;,echo quiet
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (command
+    quiet: (quiet)
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+====================================
+standard separators in IF grammar
+====================================
+
+if,/i;not=exist,file,echo found
+if;left==right=echo equal
+if,left;equ,right,echo ordered
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    (if_flag)
+    (not)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+===========================================================
+equals is not a separator before an IF comparison operator
+===========================================================
+
+if left==right echo equality
+if left=equ=right echo invalid
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (ERROR
+    (keyword)
+    (argument
+      (text)
+      (ERROR)
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+=====================================
+standard separators in FOR grammar
+=====================================
+
+for,/l;%%A=in=(1;1=3)=do,echo %%A
+for,%%B;in=(alpha,beta)=do;echo %%B
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+===============================================
+GOTO and redirection targets stop at separators
+===============================================
+
+goto target,ignored=tail
+goto,target
+goto;target
+goto=target
+>,out;echo ok
+echo before >dest,after
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)))
+  (command
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    argument: (argument
+      (text))))
+
+============================================
+ordinary command and SET tails keep punctuation
+============================================
+
+echo a,b;c=d
+set x=a,b;c=d
+echo "a,b;c=d"
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (string))))
+
+=======================================
+escaped and quoted separators stay in words
+=======================================
+
+if left^;part=="right,part" echo yes
+for %%A in (one^,part "two;part") do echo %%A
+goto target^,part
+echo ok >"out,name"
+echo ok >pre%OUT,NAME%suffix,after
+echo ok >out^,name,after
+echo ok >%1,after
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text)
+        (escape_sequence)
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (string)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)
+        (escape_sequence)
+        (text))
+      (argument
+        (string)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name
+        (escape_sequence))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (string))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)
+        (variable)
+        (text)))
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)
+        (escape_sequence)
+        (text)))
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (parameter)))
+    argument: (argument
+      (text))))

@@ -98,9 +98,27 @@ function wordOf($, lead, frag = lead) {
   return seq(lead, repeat(seq($._concat, frag)));
 }
 
-/** Attach one or more `@` prefixes to the concrete statement they suppress. */
+/** A word in a slot where cmd treats `,`, `;`, and `=` as separators. */
+function standardWordOf($, lead, frag = lead) {
+  return seq(lead, repeat(seq($._standard_concat, frag)));
+}
+
+/** A redirection plus separators before the parser resumes its outer rule. */
+function redirected($) {
+  return seq(
+    field('redirect', $._redirection),
+    optional($._standard_separator),
+  );
+}
+
+/** Attach `@` prefixes and skip separators before the command they suppress. */
 function quietPrefix($) {
-  return repeat(field('quiet', $.quiet));
+  return repeat(
+    seq(
+      field('quiet', $.quiet),
+      optional($._standard_separator),
+    ),
+  );
 }
 
 module.exports = grammar({
@@ -108,6 +126,8 @@ module.exports = grammar({
 
   externals: ($) => [
     $._concat,
+    $._standard_concat,
+    $._redirect_target_separator_ahead,
     $._rem,
     $._rem_text,
     $._redirect_source,
@@ -206,15 +226,18 @@ module.exports = grammar({
     // plain command (e.g. `@rem`, `@if`, `@echo off`). cmd accepts the prefix
     // stacked (`@@fc ...`), each `@` a redundant suppression, so allow a run.
     _unit: ($) =>
-      choice(
-        $.command,
-        $.block,
-        $.rem_comment,
-        $.if_statement,
-        $.for_statement,
-        $.goto_statement,
-        $.call_statement,
-        $.set_statement,
+      seq(
+        optional($._standard_separator),
+        choice(
+          $.command,
+          $.block,
+          $.rem_comment,
+          $.if_statement,
+          $.for_statement,
+          $.goto_statement,
+          $.call_statement,
+          $.set_statement,
+        ),
       ),
 
     // A parenthesised compound. Newlines inside act like `&`. Redirections may
@@ -225,11 +248,11 @@ module.exports = grammar({
       prec.right(
         seq(
           quietPrefix($),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
           alias($._block_open, '('),
           optional($._block_body),
           alias($._block_close, ')'),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
         ),
       ),
     _block_body: ($) =>
@@ -245,12 +268,12 @@ module.exports = grammar({
         PREC.COMMAND,
         seq(
           quietPrefix($),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
           field('name', $.command_name),
           repeat(
             choice(
               field('argument', $.argument),
-              field('redirect', $._redirection),
+              redirected($),
             ),
           ),
         ),
@@ -268,8 +291,19 @@ module.exports = grammar({
         seq(
           quietPrefix($),
           kw($, 'if'),
-          optional(alias(opt('/i'), $.if_flag)),
-          optional(alias(ci('not'), $.not)),
+          optional($._standard_separator),
+          optional(
+            seq(
+              alias(opt('/i'), $.if_flag),
+              optional($._standard_separator),
+            ),
+          ),
+          optional(
+            seq(
+              alias(ci('not'), $.not),
+              optional($._standard_separator),
+            ),
+          ),
           field('condition', $._if_condition),
           // cmd parses the rest of each branch through its operator ladder.
           // `prec.right` keeps a following ELSE attached to this IF.
@@ -283,7 +317,9 @@ module.exports = grammar({
     comparison: ($) =>
       seq(
         field('left', $._if_operand),
+        optional($._if_comparison_separator),
         field('operator', $.comparison_operator),
+        optional($._standard_separator),
         field('right', $._if_operand),
       ),
     comparison_operator: ($) =>
@@ -306,6 +342,7 @@ module.exports = grammar({
             $.condition_keyword,
           ),
         ),
+        optional($._standard_separator),
         field('argument', $._if_operand),
       ),
 
@@ -319,7 +356,7 @@ module.exports = grammar({
       ),
     _parenthesized_if_operand: ($) =>
       prec(1, seq($._lparen, optional($._if_word), $._rparen)),
-    _if_word: ($) => wordOf($, $._if_fragment),
+    _if_word: ($) => standardWordOf($, $._if_fragment),
     _if_fragment: ($) =>
       choice(
         alias($._if_text, $.text),
@@ -332,7 +369,7 @@ module.exports = grammar({
         alias($._lparen, $.text),
         alias($._rparen, $.text),
       ),
-    _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!=]+/),
+    _if_text: ($) => token(/[^ \t\r\n&|<>()^"%!,;=]+/),
 
     // ---------------------------------------------------------------------
     // Control flow — FOR
@@ -343,12 +380,21 @@ module.exports = grammar({
         seq(
           quietPrefix($),
           kw($, 'for'),
-          optional(field('option', $.for_option)),
+          optional($._standard_separator),
+          optional(
+            seq(
+              field('option', $.for_option),
+              optional($._standard_separator),
+            ),
+          ),
           field('variable', $._loop_variable_declaration),
+          optional($._standard_separator),
           kw($, 'in'),
+          optional($._standard_separator),
           alias($._block_open, '('),
           field('set', optional($.for_set)),
           alias($._block_close, ')'),
+          optional($._standard_separator),
           kw($, 'do'),
           // Operators after DO remain inside the loop body.
           field('body', $._statement),
@@ -366,28 +412,38 @@ module.exports = grammar({
         alias(opt('/l'), $.for_flag),
         seq(
           alias(opt('/f'), $.for_flag),
+          optional($._standard_separator),
           optional(field('argument', alias($._for_arg, $.argument))),
         ),
         seq(
           alias(opt('/d'), $.for_flag),
+          optional($._standard_separator),
           optional(
             seq(
               alias(opt('/r'), $.for_flag),
+              optional($._standard_separator),
               optional(field('argument', alias($._for_arg, $.argument))),
             ),
           ),
         ),
         seq(
           alias(opt('/r'), $.for_flag),
+          optional($._standard_separator),
           optional(
             choice(
               seq(
                 alias(opt('/d'), $.for_flag),
+                optional($._standard_separator),
                 optional(field('argument', alias($._for_arg, $.argument))),
               ),
               seq(
                 field('argument', alias($._for_arg, $.argument)),
-                optional(alias(opt('/d'), $.for_flag)),
+                optional(
+                  seq(
+                    optional($._standard_separator),
+                    alias(opt('/d'), $.for_flag),
+                  ),
+                ),
               ),
             ),
           ),
@@ -395,7 +451,7 @@ module.exports = grammar({
       ),
 
     _for_arg: ($) =>
-      wordOf($, $._for_arg_lead, $._fragment),
+      standardWordOf($, $._for_arg_lead, $._standard_fragment),
     _for_arg_lead: ($) =>
       choice(
         alias($._for_arg_text, $.text),
@@ -408,14 +464,15 @@ module.exports = grammar({
         alias($._rparen, $.text),
       ),
     _for_arg_text: ($) =>
-      token(/[^/ \t\r\n&|<>()^"%!][^ \t\r\n&|<>()^"%!]*/),
+      token(/[^/,;= \t\r\n&|<>()^"%!][^,;= \t\r\n&|<>()^"%!]*/),
 
     for_set: ($) =>
       repeat1(
         choice(
-          $.argument,
+          alias($._standard_argument, $.argument),
           $.backquote_string,
           $.single_quote_string,
+          $._standard_separator,
           $._newline,
         ),
       ),
@@ -467,8 +524,9 @@ module.exports = grammar({
         seq(
           quietPrefix($),
           kw($, 'goto'),
+          optional($._standard_separator),
           optional(field('target', $.label_reference)),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
         ),
       ),
 
@@ -492,10 +550,18 @@ module.exports = grammar({
     _label_reference_prefix: ($) =>
       seq(':', optional(token.immediate(/[ \t]+/))),
     _label_reference_name: ($) =>
-      repeat1(choice($._label_reference_text, $._expansion, $._stray_sigil)),
+      repeat1(
+        choice(
+          $._label_reference_text,
+          $.escape_sequence,
+          alias($._caret_escape, $.escape_sequence),
+          $._expansion,
+          $._stray_sigil,
+        ),
+      ),
     _label_reference_text: ($) =>
       token(
-        /[^ \t\r\n:+;,=&|<>()%!](?:[^:\r\n+;,=&|<>()%!]*[^ \t:\r\n+;,=&|<>()%!])?/,
+        /[^ \t\r\n:^+;,=&|<>()%!](?:[^:\r\n^+;,=&|<>()%!]*[^ \t:\r\n^+;,=&|<>()%!])?/,
       ),
     _label_reference_tail: ($) => token(/[:+;,=][^\r\n&|<>)]*/),
 
@@ -506,14 +572,14 @@ module.exports = grammar({
         seq(
           quietPrefix($),
           kw($, 'call'),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
           optional(
             seq(
               field('target', $.argument),
               repeat(
                 choice(
                   field('argument', $.argument),
-                  field('redirect', $._redirection),
+                  redirected($),
                 ),
               ),
             ),
@@ -528,7 +594,7 @@ module.exports = grammar({
       prec.right(
         seq(
           quietPrefix($),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
           kw($, 'set'),
           optional(
             choice(
@@ -539,7 +605,7 @@ module.exports = grammar({
               $.set_display,
             ),
           ),
-          repeat(field('redirect', $._redirection)),
+          repeat(redirected($)),
         ),
       ),
 
@@ -714,14 +780,26 @@ module.exports = grammar({
             'operator',
             alias(token.immediate(/>>|>|</), $.redirect_operator),
           ),
-          field('target', $.argument),
+          $._redirect_file_target,
         ),
         seq(
           field('operator', $.redirect_operator),
-          field('target', $.argument),
+          $._redirect_file_target,
         ),
       ),
     redirect_operator: ($) => token(/>>|>|</),
+    _redirect_file_target: ($) =>
+      choice(
+        field('target', $.argument),
+        seq(
+          $._redirect_target_separator_ahead,
+          field('target', alias($._standard_argument, $.argument)),
+        ),
+        seq(
+          $._standard_separator,
+          field('target', alias($._standard_argument, $.argument)),
+        ),
+      ),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`.
     redirect_dup: ($) =>
@@ -735,10 +813,12 @@ module.exports = grammar({
             'operator',
             alias(token.immediate(/[<>]&/), $.redirect_dup_operator),
           ),
+          optional($._standard_separator),
           field('target', choice($.file_descriptor, $._expansion)),
         ),
         seq(
           field('operator', $.redirect_dup_operator),
+          optional($._standard_separator),
           field('target', choice($.file_descriptor, $._expansion)),
         ),
       ),
@@ -748,7 +828,8 @@ module.exports = grammar({
     // ---------------------------------------------------------------------
     // Words: command names and arguments are runs of adjacent fragments.
     // ---------------------------------------------------------------------
-    command_name: ($) => wordOf($, $._cmd_lead, $._fragment),
+    command_name: ($) =>
+      standardWordOf($, $._cmd_lead, $._standard_fragment),
 
     // The first fragment of a command name may not begin with `@` (quiet) or
     // `:` (label). A lone `%`/`!` sigil can also lead a name: cmd happily parses
@@ -771,9 +852,9 @@ module.exports = grammar({
         prec(
           1,
           choice(
-            /[^ \t\r\n&|<>()^"%!@:,/;=\[\]\\]+[.\\][^ \t\r\n&|<>()^"%!]*/,
-            /\.{1,2}[\\/][^ \t\r\n&|<>()^"%!]*/,
-            /\\\\[^ \t\r\n&|<>()^"%!]*/,
+            /[^ \t\r\n&|<>()^"%!@:,/;=\[\]\\]+[.\\][^ \t\r\n&|<>()^"%!,;=]*/,
+            /\.{1,2}[\\/][^ \t\r\n&|<>()^"%!,;=]*/,
+            /\\\\[^ \t\r\n&|<>()^"%!,;=]*/,
           ),
         ),
       ),
@@ -781,7 +862,7 @@ module.exports = grammar({
     // delimiters. Keep that fallback without letting the same token swallow a
     // delimiter after a recognized keyword such as `set/a`.
     _cmd_punct_lead: ($) =>
-      token(/[.,/;=\[\]\\][^ \t\r\n&|<>()^"%!]*/),
+      token(/[.,/;=\[\]\\][^ \t\r\n&|<>()^"%!,;=]*/),
     // cmd ends an internal-command name at `:.\,/;=[]`, so `goto:eof` is
     // `goto` + `:eof` and `set/a` is `set` + `/a`. Explicit paths and dotted
     // executable names are handled by `_cmd_path`, while a leading drive letter
@@ -789,7 +870,7 @@ module.exports = grammar({
     _cmd_text: ($) =>
       token(
         choice(
-          /[A-Za-z]:[^ \t\r\n&|<>()^"%!]*/,
+          /[A-Za-z]:[^ \t\r\n&|<>()^"%!,;=]*/,
           /[^ \t\r\n&|<>()^"%!@:,./;=\[\]\\][^ \t\r\n&|<>()^"%!:,./;=\[\]\\]*/,
         ),
       ),
@@ -811,6 +892,32 @@ module.exports = grammar({
           ),
         ),
       ),
+
+    // cmd skips `,`, `;`, and `=` when fetching tokens at grammar
+    // boundaries. This word form is used only in those slots. The ordinary
+    // `argument` rule keeps the same punctuation literal in command tails.
+    _standard_argument: ($) => standardWordOf($, $._standard_fragment),
+    _standard_fragment: ($) =>
+      choice(
+        alias($._standard_text, $.text),
+        $.string,
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
+        $._expansion,
+        alias($._stray_sigil, $.text),
+        alias($._lparen, $.text),
+        alias($._rparen, $.text),
+      ),
+    _standard_text: ($) => token(/[^ \t\r\n&|<>()^"%!,;=]+/),
+
+    // These stay hidden in the CST, like spaces in the same parser slots. A
+    // token covers the full run, including interleaved spaces/continuations,
+    // so an optional separator does not make following CST fields repeatable.
+    // Lexical precedence keeps a leading run out of `_cmd_punct_lead`.
+    _standard_separator: ($) =>
+      token(prec(2, /[,;=](?:(?:[ \t]|\^\r?\n)*[,;=])*/)),
+    _if_comparison_separator: ($) =>
+      token(prec(2, /[,;](?:(?:[ \t]|\^\r?\n)*[,;])*/)),
 
     _fragment: ($) =>
       choice(
@@ -926,7 +1033,7 @@ module.exports = grammar({
     rem_comment: ($) =>
       seq(
         quietPrefix($),
-        repeat(field('redirect', $._redirection)),
+        repeat(redirected($)),
         alias($._rem, $.keyword),
         optional(alias($._rem_text, $.comment_text)),
       ),

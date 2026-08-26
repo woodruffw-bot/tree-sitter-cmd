@@ -220,7 +220,10 @@ fn script_extensions_are_case_insensitive() {
 #[test]
 fn recovery_node_diagnostics_include_locations() {
     let cases: &[(&[u8], &str)] = &[
-        (b"echo before >\necho after\n", "1:13 (bytes 12..13): ERROR"),
+        (
+            b"echo before >\necho after\n",
+            "1:14 (bytes 13..13): MISSING text",
+        ),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
     ];
 

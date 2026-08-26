@@ -945,6 +945,10 @@
         {
           "type": "_expansion",
           "named": true
+        },
+        {
+          "type": "escape_sequence",
+          "named": true
         }
       ]
     }
@@ -1852,6 +1856,11 @@
     }
   },
   {
+    "type": "text",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "unary_condition",
     "named": true,
     "fields": {
@@ -2022,10 +2031,6 @@
   },
   {
     "type": "set_ignored_suffix",
-    "named": true
-  },
-  {
-    "type": "text",
     "named": true
   },
   {

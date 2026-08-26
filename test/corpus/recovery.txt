@@ -11,9 +11,11 @@ echo after
   (command
     name: (command_name)
     argument: (argument
-      (text)))
-  (ERROR
-    (redirect_operator))
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (MISSING text))))
   (command
     name: (command_name)
     argument: (argument
@@ -36,9 +38,9 @@ echo before
         (text)))
     (MISSING ")")))
 
-========================================
-malformed if beside concatenated fragments
-========================================
+============================================================
+malformed IF stays on its line beside concatenated fragments
+============================================================
 
 if == echo pre%VAR%post
 echo after
@@ -47,11 +49,10 @@ echo after
 
 (program
   (ERROR
-    (keyword))
+    (keyword)
+    (text))
   (command
-    name: (command_name)
-    argument: (argument
-      (text)
+    name: (command_name
       (variable)
       (text)))
   (command
