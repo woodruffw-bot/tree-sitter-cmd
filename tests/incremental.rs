@@ -114,6 +114,17 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
+        ("echo hi\necho tail\n", "echo hi", "^echo hi"),
+        (
+            "if exist x echo hi\necho tail\n",
+            "echo hi",
+            "^echo hi",
+        ),
+        (
+            "for %%i in (x) do echo %%i\necho tail\n",
+            "echo %%i",
+            "^echo %%i",
+        ),
     ];
 
     for (before, needle, replacement) in cases {

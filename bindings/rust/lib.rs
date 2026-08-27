@@ -190,6 +190,30 @@ mod tests {
     }
 
     #[test]
+    fn test_caret_led_controller_bodies_remain_commands() {
+        let source = concat!(
+            "if exist x ^echo hi\r\n",
+            "for %%i in (x) do ^%RUN% %%i\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        for (index, field, expected_name) in [
+            (0, "consequence", "^echo"),
+            (1, "body", "^%RUN%"),
+        ] {
+            let controller = tree
+                .root_node()
+                .named_child(index)
+                .expect("controller");
+            let body = only_field(controller, field);
+            assert_eq!(body.kind(), "command");
+            let name = only_field(body, "name");
+            assert_eq!(&source[name.byte_range()], expected_name);
+        }
+    }
+
+    #[test]
     fn test_if_operands_and_call_target_have_one_field() {
         let source = "if (a)==(b) call :sub arg\r\n";
         let tree = parse(source);

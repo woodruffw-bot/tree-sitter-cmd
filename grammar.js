@@ -1019,6 +1019,8 @@ module.exports = grammar({
         $._cmd_punct_lead,
         $._cmd_text,
         $.string,
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
       ),

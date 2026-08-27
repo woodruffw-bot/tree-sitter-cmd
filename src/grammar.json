@@ -3786,6 +3786,19 @@
         },
         {
           "type": "SYMBOL",
+          "name": "escape_sequence"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
+        },
+        {
+          "type": "SYMBOL",
           "name": "_expansion"
         },
         {

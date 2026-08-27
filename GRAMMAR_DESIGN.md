@@ -195,6 +195,11 @@ Two distinct mechanisms:
   `CARET_ESCAPE`: in cmd `^%VAR%` expands `%VAR%` first and the caret escapes the
   result, so the caret must not swallow the `%`/`!`.
 
+An escape may begin a generic command name. The CST keeps the source-backed
+`escape_sequence`, so `^echo` is one command name whose first fragment is
+`^e`. It does not become the built-in spelling `echo` in the tree. Likewise,
+caret-built IF, FOR, and REM keywords remain outside the grammar's phase model.
+
 Caret inside quotes is a known imprecision: `^` is literal inside `"..."` in
 phase 2, but phase 5 removes carets even inside quotes when the line contains a
 `!` (the `^^!` idiom). A context-free grammar cannot model that conditional pass.

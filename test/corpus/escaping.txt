@@ -167,3 +167,87 @@ echo Usage: build.bat ^<target^>
       (escape_sequence)
       (text)
       (escape_sequence))))
+
+====================================
+caret escapes stay in command names
+====================================
+
+^echo hi
+^if 1==1 echo generic
+^%RUN% arg
+
+---
+
+(program
+  (command
+    name: (command_name
+      (escape_sequence)
+      (text))
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name
+      (escape_sequence)
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name
+      (escape_sequence)
+      (variable))
+    argument: (argument
+      (text))))
+
+========================================
+caret command leads start controller bodies
+========================================
+
+if exist x ^echo hi
+for %%i in (x) do ^echo %%i
+if exist x ^%RUN% hi
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name
+        (escape_sequence)
+        (text))
+      argument: (argument
+        (text))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name
+        (escape_sequence)
+        (text))
+      argument: (argument
+        (loop_variable))))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name
+        (escape_sequence)
+        (variable))
+      argument: (argument
+        (text)))))

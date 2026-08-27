@@ -394,6 +394,17 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // operand from the following command. Continue only for body starts whose
     // external tokens must be considered in this same scanner call.
     int32_t c = lexer->lookahead;
+    if (skipped_space && c == '^') {
+      if (valid_symbols[CARET_ESCAPE]) {
+        lexer->advance(lexer, false);
+        lexer->mark_end(lexer);
+        if (lexer->lookahead == '%' || lexer->lookahead == '!') {
+          lexer->result_symbol = CARET_ESCAPE;
+          return true;
+        }
+      }
+      return false;
+    }
     if (c == '(' && skipped_space && valid_symbols[BLOCK_OPEN]) {
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
