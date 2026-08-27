@@ -64,6 +64,25 @@ println!("{}", tree.root_node().to_sexp());
 The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY`. Only Rust bindings
 are provided.
 
+### Input encoding
+
+This crate provides a Tree-sitter language, not a file loader. The caller must
+select or decode the script's encoding before parsing it:
+
+- Pass UTF-8 to Tree-sitter's default parse API. A leading UTF-8 byte-order
+  mark is handled by Tree-sitter itself.
+- Use Tree-sitter's UTF-16LE, UTF-16BE, or custom-encoding input API when the
+  binding provides one and original input offsets must be preserved.
+- For an OEM code page, select the code page from external context. Batch files
+  do not contain enough information for this grammar to infer it.
+- Reject mixed-encoding input or normalize it in an explicit preprocessing
+  step. One Tree-sitter input has one encoding.
+
+Node byte ranges refer to the buffer passed to Tree-sitter. If a caller
+transcodes a file to UTF-8, ranges refer to the transcoded bytes. Callers that
+need original file offsets must retain their own offset map or use an
+encoding-aware Tree-sitter input API.
+
 ## Testing
 
 ```sh
@@ -73,7 +92,7 @@ cargo test       # Rust and real-world regression tests
 ```
 
 The unit corpus contains focused inputs and expected syntax trees. Rust
-integration tests parse upstream scripts from raw bytes and reject `ERROR` or
+integration tests parse UTF-8 upstream fixture bytes and reject `ERROR` or
 `MISSING` nodes. Each fixture retains its third-party license. See
 [`test/real-world/README.md`](test/real-world/README.md).
 

@@ -61,6 +61,24 @@ The grammar keeps the Windows label-vs-comment distinction: `:name` is a jump
 target and `::...` is a comment label. ReactOS collapses both into "comment";
 this grammar does not.
 
+### Input encoding
+
+The grammar consumes decoded characters. It does not detect a batch file's
+encoding or choose an OEM code page. Those decisions belong to the caller
+because they depend on file metadata, the active console code page, or other
+external context.
+
+The default Tree-sitter input API expects UTF-8. Tree-sitter also provides
+UTF-16LE, UTF-16BE, and custom-decoder input APIs. Callers may use those APIs to
+keep offsets in the original encoded buffer, or transcode to UTF-8 before
+parsing. After transcoding, CST byte ranges refer to the UTF-8 buffer, not the
+original file. A caller that needs both must retain an offset map.
+
+A leading Unicode byte-order mark is handled by Tree-sitter's lexer. Mixed
+encodings have no implicit recovery policy: callers must reject them or
+normalize them before parsing. The Rust real-world fixture harness deliberately
+accepts UTF-8 files only so it does not silently test an unknown decoder.
+
 ## 2. Why cmd is hard to parse
 
 `cmd.exe` has no whole-file grammar. Each logical line is read, expanded,
