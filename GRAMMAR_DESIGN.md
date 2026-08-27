@@ -139,7 +139,9 @@ counter:
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
-| `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
+| `DANGLING_AND_OPERATOR` / `DANGLING_OR_OPERATOR` / `DANGLING_PIPE_OPERATOR` | source-backed required operators whose remaining logical line contains no operand; normal operators stay internal tokens |
+| `CONTINUED_DANGLING_AND_OPERATOR` / `CONTINUED_DANGLING_OR_OPERATOR` / `CONTINUED_DANGLING_PIPE_OPERATOR` | the same source-backed operators after one or more preceding caret-newline extras; the returned range remains the exact operator spelling |
+| `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used after a dangling required operator or when an IF/ELSE/FOR body is absent |
 | `COMMAND_START` | deliberately unavailable after those markers, producing a genuine anonymous MISSING `"command"` error |
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
@@ -152,11 +154,26 @@ During error recovery, the scanner declines zero-width tokens but still emits a
 real `BLOCK_CLOSE`. This keeps an error inside a block from consuming later
 commands. Missing controller bodies are the exception before recovery begins:
 the two boundary markers are aliased to anonymous implementation terminals, and
-the required `COMMAND_START` is never emitted. The named CST therefore contains
-no normal placeholder node: the body is a genuine MISSING `"command"`, and the
-next physical line remains a separate statement. Two markers make that local
-recovery cheaper than skipping the boundary even when a file has several
-missing bodies.
+the required `COMMAND_START` is never emitted. Required operators add a
+source-backed distinction: the scanner emits a dangling token only when
+lookahead reaches LF, CRLF, EOF, or a close of the current block after optional
+horizontal space, raw operator-only suffixes, and caret-newline continuations.
+Otherwise a normal internal regex token handles the required operator. A
+separate composite token makes the same decision after one or more preceding
+caret-newline extras while exposing only the exact operator spelling as the
+token range. The normal regex has the same hidden-boundary alternative as a
+fallback for lexical contexts whose scanner must preserve another token's
+range, such as ignored text after a quoted SET binding. The boundary markers
+can look through repeated caret-newline extras only to prove that the eventual
+position is still a boundary; if a real token follows, ordinary continuation
+and adjacency lexing restarts unchanged. At a line/input boundary, the hidden
+markers make the right operand a genuine MISSING `"command"` rather than a
+normal placeholder, and the next physical line remains a separate statement.
+Before a block close, the dangling token instead remains genuine parser
+recovery and cannot consume past that close. A continuation after an operator
+selects the normal path when an operand follows; if it reaches an empty line or
+EOF, the operator remains dangling and cannot adopt a command from a later
+physical line.
 
 ## 4. The parenthesis model
 

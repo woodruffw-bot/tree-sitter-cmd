@@ -151,6 +151,43 @@ function quietPrefix($) {
   );
 }
 
+/** A required binary operator, including its line-local missing-RHS path. */
+function requiredOperator(
+  $,
+  operator,
+  danglingOperator,
+  continuedDanglingOperator,
+  spelling,
+) {
+  return choice(
+    seq(
+      // Keep the normal spelling as a regex token. A string literal has higher
+      // lexical priority than an equal-length external token and would hide the
+      // source-backed dangling path at newline/EOF.
+      alias(operator, spelling),
+      field('right', $._statement),
+    ),
+    seq(
+      alias(danglingOperator, spelling),
+      alias($.body_boundary, '_body_boundary'),
+      alias($.body_boundary_again, '_body_boundary'),
+      field('right', alias($._command_start, 'command')),
+    ),
+    seq(
+      alias(continuedDanglingOperator, spelling),
+      alias($.body_boundary, '_body_boundary'),
+      alias($.body_boundary_again, '_body_boundary'),
+      field('right', alias($._command_start, 'command')),
+    ),
+    seq(
+      alias(operator, spelling),
+      alias($.body_boundary, '_body_boundary'),
+      alias($.body_boundary_again, '_body_boundary'),
+      field('right', alias($._command_start, 'command')),
+    ),
+  );
+}
+
 module.exports = grammar({
   name: 'cmd',
 
@@ -172,6 +209,12 @@ module.exports = grammar({
     $._set_ignored_suffix,
     $._label_leading_space,
     $._set_binding_end,
+    $._dangling_and_operator,
+    $._dangling_or_operator,
+    $._dangling_pipe_operator,
+    $._continued_dangling_and_operator,
+    $._continued_dangling_or_operator,
+    $._continued_dangling_pipe_operator,
     $.body_boundary,
     $.body_boundary_again,
     $._command_start,
@@ -249,19 +292,46 @@ module.exports = grammar({
     or_list: ($) =>
       prec.left(
         PREC.OR,
-        seq(field('left', $._statement), '||', field('right', $._statement)),
+        seq(
+          field('left', $._statement),
+          requiredOperator(
+            $,
+            token(/\|\|/),
+            $._dangling_or_operator,
+            $._continued_dangling_or_operator,
+            '||',
+          ),
+        ),
       ),
 
     and_list: ($) =>
       prec.left(
         PREC.AND,
-        seq(field('left', $._statement), '&&', field('right', $._statement)),
+        seq(
+          field('left', $._statement),
+          requiredOperator(
+            $,
+            token(/&&/),
+            $._dangling_and_operator,
+            $._continued_dangling_and_operator,
+            '&&',
+          ),
+        ),
       ),
 
     pipeline: ($) =>
       prec.left(
         PREC.PIPE,
-        seq(field('left', $._statement), '|', field('right', $._statement)),
+        seq(
+          field('left', $._statement),
+          requiredOperator(
+            $,
+            token(/\|/),
+            $._dangling_pipe_operator,
+            $._continued_dangling_pipe_operator,
+            '|',
+          ),
+        ),
       ),
 
     // A `@` echo-suppress prefix may precede any command form, not just a

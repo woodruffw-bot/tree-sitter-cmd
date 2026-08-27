@@ -224,6 +224,18 @@ fn assert_no_empty_command_names(node: Node<'_>) {
     }
 }
 
+fn find_first_kind<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>> {
+    if node.kind() == kind {
+        return Some(node);
+    }
+
+    let mut cursor = node.walk();
+    let found = node
+        .children(&mut cursor)
+        .find_map(|child| find_first_kind(child, kind));
+    found
+}
+
 #[test]
 fn script_extensions_are_case_insensitive() {
     assert!(is_script(Path::new("fixture.bat")));
@@ -247,6 +259,10 @@ fn recovery_node_diagnostics_include_locations() {
         (
             b"for %%i in (one) do\n",
             "1:20 (bytes 19..19): MISSING command",
+        ),
+        (
+            b"echo left &&\necho tail\n",
+            "1:13 (bytes 12..12): MISSING command",
         ),
     ];
 
@@ -322,6 +338,215 @@ fn malformed_control_flow_bodies_stay_local() {
         );
         assert_no_empty_command_names(root);
     }
+}
+
+#[test]
+fn malformed_operator_operands_stay_local() {
+    let next_line_cases: &[(&[u8], &str, &str, &[u8])] = &[
+        (
+            b"echo left >out &&\necho tail\n",
+            "and_list",
+            "command",
+            b"&&",
+        ),
+        (
+            b"set \"x=y\" ||\ngoto tail\n",
+            "or_list",
+            "goto_statement",
+            b"||",
+        ),
+        (
+            b"(echo left) |\n(echo tail)\n",
+            "pipeline",
+            "block",
+            b"|",
+        ),
+    ];
+
+    for &(source, operator_kind, tail_kind, spelling) in next_line_cases {
+        let tree = parser().parse(source, None).expect("malformed parse");
+        let root = tree.root_node();
+        assert!(root.has_error(), "missing operand parsed without recovery");
+        assert_eq!(root.named_child_count(), 2);
+
+        let operator = root.named_child(0).expect("operator expression");
+        let tail = root.named_child(1).expect("next-line command");
+        let right = operator
+            .child_by_field_name("right")
+            .expect("missing right operand");
+        let mut cursor = operator.walk();
+        let source_operator = operator
+            .children(&mut cursor)
+            .find(|child| {
+                !child.is_named()
+                    && !child.is_missing()
+                    && &source[child.byte_range()] == spelling
+            })
+            .expect("source-backed operator token");
+
+        assert_eq!(operator.kind(), operator_kind);
+        assert!(operator.has_error(), "operator lost missing-operand state");
+        assert_eq!(operator.end_position().row, 0);
+        assert_eq!(right.kind(), "command");
+        assert!(right.is_missing(), "right operand became a normal command");
+        assert_eq!(&source[source_operator.byte_range()], spelling);
+        assert_eq!(tail.kind(), tail_kind);
+        assert_eq!(tail.start_position().row, 1);
+        assert!(!tail.has_error(), "next-line command entered recovery");
+        assert_no_empty_command_names(root);
+    }
+
+    let continued_cases: &[(&[u8], &str, &str, &[u8], usize)] = &[
+        (
+            b"echo left ^\n^\n&&\necho tail\n",
+            "and_list",
+            "command",
+            b"&&",
+            3,
+        ),
+        (
+            b"echo left ||^\n\necho tail\n",
+            "or_list",
+            "command",
+            b"||",
+            2,
+        ),
+        (
+            b"echo left |^\r\n\r\necho tail\r\n",
+            "pipeline",
+            "command",
+            b"|",
+            2,
+        ),
+        (
+            b"set \"x=y\" ^\n||\ngoto tail\n",
+            "or_list",
+            "goto_statement",
+            b"||",
+            2,
+        ),
+    ];
+
+    for &(source, operator_kind, tail_kind, spelling, tail_row) in continued_cases {
+        let tree = parser()
+            .parse(source, None)
+            .expect("continued malformed parse");
+        let root = tree.root_node();
+        let operator = root.named_child(0).expect("operator expression");
+        let tail = root.named_child(1).expect("next-line command");
+        let right = operator
+            .child_by_field_name("right")
+            .expect("missing right operand");
+        let mut cursor = operator.walk();
+        let source_operator = operator
+            .children(&mut cursor)
+            .find(|child| {
+                !child.is_named()
+                    && !child.is_missing()
+                    && &source[child.byte_range()] == spelling
+            })
+            .expect("source-backed operator token");
+
+        assert!(root.has_error());
+        assert_eq!(root.named_child_count(), 2);
+        assert_eq!(operator.kind(), operator_kind);
+        assert!(operator.has_error());
+        assert_eq!(right.kind(), "command");
+        assert!(right.is_missing());
+        assert_eq!(&source[source_operator.byte_range()], spelling);
+        assert_eq!(tail.kind(), tail_kind);
+        assert_eq!(tail.start_position().row, tail_row);
+        assert!(operator.end_position().row < tail.start_position().row);
+        assert!(!tail.has_error());
+        assert_no_empty_command_names(root);
+    }
+
+    let source = b"(echo left &&)\necho tail\n";
+    let tree = parser().parse(source, None).expect("malformed block parse");
+    let root = tree.root_node();
+    let block = root.named_child(0).expect("recovered block");
+    let tail = root.named_child(1).expect("next-line command");
+    assert!(root.has_error());
+    assert_eq!(root.named_child_count(), 2);
+    assert_eq!(block.kind(), "block");
+    assert!(block.has_error());
+    assert_eq!(block.end_position().row, 0);
+    assert_eq!(tail.kind(), "command");
+    assert_eq!(tail.start_position().row, 1);
+    assert!(!tail.has_error());
+    assert_no_empty_command_names(root);
+
+    for source in [
+        b"echo a |||\necho tail\n".as_slice(),
+        b"echo a | |\necho tail\n".as_slice(),
+        b"echo a &&||\necho tail\n".as_slice(),
+        b"echo a &&&\necho tail\n".as_slice(),
+    ] {
+        let tree = parser().parse(source, None).expect("malformed chain parse");
+        let root = tree.root_node();
+        let tail_index = root.named_child_count() - 1;
+        let tail = root
+            .named_child(tail_index as u32)
+            .expect("next-line command");
+
+        assert!(root.has_error());
+        assert_eq!(tail.kind(), "command");
+        assert_eq!(tail.start_position().row, 1);
+        assert!(!tail.has_error());
+        for index in 0..tail_index {
+            assert_eq!(
+                root.named_child(index as u32)
+                    .expect("line-local recovery")
+                    .end_position()
+                    .row,
+                0,
+                "operator recovery crossed the newline: {}",
+                root.to_sexp(),
+            );
+        }
+        assert_no_empty_command_names(root);
+    }
+
+    for &(source, operator_kind, spelling) in &[
+        (b"echo left &&".as_slice(), "and_list", b"&&".as_slice()),
+        (b"echo left ||  ".as_slice(), "or_list", b"||".as_slice()),
+        (b"echo left |".as_slice(), "pipeline", b"|".as_slice()),
+    ] {
+        let tree = parser().parse(source, None).expect("malformed EOF parse");
+        let root = tree.root_node();
+        let operator = root.named_child(0).expect("operator expression");
+        let right = operator
+            .child_by_field_name("right")
+            .expect("missing right operand");
+        let mut cursor = operator.walk();
+        let source_operator = operator
+            .children(&mut cursor)
+            .find(|child| {
+                !child.is_named()
+                    && !child.is_missing()
+                    && &source[child.byte_range()] == spelling
+            })
+            .expect("source-backed operator token");
+
+        assert!(root.has_error(), "missing EOF operand parsed cleanly");
+        assert_eq!(root.named_child_count(), 1);
+        assert_eq!(operator.kind(), operator_kind);
+        assert_eq!(right.kind(), "command");
+        assert!(right.is_missing(), "EOF operand became a normal command");
+        assert_eq!(&source[source_operator.byte_range()], spelling);
+        assert_no_empty_command_names(root);
+    }
+}
+
+#[test]
+fn operator_recovery_preserves_quoted_set_suffix_ranges() {
+    let source = b"set \"x=y\" tail\n";
+    let tree = parser().parse(source, None).expect("quoted SET parse");
+    let root = tree.root_node();
+    let suffix = find_first_kind(root, "set_ignored_suffix").expect("ignored suffix");
+
+    assert!(!root.has_error());
+    assert_eq!(&source[suffix.byte_range()], b" tail");
 }
 
 #[test]

@@ -212,6 +212,142 @@ fn deleting_control_flow_body_keeps_next_line_separate() {
     }
 }
 
+#[test]
+fn deleting_operator_operand_keeps_next_line_separate() {
+    let cases = [
+        (
+            "echo left && echo body\necho tail\n",
+            "and_list",
+            "&&",
+        ),
+        (
+            "echo left || echo body\necho tail\n",
+            "or_list",
+            "||",
+        ),
+        (
+            "echo left | echo body\necho tail\n",
+            "pipeline",
+            "|",
+        ),
+    ];
+
+    for (before, operator_kind, spelling) in cases {
+        let needle = " echo body";
+        let start = before.find(needle).expect("operand text");
+        let (incremental, edited) = edited_tree(
+            before.as_bytes(),
+            start..start + needle.len(),
+            b"",
+        );
+        let fresh = parser()
+            .parse(edited.as_slice(), None)
+            .expect("fresh malformed parse");
+
+        assert_eq!(incremental.root_node().to_sexp(), fresh.root_node().to_sexp());
+        assert!(incremental.root_node().has_error());
+        assert!(fresh.root_node().has_error());
+
+        for tree in [&incremental, &fresh] {
+            let root = tree.root_node();
+            assert_eq!(root.named_child_count(), 2);
+            let operator = root.named_child(0).expect("operator expression");
+            let tail = root.named_child(1).expect("tail command");
+            let right = operator
+                .child_by_field_name("right")
+                .expect("missing right operand");
+            let mut cursor = operator.walk();
+            let source_operator = operator
+                .children(&mut cursor)
+                .find(|child| {
+                    !child.is_named()
+                        && !child.is_missing()
+                        && &edited[child.byte_range()] == spelling.as_bytes()
+                })
+                .expect("source-backed operator token");
+
+            assert_eq!(operator.kind(), operator_kind);
+            assert!(operator.has_error());
+            assert_eq!(operator.end_position().row, 0);
+            assert_eq!(right.kind(), "command");
+            assert!(right.is_missing());
+            assert_eq!(&edited[source_operator.byte_range()], spelling.as_bytes());
+            assert_eq!(tail.kind(), "command");
+            assert_eq!(tail.start_position().row, 1);
+            assert!(!tail.has_error());
+        }
+    }
+}
+
+#[test]
+fn deleting_continued_operator_operands_keeps_next_line_separate() {
+    let cases = [
+        (
+            "echo left ^\r\n&& echo body\r\necho tail\r\n",
+            " echo body",
+            "and_list",
+            "&&",
+            2,
+        ),
+        (
+            "echo left ^\r\n^\r\n| echo body\r\necho tail\r\n",
+            " echo body",
+            "pipeline",
+            "|",
+            3,
+        ),
+        (
+            "echo left ||^\r\necho body\r\necho tail\r\n",
+            "echo body",
+            "or_list",
+            "||",
+            2,
+        ),
+    ];
+
+    for (before, needle, operator_kind, spelling, tail_row) in cases {
+        let start = before.find(needle).expect("operand text");
+        let (incremental, edited) = edited_tree(
+            before.as_bytes(),
+            start..start + needle.len(),
+            b"",
+        );
+        let fresh = parser()
+            .parse(edited.as_slice(), None)
+            .expect("fresh malformed parse");
+
+        assert_eq!(incremental.root_node().to_sexp(), fresh.root_node().to_sexp());
+        for tree in [&incremental, &fresh] {
+            let root = tree.root_node();
+            let operator = root.named_child(0).expect("operator expression");
+            let tail = root.named_child(1).expect("tail command");
+            let right = operator
+                .child_by_field_name("right")
+                .expect("missing right operand");
+            let mut cursor = operator.walk();
+            let source_operator = operator
+                .children(&mut cursor)
+                .find(|child| {
+                    !child.is_named()
+                        && !child.is_missing()
+                        && &edited[child.byte_range()] == spelling.as_bytes()
+                })
+                .expect("source-backed operator token");
+
+            assert!(root.has_error());
+            assert_eq!(root.named_child_count(), 2);
+            assert_eq!(operator.kind(), operator_kind);
+            assert_eq!(right.kind(), "command");
+            assert!(right.is_missing());
+            assert_eq!(&edited[source_operator.byte_range()], spelling.as_bytes());
+            assert_eq!(tail.kind(), "command");
+            assert_eq!(tail.start_position().row, tail_row);
+            assert!(operator.end_position().row < tail.start_position().row);
+            assert!(!tail.has_error());
+        }
+    }
+}
+
 fn parse_chunked(source: &[u8], chunk_size: usize) -> Tree {
     parser()
         .parse_with_options(
@@ -255,6 +391,55 @@ fn chunked_input_matches_contiguous_input() {
         assert_eq!(
             chunked.root_node().has_error(),
             contiguous.root_node().has_error(),
+            "error state differs at chunk size {chunk_size}",
+        );
+    }
+}
+
+#[test]
+fn chunked_missing_operator_operands_match_contiguous_input() {
+    let source = concat!(
+        "echo continued ^\r\n",
+        "^\r\n",
+        "&&\r\n",
+        "echo after-continued\r\n",
+        "echo continued-after ||^\r\n",
+        "\r\n",
+        "echo after-continued-after\r\n",
+        "echo and &&  \r\n",
+        "echo after-and\r\n",
+        "set \"x=y\" ^\r\n",
+        "||\r\n",
+        "goto after-or\r\n",
+        "(echo pipe) |\r\n",
+        "(echo after-pipe)\r\n",
+    )
+    .as_bytes();
+    let contiguous = parser().parse(source, None).expect("contiguous parse");
+    let root = contiguous.root_node();
+    assert!(root.has_error());
+    assert_eq!(root.named_child_count(), 10);
+
+    for index in [0, 2, 4, 6, 8] {
+        let operator = root.named_child(index).expect("operator expression");
+        let right = operator
+            .child_by_field_name("right")
+            .expect("missing right operand");
+        let tail = root.named_child(index + 1).expect("next-line command");
+        assert!(right.is_missing());
+        assert!(!tail.has_error());
+    }
+
+    for chunk_size in [1, 2, 3, 7, 64] {
+        let chunked = parse_chunked(source, chunk_size);
+        assert_eq!(
+            chunked.root_node().to_sexp(),
+            root.to_sexp(),
+            "tree differs at chunk size {chunk_size}",
+        );
+        assert_eq!(
+            chunked.root_node().has_error(),
+            root.has_error(),
             "error state differs at chunk size {chunk_size}",
         );
     }

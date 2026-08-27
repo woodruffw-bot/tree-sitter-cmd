@@ -235,3 +235,145 @@ for %%i in (one) do
         (text)))
     (keyword)
     body: (MISSING "command")))
+
+==========================================================
+required operators do not consume the next physical line
+==========================================================
+
+echo left &&
+echo after-and
+echo left ||
+echo after-or
+echo left |
+echo after-pipe
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (or_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (pipeline
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+===================================================
+incomplete AND operand at EOF retains error state
+===================================================
+
+echo left &&
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command")))
+
+==================================================
+incomplete OR operand at EOF retains error state
+==================================================
+
+echo left ||
+
+---
+
+(program
+  (or_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command")))
+
+====================================================
+incomplete pipe operand at EOF retains error state
+====================================================
+
+echo left |
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command")))
+
+================================================================
+continued required operators still keep a missing operand local
+================================================================
+
+echo and ^
+^
+&&
+echo after-and
+echo or ||^
+
+echo after-or
+echo pipe ^
+|
+echo after-pipe
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (or_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (pipeline
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))

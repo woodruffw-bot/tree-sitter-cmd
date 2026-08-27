@@ -135,6 +135,10 @@
           },
           {
             "type": "command",
+            "named": false
+          },
+          {
+            "type": "command",
             "named": true
           },
           {
@@ -1084,6 +1088,10 @@
           },
           {
             "type": "command",
+            "named": false
+          },
+          {
+            "type": "command",
             "named": true
           },
           {
@@ -1211,6 +1219,10 @@
           {
             "type": "colon_comment",
             "named": true
+          },
+          {
+            "type": "command",
+            "named": false
           },
           {
             "type": "command",

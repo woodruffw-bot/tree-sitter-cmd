@@ -46,12 +46,24 @@
 //   SET_BINDING_END
 //                - zero-width confirmation that the next non-horizontal byte
 //                  after a redirected unquoted SET name is its `=` delimiter.
+//   DANGLING_AND_OPERATOR / DANGLING_OR_OPERATOR / DANGLING_PIPE_OPERATOR
+//                - source-backed `&&`, `||`, and `|` tokens emitted when they
+//                  reach newline, EOF, or an open block's close without a right
+//                  operand. The grammar requires a deliberately unavailable
+//                  COMMAND_START after them, retaining a genuine anonymous
+//                  MISSING command on the operator's own line.
+//   CONTINUED_DANGLING_*_OPERATOR
+//                - the same operator tokens when one or more immediately
+//                  preceding caret-newline extras would otherwise let the
+//                  internal lexer bypass the dangling-token decision.
 //   BODY_BOUNDARY
 //                - zero-width marker at newline or EOF when an IF/ELSE/FOR body
-//                  is absent. The grammar aliases it to an anonymous
-//                  implementation terminal; its visibility to error recovery
-//                  makes skipping the real boundary costlier than recording
-//                  the required MISSING command.
+//                  or required operator operand is absent. It may look through
+//                  caret-newline extras to an eventual boundary. The grammar
+//                  aliases it to an anonymous implementation terminal; its
+//                  visibility to error recovery makes skipping the real
+//                  boundary costlier than recording the required MISSING
+//                  command.
 //   BODY_BOUNDARY_AGAIN
 //                - the second hidden marker at the same physical boundary.
 //   COMMAND_START
@@ -93,6 +105,12 @@ enum TokenType {
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
   SET_BINDING_END,
+  DANGLING_AND_OPERATOR,
+  DANGLING_OR_OPERATOR,
+  DANGLING_PIPE_OPERATOR,
+  CONTINUED_DANGLING_AND_OPERATOR,
+  CONTINUED_DANGLING_OR_OPERATOR,
+  CONTINUED_DANGLING_PIPE_OPERATOR,
   BODY_BOUNDARY,
   BODY_BOUNDARY_AGAIN,
   COMMAND_START,
@@ -320,6 +338,137 @@ static bool scan_rem(TSLexer *lexer) {
   return false;
 }
 
+static bool operator_tail_reaches_boundary(const Scanner *s, TSLexer *lexer) {
+  // A raw operator cannot begin the required command. If the remainder of this
+  // logical line contains only more operator bytes, horizontal space, and
+  // caret-newline continuations, the first operator is already dangling.
+  // Marking it before parser recovery starts prevents malformed runs such as
+  // `|||` or `&&&`, and an operator continued onto an empty physical line, from
+  // adopting a later command as the first operator's right operand.
+  for (;;) {
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+    }
+    if (lexer->lookahead == '&' || lexer->lookahead == '|') {
+      lexer->advance(lexer, false);
+      continue;
+    }
+    if (lexer->lookahead == '^') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '\r') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead != '\n') return false;
+      } else if (lexer->lookahead != '\n') {
+        return false;
+      }
+      lexer->advance(lexer, false);
+      continue;
+    }
+    break;
+  }
+
+  bool at_boundary = lexer->eof(lexer) || lexer->lookahead == '\n' ||
+                     (s->depth > 0 && lexer->lookahead == ')');
+  if (lexer->lookahead == '\r') {
+    lexer->advance(lexer, false);
+    at_boundary = lexer->lookahead == '\n';
+  }
+  return at_boundary;
+}
+
+// Match a required operator only when source lookahead proves its operand is
+// absent. A caret continuation followed by an operand selects the ordinary
+// internal operator token; one that reaches another boundary is still dangling.
+static bool scan_dangling_operator(const Scanner *s, TSLexer *lexer,
+                                   const bool *valid_symbols) {
+  enum TokenType symbol;
+
+  if (lexer->lookahead == '&' &&
+      valid_symbols[DANGLING_AND_OPERATOR]) {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != '&') return false;
+    lexer->advance(lexer, false);
+    symbol = DANGLING_AND_OPERATOR;
+  } else if (lexer->lookahead == '|' &&
+             (valid_symbols[DANGLING_OR_OPERATOR] ||
+              valid_symbols[DANGLING_PIPE_OPERATOR])) {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '|') {
+      if (!valid_symbols[DANGLING_OR_OPERATOR]) return false;
+      lexer->advance(lexer, false);
+      symbol = DANGLING_OR_OPERATOR;
+    } else {
+      if (!valid_symbols[DANGLING_PIPE_OPERATOR]) return false;
+      symbol = DANGLING_PIPE_OPERATOR;
+    }
+  } else {
+    return false;
+  }
+
+  lexer->mark_end(lexer);
+  if (!operator_tail_reaches_boundary(s, lexer)) return false;
+  lexer->result_symbol = symbol;
+  return true;
+}
+
+// Match a required operator at its own boundary when preceding caret-newline
+// extras would otherwise be consumed together with the normal internal
+// operator token. The continuations are skipped, so the returned token range is
+// exactly the source operator spelling.
+static bool scan_continued_dangling_operator(const Scanner *s, TSLexer *lexer,
+                                             const bool *valid_symbols) {
+  lexer->advance(lexer, false);
+  lexer->mark_end(lexer);
+  if (valid_symbols[CARET_ESCAPE] &&
+      (lexer->lookahead == '%' || lexer->lookahead == '!')) {
+    lexer->result_symbol = CARET_ESCAPE;
+    return true;
+  }
+
+  for (;;) {
+    if (lexer->lookahead == '\r') {
+      lexer->advance(lexer, true);
+      if (lexer->lookahead != '\n') return false;
+    } else if (lexer->lookahead != '\n') {
+      return false;
+    }
+    lexer->advance(lexer, true);
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, true);
+    }
+    if (lexer->lookahead != '^') break;
+    lexer->advance(lexer, true);
+  }
+
+  enum TokenType symbol;
+  if (lexer->lookahead == '&' &&
+      valid_symbols[CONTINUED_DANGLING_AND_OPERATOR]) {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead != '&') return false;
+    lexer->advance(lexer, false);
+    symbol = CONTINUED_DANGLING_AND_OPERATOR;
+  } else if (lexer->lookahead == '|' &&
+             (valid_symbols[CONTINUED_DANGLING_OR_OPERATOR] ||
+              valid_symbols[CONTINUED_DANGLING_PIPE_OPERATOR])) {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '|') {
+      if (!valid_symbols[CONTINUED_DANGLING_OR_OPERATOR]) return false;
+      lexer->advance(lexer, false);
+      symbol = CONTINUED_DANGLING_OR_OPERATOR;
+    } else {
+      if (!valid_symbols[CONTINUED_DANGLING_PIPE_OPERATOR]) return false;
+      symbol = CONTINUED_DANGLING_PIPE_OPERATOR;
+    }
+  } else {
+    return false;
+  }
+
+  lexer->mark_end(lexer);
+  if (!operator_tail_reaches_boundary(s, lexer)) return false;
+  lexer->result_symbol = symbol;
+  return true;
+}
+
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
   Scanner *s = payload;
@@ -351,9 +500,29 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
             ? BODY_BOUNDARY_AGAIN
             : BODY_BOUNDARY;
     bool skipped_space = false;
-    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+    bool skipped_continuation = false;
+    for (;;) {
+      while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+        lexer->advance(lexer, true);
+        skipped_space = true;
+      }
+      if (lexer->lookahead != '^') break;
+
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      if (valid_symbols[CARET_ESCAPE] &&
+          (lexer->lookahead == '%' || lexer->lookahead == '!')) {
+        lexer->result_symbol = CARET_ESCAPE;
+        return true;
+      }
+      if (lexer->lookahead == '\r') {
+        lexer->advance(lexer, true);
+        if (lexer->lookahead != '\n') return false;
+      } else if (lexer->lookahead != '\n') {
+        return false;
+      }
       lexer->advance(lexer, true);
-      skipped_space = true;
+      skipped_continuation = true;
     }
     if (lexer->lookahead == '\r') {
       lexer->mark_end(lexer);
@@ -375,6 +544,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->result_symbol = boundary_symbol;
       return true;
     }
+
+    // Lookahead through a continuation is only for proving a boundary. If a
+    // real token follows, restart normal lexing so the invisible continuation
+    // and word-adjacency rules retain their ordinary behavior.
+    if (skipped_continuation) return false;
 
     // The missing-body branch can be valid while the condition still has an
     // adjacent fragment. Preserve that adjacency before considering a body;
@@ -405,7 +579,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->result_symbol = BLOCK_OPEN;
       return true;
     }
-    if (c != '(' && c != ')' && c != '^' && c != 'r' && c != 'R' &&
+    if (c != '&' && c != '|' && c != '(' && c != ')' && c != '^' &&
+        c != 'r' && c != 'R' &&
         (c < '0' || c > '9')) {
       return false;
     }
@@ -617,9 +792,17 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   bool want_rem = valid_symbols[REM];
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
+  bool want_operator = valid_symbols[DANGLING_AND_OPERATOR] ||
+                       valid_symbols[DANGLING_OR_OPERATOR] ||
+                       valid_symbols[DANGLING_PIPE_OPERATOR];
+  bool want_continued_operator =
+      valid_symbols[CONTINUED_DANGLING_AND_OPERATOR] ||
+      valid_symbols[CONTINUED_DANGLING_OR_OPERATOR] ||
+      valid_symbols[CONTINUED_DANGLING_PIPE_OPERATOR];
   bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
+  if (!want_rem && !want_redirect_source && !want_caret && !want_operator &&
+      !want_continued_operator && !want_paren) {
     return false;
   }
 
@@ -647,14 +830,12 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   // (so `%VAR%` / `!VAR!` is still recognised as its own token). Any other `^X`
   // is left to the grammar's `escape_sequence`, and `^`-newline to the line
   // continuation, so decline unless the very next char is `%` or `!`.
-  if (want_caret && c == '^') {
-    lexer->advance(lexer, false);
-    lexer->mark_end(lexer);
-    if (lexer->lookahead == '%' || lexer->lookahead == '!') {
-      lexer->result_symbol = CARET_ESCAPE;
-      return true;
-    }
-    return false;
+  if ((want_caret || want_continued_operator) && c == '^') {
+    return scan_continued_dangling_operator(s, lexer, valid_symbols);
+  }
+
+  if (want_operator && (c == '&' || c == '|')) {
+    return scan_dangling_operator(s, lexer, valid_symbols);
   }
 
   if (want_rem && (c == 'r' || c == 'R')) {

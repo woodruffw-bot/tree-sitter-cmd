@@ -153,16 +153,172 @@
             }
           },
           {
-            "type": "STRING",
-            "value": "||"
-          },
-          {
-            "type": "FIELD",
-            "name": "right",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_statement"
-            }
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|\\|"
+                      }
+                    },
+                    "named": false,
+                    "value": "||"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_statement"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_dangling_or_operator"
+                    },
+                    "named": false,
+                    "value": "||"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_continued_dangling_or_operator"
+                    },
+                    "named": false,
+                    "value": "||"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|\\|"
+                      }
+                    },
+                    "named": false,
+                    "value": "||"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
@@ -182,16 +338,172 @@
             }
           },
           {
-            "type": "STRING",
-            "value": "&&"
-          },
-          {
-            "type": "FIELD",
-            "name": "right",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_statement"
-            }
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "&&"
+                      }
+                    },
+                    "named": false,
+                    "value": "&&"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_statement"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_dangling_and_operator"
+                    },
+                    "named": false,
+                    "value": "&&"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_continued_dangling_and_operator"
+                    },
+                    "named": false,
+                    "value": "&&"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "&&"
+                      }
+                    },
+                    "named": false,
+                    "value": "&&"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
@@ -211,16 +523,172 @@
             }
           },
           {
-            "type": "STRING",
-            "value": "|"
-          },
-          {
-            "type": "FIELD",
-            "name": "right",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_statement"
-            }
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|"
+                      }
+                    },
+                    "named": false,
+                    "value": "|"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_statement"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_dangling_pipe_operator"
+                    },
+                    "named": false,
+                    "value": "|"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_continued_dangling_pipe_operator"
+                    },
+                    "named": false,
+                    "value": "|"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "TOKEN",
+                      "content": {
+                        "type": "PATTERN",
+                        "value": "\\|"
+                      }
+                    },
+                    "named": false,
+                    "value": "|"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "body_boundary_again"
+                    },
+                    "named": false,
+                    "value": "_body_boundary"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "right",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_command_start"
+                      },
+                      "named": false,
+                      "value": "command"
+                    }
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
@@ -4686,6 +5154,30 @@
     {
       "type": "SYMBOL",
       "name": "_set_binding_end"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_dangling_and_operator"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_dangling_or_operator"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_dangling_pipe_operator"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_continued_dangling_and_operator"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_continued_dangling_or_operator"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_continued_dangling_pipe_operator"
     },
     {
       "type": "SYMBOL",
