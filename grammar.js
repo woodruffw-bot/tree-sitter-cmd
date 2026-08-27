@@ -237,7 +237,7 @@ module.exports = grammar({
       ),
 
     seq_list: ($) =>
-      prec.left(
+      prec.right(
         PREC.SEQ,
         seq(
           field('left', $._statement),
@@ -247,19 +247,19 @@ module.exports = grammar({
       ),
 
     or_list: ($) =>
-      prec.left(
+      prec.right(
         PREC.OR,
         seq(field('left', $._statement), '||', field('right', $._statement)),
       ),
 
     and_list: ($) =>
-      prec.left(
+      prec.right(
         PREC.AND,
         seq(field('left', $._statement), '&&', field('right', $._statement)),
       ),
 
     pipeline: ($) =>
-      prec.left(
+      prec.right(
         PREC.PIPE,
         seq(field('left', $._statement), '|', field('right', $._statement)),
       ),

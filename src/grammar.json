@@ -102,7 +102,7 @@
       ]
     },
     "seq_list": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 1,
       "content": {
         "type": "SEQ",
@@ -139,7 +139,7 @@
       }
     },
     "or_list": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 2,
       "content": {
         "type": "SEQ",
@@ -168,7 +168,7 @@
       }
     },
     "and_list": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 3,
       "content": {
         "type": "SEQ",
@@ -197,7 +197,7 @@
       }
     },
     "pipeline": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 4,
       "content": {
         "type": "SEQ",

@@ -104,3 +104,147 @@ echo a &
       name: (command_name)
       argument: (argument
         (text)))))
+
+==================================
+homogeneous chains lean right
+==================================
+
+a & b & c
+a && b && c
+a || b || c
+a | b | c
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name))
+    right: (seq_list
+      left: (command
+        name: (command_name))
+      right: (command
+        name: (command_name))))
+  (and_list
+    left: (command
+      name: (command_name))
+    right: (and_list
+      left: (command
+        name: (command_name))
+      right: (command
+        name: (command_name))))
+  (or_list
+    left: (command
+      name: (command_name))
+    right: (or_list
+      left: (command
+        name: (command_name))
+      right: (command
+        name: (command_name))))
+  (pipeline
+    left: (command
+      name: (command_name))
+    right: (pipeline
+      left: (command
+        name: (command_name))
+      right: (command
+        name: (command_name)))))
+
+==========================================
+trailing ampersand stays on the right link
+==========================================
+
+a & b &
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name))
+    right: (seq_list
+      left: (command
+        name: (command_name)))))
+
+=====================================================
+pipeline association preserves redirects and blocks
+=====================================================
+
+a <in | b 2>err | (c & d) >out
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    right: (pipeline
+      left: (command
+        name: (command_name)
+        redirect: (redirect_file
+          source: (file_descriptor)
+          operator: (redirect_operator)
+          target: (argument
+            (text))))
+      right: (block
+        (seq_list
+          left: (command
+            name: (command_name))
+          right: (command
+            name: (command_name)))
+        redirect: (redirect_file
+          operator: (redirect_operator)
+          target: (argument
+            (text)))))))
+
+===================================
+trailing and operator remains error
+===================================
+
+a && b &&
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name)))
+  (ERROR))
+
+==================================
+trailing or operator remains error
+==================================
+
+a || b ||
+
+---
+
+(program
+  (or_list
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name)))
+  (ERROR))
+
+====================================
+trailing pipe operator remains error
+====================================
+
+a | b |
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name))
+    right: (command
+      name: (command_name)))
+  (ERROR))

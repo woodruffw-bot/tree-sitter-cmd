@@ -411,10 +411,10 @@ full list):
 - **Comments**: `rem_comment`, `colon_comment`, `powershell_comment`,
   `comment_text`; keywords surface as the aliased `keyword` node.
 
-Operators use conventional left-associative tree-sitter precedence (cmd binding,
-loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from ReactOS's
-right-leaning operator tree, which would add complexity with no benefit to a
-static tool; observable left-to-right reading order is preserved either way.
+Operators use cmd's right-leaning tree shape and binding (loosest to tightest:
+`&` < `||` < `&&` < `|`). ReactOS parses the right operand again at the same
+precedence, so `a & b & c` is `a & (b & c)`. The `left` and `right` fields keep
+that command-tree structure explicit for static analysis.
 
 ## 7. Prior art
 
