@@ -93,6 +93,14 @@ context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
   affected. A final caret with no following line produces an error node.
 - Variable names that contain a literal newline, as used by `%LF%` macros, are
   not supported.
+- `cmd.exe` rejects same-line empty command blocks such as `()` and `( )`.
+  The grammar intentionally accepts them as `block` nodes without body content.
+  Rejecting them during parsing either creates a clean zero-width command or
+  breaks ownership of controllers, `@` and redirection prefixes, nested blocks,
+  or following lines. Strict analyzers should diagnose a `block` with no body
+  content in a separate validation pass. This check does not need a new CST node
+  or a query-specific grammar path. An empty `FOR` set remains valid, and
+  `(echo()` is a nonempty block containing the `echo(` command.
 
 ## Layout
 

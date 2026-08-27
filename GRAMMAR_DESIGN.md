@@ -175,6 +175,28 @@ close-paren inside a block, and why `(echo()` is a block whose body is the
 command `echo(`. Concretely, this makes `echo (text)`, `echo.version(s)`, and
 the `(echo()` blank-line idiom all parse the way cmd runs them.
 
+### Same-line empty command blocks
+
+`cmd.exe` rejects a command block with no body, including `()` and `( )`. The
+grammar intentionally over-accepts these same-line forms as a `block` with no
+body content. Enforcing the rejection in the grammar does not preserve the CST
+properties required by analyzers:
+
+- Making the block body required lets recovery create a clean zero-width
+  `command` and `command_name`. That hides the invalid source behind normal
+  nodes.
+- Rejecting the close through scanner recovery can make an `IF`, `ELSE`, or
+  `FOR` adopt the next physical line as its body. It can also attach the next
+  line to an `@` or redirection prefix, or use an inner empty close to end an
+  outer block.
+
+A strict analyzer should diagnose a `block` that has no body/content child in a
+separate validation pass. The parser must not add a normal node for this
+diagnostic, and highlight or other queries must not drive a grammar recovery
+path. This check applies only to command blocks. `for %%i in () do ...` has a
+valid empty `FOR` set and no empty `block` node. `(echo()` is also valid: the
+block body is the command `echo(`, with the second `(` parsed as literal text.
+
 ## 5. Tricky areas
 
 ### Caret escaping and line continuation
@@ -441,6 +463,9 @@ scripts.
   variables, which is statically unknowable, so one fixed parse is chosen.
 - **`SET /A` expressions** are a generic argument tail, not an arithmetic
   sub-grammar.
+- **Same-line empty command blocks** are accepted as `block` nodes without body
+  content even though `cmd.exe` rejects them. Strict analyzers should report
+  them as described in the parenthesis model.
 - **Unquoted parentheses in a FOR set**: the set runs from the opening `(` to the
   first `)`, the same block-paren rule used everywhere (and what cmd does), so an
   inner unquoted `(...)` closes the set early and the rest errors. A set item that
