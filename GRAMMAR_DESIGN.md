@@ -120,7 +120,31 @@ same punctuation as text.
 invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
 no node and is transparent to word adjacency, so `echo a^\nb` joins into one word
 while `echo a ^\nb` stays two arguments. Newline is a statement terminator and
-stays structural. `\r` is swallowed by matching every newline as `/\r?\n/`.
+stays structural. The `_newline` rule matches both LF and CRLF.
+
+### Standalone CR input normalization
+
+`cmd.exe` strips CR while reading command text. This grammar uses a
+parse-equivalent input representation instead of copying that internal buffer:
+callers keep conventional CRLF pairs so `_newline` can preserve original file
+offsets, but remove each CR that is not immediately followed by LF. Parsing a
+raw standalone CR is outside the input contract, and its CST shape is not
+defined.
+
+This normalization cannot be implemented as a Tree-sitter extra without losing
+syntax. Extras occur between tokens, but a standalone CR may occur inside an
+atomic form such as `%PA\rTH%`, `i\rf`, or `>\r&1`. Splitting those forms changes
+an expansion, keyword, or redirection into different nodes.
+
+Node byte and point ranges refer to the normalized input. A caller that needs
+locations in the original file should build an offset map while removing CR
+bytes. The map should retain both sides of each removed byte so range starts,
+range ends, and zero-width diagnostics can use an explicit bias. Point columns
+can be translated with the same map or by recording every removal's normalized
+column on its line. For a queried column, add only removals before it, plus
+removals exactly at that column according to the same explicit bias. Incremental
+edits must use the normalized buffer and normalized positions before ranges are
+mapped back.
 
 The external scanner (`src/scanner.c`) owns the genuinely context-sensitive
 tokens. Its state is a block-depth counter plus a two-step missing-body boundary

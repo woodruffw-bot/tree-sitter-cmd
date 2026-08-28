@@ -61,6 +61,25 @@ let tree = parser.parse(source, None).unwrap();
 println!("{}", tree.root_node().to_sexp());
 ```
 
+### Input normalization
+
+Before parsing, remove each carriage return byte (`0x0D`) that is not
+immediately followed by a line feed (`0x0A`). Keep CRLF pairs intact because the
+grammar accepts them as one newline and can then preserve original file
+offsets. This retained CR is a grammar input representation, not a byte-for-byte
+copy of cmd's stored command text. `cmd.exe` strips CR while reading a command.
+Raw input with a standalone carriage return is outside the grammar's input
+contract.
+
+Tree-sitter byte and point ranges refer to the normalized buffer. If a tool
+must report locations in the original file, build an offset map during
+normalization. Retain both sides of each removed byte so range starts, range
+ends, and zero-width diagnostics can choose an explicit bias. For point columns,
+use that map or record every removed byte's normalized column on its line. Add
+only the number of removals before the queried column, plus removals exactly at
+that column according to the same explicit bias. Apply incremental edits to the
+normalized buffer and translate ranges back only when presenting them.
+
 The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY`. Only Rust bindings
 are provided.
 

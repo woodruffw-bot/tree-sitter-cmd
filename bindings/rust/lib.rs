@@ -1,5 +1,10 @@
 //! This crate provides Cmd language support for the [tree-sitter] parsing library.
 //!
+//! Callers must normalize input before parsing by removing each `\r` byte that
+//! is not immediately followed by `\n`. Keep CRLF pairs intact. Node ranges
+//! refer to this normalized input, so callers that report original-file
+//! locations must maintain their own offset map.
+//!
 //! Typically, you will use the [`LANGUAGE`] constant to add this language to a
 //! tree-sitter [`Parser`], and then use the parser to parse some code:
 //!
