@@ -141,6 +141,13 @@ function immediateExpansion($) {
   );
 }
 
+/** Expansions that stay opaque inside a quoted FOR /F source. */
+function immediateForSourceExpansion() {
+  return token.immediate(
+    prec(5, /(?:%[^%0-9~*\r\n][^%\r\n]*%|![^!\r\n]+!)/),
+  );
+}
+
 /** Attach `@` prefixes and skip separators before the command they suppress. */
 function quietPrefix($) {
   return repeat(
@@ -148,6 +155,20 @@ function quietPrefix($) {
       field('quiet', $.quiet),
       optional($._standard_separator),
     ),
+  );
+}
+
+/** Build the option-through-set portion of a FOR statement. */
+function forHeader($, option, set) {
+  return seq(
+    option,
+    field('variable', $._loop_variable_declaration),
+    optional($._standard_separator),
+    kw($, 'in'),
+    optional($._standard_separator),
+    alias($._block_open, '('),
+    field('set', optional(set)),
+    alias($._block_close, ')'),
   );
 }
 
@@ -175,6 +196,11 @@ module.exports = grammar({
     $.body_boundary,
     $.body_boundary_again,
     $._command_start,
+    $._for_f_default_mode,
+    $._for_f_usebackq_mode,
+    $._for_f_single_command_source_ahead,
+    $._for_single_inner_quote,
+    $._for_single_quote_end,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -204,6 +230,8 @@ module.exports = grammar({
     [$.set_quoted],
     [$.set_display],
     [$.set_display, $._set_binding_name],
+    [$._for_f_default_option],
+    [$._for_f_usebackq_option],
   ],
 
   rules: {
@@ -434,19 +462,40 @@ module.exports = grammar({
           quietPrefix($),
           kw($, 'for'),
           optional($._standard_separator),
-          optional(
-            seq(
-              field('option', $.for_option),
-              optional($._standard_separator),
+          choice(
+            forHeader(
+              $,
+              seq(
+                field(
+                  'option',
+                  alias($._for_f_usebackq_option, $.for_option),
+                ),
+                optional($._standard_separator),
+              ),
+              alias($._for_f_usebackq_set, $.for_set),
+            ),
+            forHeader(
+              $,
+              seq(
+                field(
+                  'option',
+                  alias($._for_f_default_option, $.for_option),
+                ),
+                optional($._standard_separator),
+              ),
+              alias($._for_f_default_set, $.for_set),
+            ),
+            forHeader(
+              $,
+              optional(
+                seq(
+                  field('option', $.for_option),
+                  optional($._standard_separator),
+                ),
+              ),
+              $.for_set,
             ),
           ),
-          field('variable', $._loop_variable_declaration),
-          optional($._standard_separator),
-          kw($, 'in'),
-          optional($._standard_separator),
-          alias($._block_open, '('),
-          field('set', optional($.for_set)),
-          alias($._block_close, ')'),
           optional($._standard_separator),
           kw($, 'do'),
           // Operators after DO remain inside the loop body.
@@ -488,11 +537,6 @@ module.exports = grammar({
       choice(
         alias(opt('/l'), $.for_flag),
         seq(
-          alias(opt('/f'), $.for_flag),
-          optional($._standard_separator),
-          optional(field('argument', alias($._for_arg, $.argument))),
-        ),
-        seq(
           alias(opt('/d'), $.for_flag),
           optional($._standard_separator),
           optional(
@@ -527,6 +571,31 @@ module.exports = grammar({
         ),
       ),
 
+    // These hidden markers inspect only standalone `usebackq`. The public
+    // option payload remains one opaque argument in either branch.
+    _for_f_default_option: ($) =>
+      seq(
+        alias(opt('/f'), $.for_flag),
+        $._for_f_default_mode,
+        optional(
+          seq(
+            optional($._standard_separator),
+            field('argument', alias($._for_arg, $.argument)),
+          ),
+        ),
+      ),
+    _for_f_usebackq_option: ($) =>
+      seq(
+        alias(opt('/f'), $.for_flag),
+        $._for_f_usebackq_mode,
+        optional(
+          seq(
+            optional($._standard_separator),
+            field('argument', alias($._for_arg, $.argument)),
+          ),
+        ),
+      ),
+
     _for_arg: ($) =>
       standardWordOf($, $._for_arg_lead, $._standard_fragment),
     _for_arg_lead: ($) =>
@@ -543,15 +612,35 @@ module.exports = grammar({
     _for_arg_text: ($) =>
       token(/[^/,;= \t\r\n&|<>()^"%!][^,;= \t\r\n&|<>()^"%!]*/),
 
-    for_set: ($) =>
-      repeat1(
-        choice(
-          alias($._standard_argument, $.argument),
-          $.backquote_string,
+    for_set: ($) => $._for_set_items,
+    _for_set_items: ($) => repeat1($._for_set_item),
+    _for_set_item: ($) => choice($._for_set_value, $._for_set_separator),
+    _for_set_value: ($) =>
+      choice(
+        alias($._standard_argument, $.argument),
+        $.backquote_string,
+      ),
+    _for_set_separator: ($) => choice($._standard_separator, $._newline),
+
+    // Final-apostrophe semantics apply only when one single-quoted item spans
+    // the whole `/F` set. Otherwise apostrophes delimit a neutral item, while
+    // plain FOR sets keep apostrophes in ordinary argument text.
+    _for_f_default_set: ($) =>
+      choice(
+        seq(
+          $._for_f_single_command_source_ahead,
+          repeat($._for_set_separator),
           $.single_quote_string,
-          $._standard_separator,
-          $._newline,
+          repeat($._for_set_separator),
         ),
+        repeat1($._for_f_set_item),
+      ),
+    _for_f_usebackq_set: ($) => repeat1($._for_f_set_item),
+    _for_f_set_item: ($) =>
+      choice(
+        $._for_set_value,
+        alias($._for_f_neutral_single_quote_string, $.single_quote_string),
+        $._for_set_separator,
       ),
 
     // A backquoted FOR /F item. It is a command only with `usebackq` and may be
@@ -568,24 +657,54 @@ module.exports = grammar({
 
     // A single-quoted FOR /F item. It is a command unless `usebackq` is active.
     // The closing quote is required so a stray apostrophe in a plain FOR set
-    // (`for %%a in (it's)`) stays text. Double-quoted spans may contain literal
-    // apostrophes, as in embedded PowerShell and Python snippets. Newlines are
-    // also accepted because cmd permits a FOR /F command source to span lines.
-    // As with backquotes, the content node is neutral until a query applies the
-    // active quote mode.
+    // (`for %%a in (it's)`) stays text. cmd treats the final apostrophe before
+    // the set's structural close as the delimiter; earlier apostrophes remain
+    // opaque source content. Double-quoted and caret-escaped spans protect cmd
+    // metacharacters. Newlines are also accepted because cmd permits a FOR /F
+    // command source to span lines. As with backquotes, the content node is
+    // neutral until a query applies the active quote mode.
     single_quote_string: ($) =>
       seq(
         token(prec(2, "'")),
         optional(field('content', $.single_quote_content)),
-        token.immediate("'"),
+        alias($._for_single_quote_end, "'"),
       ),
     single_quote_content: ($) =>
       repeat1(
         choice(
-          token.immediate(prec(4, /[^'"^\r\n]+/)),
+          token.immediate(prec(4, /[^'"^&|<>)%!\r\n]+/)),
           token.immediate(prec(4, /"[^"\r\n]*"/)),
+          token.immediate(prec(4, /\^\r?\n/)),
           token.immediate(prec(4, /\^[^\r\n]/)),
+          immediateForSourceExpansion(),
+          token.immediate(prec(1, /[%!]/)),
+          $._for_single_inner_quote,
           $._newline,
+        ),
+      ),
+    _for_f_neutral_single_quote_string: ($) =>
+      seq(
+        token(prec(2, "'")),
+        optional(
+          field(
+            'content',
+            alias(
+              $._for_f_neutral_single_quote_content,
+              $.single_quote_content,
+            ),
+          ),
+        ),
+        token.immediate(prec(3, "'")),
+      ),
+    _for_f_neutral_single_quote_content: ($) =>
+      repeat1(
+        choice(
+          token.immediate(prec(3, /[^'"^&|<>)%!\r\n]+/)),
+          token.immediate(prec(3, /"[^"\r\n]*"/)),
+          token.immediate(prec(3, /\^\r?\n/)),
+          token.immediate(prec(3, /\^[^\r\n]/)),
+          immediateForSourceExpansion(),
+          token.immediate(prec(1, /[%!]/)),
         ),
       ),
 

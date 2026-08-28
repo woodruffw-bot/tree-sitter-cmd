@@ -213,6 +213,8 @@ mod tests {
         let source = concat!(
             "for /f %%a in ('ver') do echo %%a\r\n",
             "for /f %%a in ('echo normal') do echo %%a\r\n",
+            "for /f %%a in ('echo don't stop') do echo %%a\r\n",
+            "for /f %%a in ('echo 'one' 'two'') do echo %%a\r\n",
             "for /f %%a in ('powershell -command \"ToString('yyyy-MM-dd')\"') do echo %%a\r\n",
             "for /f %%a in ('%1 -c \"sys.stdout.write('nt')\"') do echo %%a\r\n",
             "for /f %%a in ('\r\n  echo multiline\r\n') do echo %%a\r\n",
@@ -236,6 +238,8 @@ mod tests {
             [
                 "ver",
                 "echo normal",
+                "echo don't stop",
+                "echo 'one' 'two'",
                 "powershell -command \"ToString('yyyy-MM-dd')\"",
                 "%1 -c \"sys.stdout.write('nt')\"",
                 "\r\n  echo multiline\r\n",
@@ -247,6 +251,153 @@ mod tests {
                 "echo escaped options",
                 "echo unfinished"
             ]
+        );
+    }
+
+    #[test]
+    fn test_for_f_single_quote_uses_final_apostrophe() {
+        let source = concat!(
+            "for /f %%a in ('echo don't stop') do echo %%a\r\n",
+            "for /f %%a in ('echo 'one' 'two'') do echo %%a\r\n",
+            "for %%a in (it's) do echo %%a\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        let for_statement = tree.root_node().named_child(0).expect("FOR statement");
+        let for_set = only_field(for_statement, "set");
+        let quoted = for_set.named_child(0).expect("single-quoted source");
+        assert_eq!(quoted.kind(), "single_quote_string");
+        assert_eq!(quoted.child_count(), 3);
+        assert_eq!(
+            &source[quoted.child(0).expect("opening quote").byte_range()],
+            "'"
+        );
+        assert_eq!(
+            &source[quoted.child(2).expect("closing quote").byte_range()],
+            "'"
+        );
+
+        let query = Query::new(&language(), "(single_quote_content) @content")
+            .expect("single-quote-content query should compile");
+        assert_eq!(
+            capture_texts(source, &query, "content"),
+            ["echo don't stop", "echo 'one' 'two'"]
+        );
+    }
+
+    #[test]
+    fn test_plain_for_apostrophes_and_non_command_for_f_items_stay_neutral() {
+        let source = concat!(
+            "for %%a in (foo 'bar' baz) do echo %%a\r\n",
+            "for /f %%b in ('literal' data.txt) do echo %%b\r\n",
+            "for /f %%c in ('literal'x) do echo %%c\r\n",
+            "for /f \"usebackq\" %%d in ('one' 'two') do echo %%d\r\n",
+            "for /f \"usebackq\" %%e in ('literal don't stop') do echo %%e\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        let plain = tree.root_node().named_child(0).expect("plain FOR");
+        let plain_set = only_field(plain, "set");
+        let plain_items = (0..plain_set.named_child_count())
+            .map(|index| plain_set.named_child(index as u32).expect("plain set item"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            plain_items
+                .iter()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            ["argument", "argument", "argument"]
+        );
+        assert_eq!(
+            plain_items
+                .iter()
+                .map(|node| &source[node.byte_range()])
+                .collect::<Vec<_>>(),
+            ["foo", "'bar'", "baz"]
+        );
+
+        for index in [1, 2] {
+            let statement = tree.root_node().named_child(index).expect("FOR /F");
+            let for_set = only_field(statement, "set");
+            assert_eq!(
+                for_set.named_child(0).expect("neutral item").kind(),
+                "single_quote_string",
+            );
+            assert_eq!(
+                for_set.named_child(1).expect("following item").kind(),
+                "argument",
+            );
+        }
+
+        let usebackq = tree.root_node().named_child(3).expect("usebackq FOR /F");
+        let usebackq_set = only_field(usebackq, "set");
+        assert_eq!(usebackq_set.named_child_count(), 2);
+        assert_eq!(
+            usebackq_set.named_child(0).expect("first literal").kind(),
+            "single_quote_string",
+        );
+        assert_eq!(
+            usebackq_set.named_child(1).expect("second literal").kind(),
+            "single_quote_string",
+        );
+
+        let contents = Query::new(&language(), "(single_quote_content) @content")
+            .expect("single-quote-content query should compile");
+        assert_eq!(
+            capture_texts(source, &contents, "content"),
+            ["literal", "literal", "one", "two", "literal don"]
+        );
+
+        let injections = Query::new(&language(), super::INJECTIONS_QUERY)
+            .expect("injections query should compile");
+        assert!(capture_texts(source, &injections, "injection.content").is_empty());
+    }
+
+    #[test]
+    fn test_for_f_single_quote_requires_outer_metacharacter_escaping() {
+        for source in [
+            "for /f %%a in ('echo ^(hi^)') do echo %%a\r\n",
+            "for /f %%a in ('echo one ^& echo two') do echo %%a\r\n",
+            "for /f %%a in ('echo one ^| find \"one\"') do echo %%a\r\n",
+            "for /f %%a in ('echo one ^< input') do echo %%a\r\n",
+            "for /f %%a in ('echo one ^> output') do echo %%a\r\n",
+            "for /f %%a in ('cmd /c \"echo one & echo two\"') do echo %%a\r\n",
+        ] {
+            let tree = parse(source);
+            assert!(
+                !tree.root_node().has_error(),
+                "escaped FOR /F command source failed: {source:?}",
+            );
+        }
+
+        for source in [
+            "for /f %%a in ('echo (hi)') do echo %%a\r\n",
+            "for /f %%a in ('echo one & echo two') do echo %%a\r\n",
+            "for /f %%a in ('echo one | find \"one\"') do echo %%a\r\n",
+            "for /f %%a in ('echo one < input') do echo %%a\r\n",
+            "for /f %%a in ('echo one > output') do echo %%a\r\n",
+        ] {
+            let tree = parse(source);
+            assert!(
+                tree.root_node().has_error(),
+                "unescaped FOR /F metacharacter parsed cleanly: {source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_for_f_single_quote_requires_final_delimiter() {
+        let source = "for /f %%a in ('echo unfinished) do echo %%a\r\n";
+        let tree = parse(source);
+        let root = tree.root_node();
+
+        assert!(root.has_error());
+        assert!(
+            root.to_sexp().contains("(MISSING \"'\")"),
+            "unfinished source must retain a real missing delimiter: {}",
+            root.to_sexp(),
         );
     }
 

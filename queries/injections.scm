@@ -7,8 +7,8 @@
     (for_flag) @for.flag
     argument: (argument) @for.options)
   set: (for_set
-    (backquote_string
-      content: (backquote_content) @injection.content)))
+    . (backquote_string
+        content: (backquote_content) @injection.content) .))
  (#match? @for.flag "^/[fF]$")
  (#match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|\\^[ \t\"]|$)")
  (#set! injection.self))
@@ -31,8 +31,8 @@
     (for_flag) @for.flag
     !argument)
   set: (for_set
-    (single_quote_string
-      content: (single_quote_content) @injection.content)))
+    . (single_quote_string
+        content: (single_quote_content) @injection.content) .))
  (#match? @for.flag "^/[fF]$")
  (#set! injection.self))
 
@@ -41,8 +41,8 @@
     (for_flag) @for.flag
     argument: (argument) @for.options)
   set: (for_set
-    (single_quote_string
-      content: (single_quote_content) @injection.content)))
+    . (single_quote_string
+        content: (single_quote_content) @injection.content) .))
  (#match? @for.flag "^/[fF]$")
  (#not-match? @for.options "(?i)(^|[ \t\"])usebackq([ \t\"]|\\^[ \t\"]|$)")
  (#set! injection.self))

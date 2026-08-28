@@ -112,6 +112,36 @@ fn scanner_sensitive_edits_match_fresh_parses() {
             "tail\"",
             "tail",
         ),
+        (
+            "for /f %%a in ('echo dont stop') do echo %%a\r\necho tail\r\n",
+            "dont",
+            "don't",
+        ),
+        (
+            "for /f %%a in ('echo %v:>=x%') do echo %%a\r\necho tail\r\n",
+            ">=x",
+            "|=x",
+        ),
+        (
+            "for /f %%a in ('literal') do echo %%a\r\necho tail\r\n",
+            "') do",
+            "'x) do",
+        ),
+        (
+            "for /f %%a in ('literal'x) do echo %%a\r\necho tail\r\n",
+            "'x) do",
+            "') do",
+        ),
+        (
+            "for /f %%a in ('echo don't stop') do echo %%a\r\necho tail\r\n",
+            "/f",
+            "/d",
+        ),
+        (
+            "for /f \"usebackq\" %%a in ('one' 'two') do echo %%a\r\necho tail\r\n",
+            "usebackq",
+            "usebackx",
+        ),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
     ];
@@ -119,6 +149,51 @@ fn scanner_sensitive_edits_match_fresh_parses() {
     for (before, needle, replacement) in cases {
         assert_incremental_matches_fresh(before, needle, replacement);
     }
+}
+
+#[test]
+fn deleting_for_f_final_quote_matches_fresh_error_tree() {
+    let before = "for /f %%a in ('echo two') do echo %%a\r\necho tail\r\n";
+    let quote = before.find("') do").expect("final FOR /F delimiter");
+    let (incremental, edited) = edited_tree(before.as_bytes(), quote..quote + 1, b"");
+    let fresh = parser()
+        .parse(edited.as_slice(), None)
+        .expect("fresh malformed parse");
+
+    assert_eq!(
+        incremental.root_node().to_sexp(),
+        fresh.root_node().to_sexp(),
+    );
+    assert!(incremental.root_node().has_error());
+    assert!(fresh.root_node().has_error());
+
+    for tree in [&incremental, &fresh] {
+        let root = tree.root_node();
+        let for_statement = root.named_child(0).expect("recovered FOR statement");
+        let tail = root.named_child(1).expect("command after FOR statement");
+        assert_eq!(for_statement.kind(), "for_statement");
+        assert!(for_statement.has_error());
+        assert_eq!(tail.kind(), "command");
+        assert!(!tail.has_error());
+        assert_eq!(tail.start_position().row, 1);
+    }
+}
+
+#[test]
+fn deleting_final_quote_after_inner_apostrophe_becomes_neutral() {
+    let before = "for /f %%a in ('echo don't') do echo %%a\r\necho tail\r\n";
+    let quote = before.find("') do").expect("final FOR /F delimiter");
+    let (incremental, edited) = edited_tree(before.as_bytes(), quote..quote + 1, b"");
+    let fresh = parser()
+        .parse(edited.as_slice(), None)
+        .expect("fresh neutral parse");
+
+    assert_eq!(
+        incremental.root_node().to_sexp(),
+        fresh.root_node().to_sexp(),
+    );
+    assert!(!incremental.root_node().has_error());
+    assert!(!fresh.root_node().has_error());
 }
 
 #[test]
@@ -236,6 +311,11 @@ fn chunked_input_matches_contiguous_input() {
         "  echo one ^\r\n",
         "    two^) %PATH%\r\n",
         ")\r\n",
+        "for /f %%a in ('echo don't ^(stop^)'\r\n",
+        ") do echo %%a\r\n",
+        "for %%b in (foo 'bar' baz) do echo %%b\r\n",
+        "for /f %%c in ('literal' data.txt) do echo %%c\r\n",
+        "for /f \"usebackq\" %%d in ('one' 'two') do echo %%d\r\n",
         ":   \r\n",
         ": target\r\n",
         "(goto :loop ; ignored)\r\n",

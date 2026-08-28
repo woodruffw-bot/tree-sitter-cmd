@@ -43,9 +43,11 @@ The grammar does not parse option languages belonging to invoked programs. It
 also keeps cmd built-in option payloads opaque unless an option materially
 changes cmd's own syntax. FOR `/R` is grammar-relevant because it may consume a
 path before the loop variable. FOR `/F usebackq` is grammar-relevant because it
-changes which quote delimiter marks a command source. Other `/F` parsing
-keywords, including `tokens=`, `delims=`, `skip=`, and `eol=`, remain text in a
-single argument node.
+changes which quote delimiter marks a command source. A zero-width scanner
+guard recognizes only a case-insensitive, whitespace-delimited `usebackq` word
+after cmd quote removal and caret decoding. The public source bytes remain one
+generic `argument`. Other `/F` parsing keywords, including `tokens=`, `delims=`,
+`skip=`, and `eol=`, remain opaque text in that argument.
 
 Two deliberate conformance choices:
 
@@ -138,6 +140,9 @@ counter:
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
+| `FOR_F_DEFAULT_MODE` / `FOR_F_USEBACKQ_MODE` | zero-width selection after inspecting only a standalone `usebackq` option word |
+| `FOR_F_SINGLE_COMMAND_SOURCE_AHEAD` | zero-width confirmation that an apostrophe-delimited source encloses the whole FOR `/F` set |
+| `FOR_SINGLE_INNER_QUOTE` / `FOR_SINGLE_QUOTE_END` | an inner source apostrophe and the final delimiter before a FOR set's structural close |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
 | `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
 | `COMMAND_START` | deliberately unavailable after those markers, producing a genuine anonymous MISSING `"command"` error |
@@ -300,14 +305,22 @@ argument, so an illegal second switch is not hidden as an option or path.
 `/F` command quoting depends on its options. By default, `'single-quoted'` is a
 command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
 command and single quotes are literal. The `backquote_string` and
-`single_quote_string` nodes keep inner `)` and operators literal. Their content
-nodes are delimiter-free but neutral. The injection query checks the `/F` option
-text and captures only the command form for the active quote mode. This avoids
-assigning command semantics to the inactive delimiter and avoids range
-adjustment directives that the Rust highlighter does not apply. A
-single-quoted source may span lines. Apostrophes inside a double-quoted span are
-part of the source. An error-recovery pattern keeps an unterminated `usebackq`
-command injectable while it is being edited.
+`single_quote_string` content nodes are delimiter-free but neutral. For a
+single-quoted source that encloses the whole `/F` set, only the final apostrophe
+before the structural set close is the delimiter, so earlier apostrophes remain
+source content. A quote followed by another set value instead closes at its
+next apostrophe and stays a neutral item. Under an exact standalone `usebackq`,
+single quotes always take that neutral next-apostrophe form. Apostrophes in a
+plain FOR set remain ordinary argument text. Outer `)`, `&`, `|`, `<`, and `>`
+bytes keep their cmd tokenizer roles unless protected by double quotes or caret
+escapes. The predecessor injection query keeps its raw-text `usebackq`
+heuristic and requires the delimiter-specific node to be the set's only named
+item. The stacked mode-CST successor removes that heuristic by querying the
+public command-source node directly. This avoids assigning command semantics
+to partial-set forms and avoids range adjustment directives that the Rust
+highlighter does not apply. A single-quoted source may span lines. An
+error-recovery pattern keeps an unterminated `usebackq` command injectable while
+it is being edited.
 
 ### GOTO and CALL
 
