@@ -257,6 +257,20 @@ outside the assignment.
 Redirections inside a quoted binding's ignored suffix remain positional
 `redirect` fields, while a terminal redirect stays on `set_statement`.
 
+### Built-in help forms
+
+The exact documented `IF /?`, `FOR /?`, and `REM /?` forms are ordinary
+`command` nodes. Their names and help arguments use the same `name` and
+`argument` fields as other commands. A hidden scanner token selects this path
+only when horizontal space separates the name from `/?` and the argument ends
+at the line, a command operator, a structural block close, or a trailing
+redirection. A source descriptor is part of that boundary only when one digit
+is immediately followed by `<` or `>`. The same selection applies when a help
+command is an IF consequence, an ELSE alternative, or a FOR body. Extra
+argument text disables the exception. IF and FOR then remain malformed
+specialized statements, while REM keeps the extra text in its opaque comment
+body.
+
 ### IF / ELSE
 
 Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)

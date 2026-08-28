@@ -3770,6 +3770,10 @@
       "members": [
         {
           "type": "SYMBOL",
+          "name": "_help_command_name"
+        },
+        {
+          "type": "SYMBOL",
           "name": "_cmd_path"
         },
         {
@@ -4630,6 +4634,10 @@
     {
       "type": "SYMBOL",
       "name": "_redirect_target_separator_ahead"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_help_command_name"
     },
     {
       "type": "SYMBOL",

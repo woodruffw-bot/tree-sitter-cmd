@@ -114,10 +114,104 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
+        ("if /?\necho tail\n", "/?", "exist marker echo body"),
+        ("for /?\necho tail\n", "/?", "%%i in (one) do echo %%i"),
+        ("rem /?\necho tail\n", "/?", "/? note"),
+        ("if exist x if /?\necho tail\n", "/?", "exist y echo body"),
+        (
+            "for %%x in (a) do for /?\necho tail\n",
+            "/?",
+            "%%y in (b) do echo %%y",
+        ),
+        (
+            "if exist x echo yes else if /?\necho tail\n",
+            "/?",
+            "exist y echo no",
+        ),
+        ("if exist x if /? >nul\necho tail\n", ">nul", "2>log"),
+        ("IF /? >nul\necho tail\n", ">nul", "2>log"),
+        ("REM /?<log\necho tail\n", "<log", ">out"),
+        (
+            "IF /? >foo=^\r\n;2>bar\r\necho tail\r\n",
+            "bar",
+            "baz",
+        ),
+        (
+            "IF /? >%\" \";p\r\necho tail\r\n",
+            ";p",
+            ";q",
+        ),
+        (
+            "IF /? >%1x=%\r\necho tail\r\n",
+            "x",
+            "y",
+        ),
+        (
+            "IF /? >=%1\"%1 \"\r\necho tail\r\n",
+            "%1 ",
+            "%2 ",
+        ),
+        (
+            "IF /? >a^\r\n=%1\r\necho tail\r\n",
+            "%1",
+            "%2",
+        ),
+        (
+            "IF /? >a^\r\n=%1\r\necho tail\r\n",
+            ">a^",
+            ">%1^",
+        ),
+        ("IF /? > %1,b\necho tail\n", ",b", ";(="),
+        ("(IF /? >=x)\necho tail\n", "x", "("),
+        ("IF /? >a^\r\n =%\r\necho tail\r\n", "=%", "==%"),
     ];
 
     for (before, needle, replacement) in cases {
         assert_incremental_matches_fresh(before, needle, replacement);
+    }
+}
+
+#[test]
+fn help_boundary_edits_preserve_malformed_state() {
+    let cases = [
+        ("IF /?\necho tail\n", "/?", "/? extra"),
+        ("if exist x if /?\necho tail\n", "/?", "/? extra"),
+        ("FOR /? 2>nul\necho tail\n", "2>nul", "2 >nul"),
+        ("IF /? >nul\necho tail\n", ">nul", ">nul extra"),
+        ("FOR /? 2>nul\necho tail\n", "2>nul", "2>nul extra"),
+        ("IF /? >%foo\necho tail\n", "%foo", "%foo extra"),
+        ("IF /? > %a\necho tail\n", "%a", "%=a"),
+        ("IF /? 2>nul\necho tail\n", "? ", "?"),
+        ("IF /? > a(x\necho tail\n", "(x", "(=b"),
+        ("IF /? >!a!\necho tail\n", "!a!", "!!a!=!"),
+        ("IF /? > %1,b\necho tail\n", ",", "="),
+        (
+            "IF /? >foo=^\r\n;2>bar\r\necho tail\r\n",
+            ";2",
+            "2",
+        ),
+    ];
+
+    for (before, needle, replacement) in cases {
+        let start = before.find(needle).expect("help edit");
+        let (incremental, edited) = edited_tree(
+            before.as_bytes(),
+            start..start + needle.len(),
+            replacement.as_bytes(),
+        );
+        let fresh = parser()
+            .parse(edited.as_slice(), None)
+            .expect("fresh malformed parse");
+
+        assert_eq!(
+            incremental.root_node().to_sexp(),
+            fresh.root_node().to_sexp()
+        );
+        assert_eq!(
+            incremental.root_node().has_error(),
+            fresh.root_node().has_error(),
+        );
+        assert!(fresh.root_node().has_error());
     }
 }
 
@@ -232,6 +326,15 @@ fn parse_chunked(source: &[u8], chunk_size: usize) -> Tree {
 fn chunked_input_matches_contiguous_input() {
     let source = concat!(
         "@echo off\r\n",
+        "IF /?\r\n",
+        "FOR /?\r\n",
+        "REM /?\r\n",
+        "if exist x if /? >nul\r\n",
+        "if exist x echo yes else REM /?<log\r\n",
+        "for %%x in (a) do FoR /? 2>nul\r\n",
+        "IF /? >nul\r\n",
+        "FOR /? 2>nul\r\n",
+        "REM /?<log\r\n",
         "if exist \"café.txt\" (\r\n",
         "  echo one ^\r\n",
         "    two^) %PATH%\r\n",

@@ -1,0 +1,308 @@
+============================
+documented built-in help forms
+============================
+
+IF /?
+FoR /?
+REM /?
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+=================================
+help forms at command boundaries
+=================================
+
+IF /? && echo done
+(
+  REM /?
+)
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+===================================
+REM help form requires an exact tail
+===================================
+
+REM /? extra
+
+---
+
+(program
+  (rem_comment
+    (keyword)
+    (comment_text)))
+
+====================================
+help forms are control-flow bodies
+====================================
+
+if exist x if /? >nul
+if exist x echo yes else REM /?<log
+for %%x in (a) do FoR /? 2>nul
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (keyword)
+    alternative: (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      redirect: (redirect_file
+        source: (file_descriptor)
+        operator: (redirect_operator)
+        target: (argument
+          (text))))))
+
+=====================================
+help forms allow trailing redirections
+=====================================
+
+IF /? >nul
+FOR /? 2>nul
+REM /?<log
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+=====================================
+help forms allow redirect-only suffixes
+=====================================
+
+IF /? >"help log.txt" 2>&1
+FOR /? >%TEMP%\for-help.txt
+IF /? >%foo
+FOR /? >!foo
+IF /? >%foo 2>bar
+IF /? >foo=2>bar
+IF /? >"%VAR:"=% foo"
+IF /? >foo= ; 2>bar
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (string)))
+    redirect: (redirect_dup
+      source: (file_descriptor)
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (variable)
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)
+        (text)))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (string
+          (variable)))))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
+
+================================================
+IF arguments after a help redirection remain errors
+================================================
+
+IF /? >nul extra
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (text))
+  (command
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    name: (command_name)))
+
+=================================================
+FOR arguments after a help redirection remain errors
+=================================================
+
+FOR /? 2>nul extra
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (UNEXPECTED '?'))
+  (command
+    name: (command_name)
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    argument: (argument
+      (text))))

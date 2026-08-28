@@ -158,6 +158,7 @@ module.exports = grammar({
     $._concat,
     $._standard_concat,
     $._redirect_target_separator_ahead,
+    $._help_command_name,
     $._rem,
     $._rem_text,
     $._redirect_source,
@@ -1015,6 +1016,7 @@ module.exports = grammar({
     // debug-disable trick), and `%`/`!` only form an expansion when they pair up.
     _cmd_lead: ($) =>
       choice(
+        $._help_command_name,
         $._cmd_path,
         $._cmd_punct_lead,
         $._cmd_text,

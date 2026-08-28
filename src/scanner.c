@@ -14,6 +14,9 @@
 //   REDIRECT_TARGET_SEPARATOR_AHEAD
 //                - zero-width selection of a separator-aware redirection
 //                  target when standard punctuation occurs before its end.
+//   HELP_COMMAND_NAME
+//                - `if`, `for`, or `rem` only when followed by the exact
+//                  documented `/?` help argument at a command boundary.
 //   REM          - the `rem` comment keyword (whole-word; tree-sitter declines
 //                  to keyword-extract it).
 //   REM_TEXT     - the opaque body of a REM comment through end of line.
@@ -79,6 +82,7 @@ enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
   REDIRECT_TARGET_SEPARATOR_AHEAD,
+  HELP_COMMAND_NAME,
   REM,
   REM_TEXT,
   REDIRECT_SOURCE,
@@ -320,6 +324,596 @@ static bool scan_rem(TSLexer *lexer) {
   return false;
 }
 
+static bool is_help_command_boundary(const Scanner *s, int32_t c) {
+  return c == '\r' || c == '\n' || c == '&' || c == '|' ||
+         (s->depth > 0 && c == ')');
+}
+
+static bool is_help_target_boundary(const Scanner *s, int32_t c) {
+  return c == ' ' || c == '\t' || c == ',' || c == ';' || c == '=' ||
+         c == '<' || c == '>' || (s->depth > 0 && c == '(') ||
+         is_help_command_boundary(s, c);
+}
+
+static bool skip_help_line_continuation(const int32_t *tail, size_t length,
+                                        size_t *index) {
+  size_t i = *index;
+  if (i == length || tail[i] != '^') return false;
+  i++;
+  if (i < length && tail[i] == '\r') i++;
+  if (i == length || tail[i] != '\n') return false;
+  *index = i + 1;
+  return true;
+}
+
+static bool skip_help_spacing(const int32_t *tail, size_t length,
+                              size_t *index) {
+  bool skipped_continuation = false;
+  for (;;) {
+    while (*index < length &&
+           (tail[*index] == ' ' || tail[*index] == '\t')) {
+      (*index)++;
+    }
+    if (!skip_help_line_continuation(tail, length, index)) {
+      return skipped_continuation;
+    }
+    skipped_continuation = true;
+  }
+}
+
+static bool skip_help_target_prefix(const int32_t *tail, size_t length,
+                                    size_t *index, bool *had_spacing) {
+  bool had_separator = false;
+  for (;;) {
+    size_t before = *index;
+    while (*index < length) {
+      if (tail[*index] == ' ' || tail[*index] == '\t') {
+        *had_spacing = true;
+      } else if (tail[*index] == ',' || tail[*index] == ';' ||
+                 tail[*index] == '=') {
+        had_separator = true;
+      } else {
+        break;
+      }
+      (*index)++;
+    }
+    if (skip_help_line_continuation(tail, length, index)) {
+      *had_spacing = true;
+      continue;
+    }
+    if (*index == before) return had_separator;
+  }
+}
+
+static size_t paired_help_expansion_end(const int32_t *tail, size_t length,
+                                        size_t start, int32_t sigil) {
+  for (size_t i = start + 1; i < length; i++) {
+    if (tail[i] == '\r' || tail[i] == '\n') return 0;
+    if (tail[i] == sigil) return i + 1;
+  }
+  return 0;
+}
+
+static bool is_tilde_modifier(int32_t c) {
+  return c == 'd' || c == 'D' || c == 'p' || c == 'P' || c == 'n' ||
+         c == 'N' || c == 'x' || c == 'X' || c == 'f' || c == 'F' ||
+         c == 's' || c == 'S' || c == 'a' || c == 'A' || c == 't' ||
+         c == 'T' || c == 'z' || c == 'Z';
+}
+
+static size_t parameter_tilde_end(const int32_t *tail, size_t length,
+                                  size_t start) {
+  size_t i = start + 2;
+  while (i < length && is_tilde_modifier(tail[i])) i++;
+
+  if (i < length && tail[i] == '$') {
+    i++;
+    if (i == length ||
+        !((tail[i] >= 'A' && tail[i] <= 'Z') ||
+          (tail[i] >= 'a' && tail[i] <= 'z') || tail[i] == '_')) {
+      return 0;
+    }
+    while (i < length && tail[i] != ':' && tail[i] != '\r' &&
+           tail[i] != '\n') {
+      i++;
+    }
+    if (i == length) return 0;
+    i++;
+  }
+
+  if (i < length && tail[i] >= '0' && tail[i] <= '9') return i + 1;
+  return 0;
+}
+
+static bool is_for_variable_char(int32_t c) {
+  return c != ' ' && c != '\t' && c != '\r' && c != '\n' && c != '%' &&
+         c != '~' && c != '*' && c != '&' && c != '|' && c != '<' &&
+         c != '>' && c != '(' && c != ')' && c != '=' && c != '"';
+}
+
+static size_t loop_variable_end(const int32_t *tail, size_t length,
+                                size_t start) {
+  size_t i = start + 2;
+  if (i == length || tail[i] != '~') {
+    return i < length && is_for_variable_char(tail[i]) ? i + 1 : start + 2;
+  }
+
+  i++;
+  size_t modifiers_start = i;
+  while (i < length && is_tilde_modifier(tail[i])) i++;
+  if (i < length && tail[i] == '$') {
+    size_t dollar = i++;
+    if (i < length &&
+        ((tail[i] >= 'A' && tail[i] <= 'Z') ||
+         (tail[i] >= 'a' && tail[i] <= 'z') || tail[i] == '_')) {
+      while (i < length && tail[i] != ':' && tail[i] != '\r' &&
+             tail[i] != '\n') {
+        i++;
+      }
+      if (i < length && tail[i] == ':' && i + 1 < length &&
+          is_for_variable_char(tail[i + 1])) {
+        return i + 2;
+      }
+    }
+    // A failed PATH_SEARCH can still leave '$' as the final FOR variable.
+    return dollar + 1;
+  }
+
+  if (i < length && is_for_variable_char(tail[i])) return i + 1;
+  // The regex backtracks one modifier when the variable itself is d/p/n/etc.
+  return i > modifiers_start ? i : start + 2;
+}
+
+static size_t help_expansion_end(const int32_t *tail, size_t length,
+                                 size_t start) {
+  if (start == length) return 0;
+  int32_t c = tail[start];
+  if (c == '%') {
+    if (start + 1 == length) return 0;
+    int32_t next = tail[start + 1];
+    if (next == '*' || (next >= '0' && next <= '9')) return start + 2;
+    if (next == '%') return loop_variable_end(tail, length, start);
+    if (next == '~') return parameter_tilde_end(tail, length, start);
+    if (next == '\r' || next == '\n') return 0;
+    return paired_help_expansion_end(tail, length, start, '%');
+  }
+  if (c == '!' && start + 1 < length && tail[start + 1] != '!') {
+    size_t end = paired_help_expansion_end(tail, length, start, '!');
+    return end > start + 2 ? end : 0;
+  }
+  return 0;
+}
+
+// Mirror REDIRECT_TARGET_SEPARATOR_AHEAD against the buffered help tail. A
+// separator selects the standard-argument target only before a real word
+// boundary; separators protected by quotes, carets, or paired expansions stay
+// inside the general argument.
+static bool help_redirect_target_has_separator(const Scanner *s,
+                                               const int32_t *tail,
+                                               size_t length, size_t start) {
+  if (start == length || tail[start] == ',' || tail[start] == ';' ||
+      tail[start] == '=') {
+    return false;
+  }
+  bool in_quote = false;
+  size_t i = start;
+
+  while (i < length) {
+    int32_t c = tail[i];
+    if (c == '\r' || c == '\n') return false;
+
+    if (c == '^') {
+      i++;
+      if (i < length && tail[i] != '\r' && tail[i] != '\n') i++;
+      continue;
+    }
+
+    if (c == '"') {
+      in_quote = !in_quote;
+      i++;
+      continue;
+    }
+
+    if (!in_quote && (c == '%' || c == '!')) {
+      int32_t sigil = c;
+      bool saw_boundary = false;
+      bool saw_separator = false;
+      i++;
+      while (i < length && tail[i] != '\r' && tail[i] != '\n') {
+        c = tail[i++];
+        if (c == sigil) {
+          saw_separator = false;
+          break;
+        }
+        if (!saw_boundary && (c == ',' || c == ';' || c == '=')) {
+          saw_separator = true;
+        }
+        if (!saw_boundary && is_word_boundary(s, c)) saw_boundary = true;
+      }
+      if (saw_separator) return true;
+      continue;
+    }
+
+    if (!in_quote) {
+      if (c == ',' || c == ';' || c == '=') return true;
+      if (is_word_boundary(s, c)) return false;
+    }
+    i++;
+  }
+  return false;
+}
+
+// Return the end of one redirection target. Lookahead is buffered so an
+// unmatched sigil can remain literal without losing the boundary that follows
+// it, while a complete paired expansion can still protect that same byte.
+enum HelpTargetFragment {
+  HELP_TARGET_FRAGMENT_NONE,
+  HELP_TARGET_FRAGMENT_LITERAL,
+  HELP_TARGET_FRAGMENT_PAREN,
+  HELP_TARGET_FRAGMENT_STRAY_SIGIL,
+  HELP_TARGET_FRAGMENT_OTHER,
+};
+
+static size_t help_redirect_target_end(const Scanner *s, const int32_t *tail,
+                                       size_t length, size_t start,
+                                       bool standard_target) {
+  size_t i = start;
+  enum HelpTargetFragment previous_fragment = HELP_TARGET_FRAGMENT_NONE;
+  bool after_continuation = false;
+  while (i < length) {
+    int32_t c = tail[i];
+    bool separator_prefixed_lparen =
+        standard_target && i == start && c == '(';
+    if (!separator_prefixed_lparen && is_help_target_boundary(s, c) &&
+        (c != ',' && c != ';' && c != '=')) {
+      break;
+    }
+    if (standard_target && (c == ',' || c == ';' || c == '=')) break;
+
+    if (c == '^') {
+      i++;
+      if (i < length && (tail[i] == '%' || tail[i] == '!')) continue;
+      if (i < length && tail[i] == '\r') {
+        if (i + 1 == length || tail[i + 1] != '\n') return i - 1;
+        i++;
+      }
+      if (i < length && tail[i] == '\n') {
+        i++;
+        while (i < length && (tail[i] == ' ' || tail[i] == '\t')) i++;
+        after_continuation = true;
+        continue;
+      }
+      if (i < length) i++;
+      previous_fragment = HELP_TARGET_FRAGMENT_OTHER;
+      after_continuation = false;
+      continue;
+    }
+
+    if (c == '"') {
+      i++;
+      while (i < length) {
+        size_t expansion_end = help_expansion_end(tail, length, i);
+        if (expansion_end > 0) {
+          i = expansion_end;
+          continue;
+        }
+        if (tail[i] == '"') break;
+        i++;
+      }
+      if (i < length) i++;
+      previous_fragment = HELP_TARGET_FRAGMENT_OTHER;
+      after_continuation = false;
+      continue;
+    }
+
+    size_t expansion_end = help_expansion_end(tail, length, i);
+    if (expansion_end > 0) {
+      i = expansion_end;
+      previous_fragment = HELP_TARGET_FRAGMENT_OTHER;
+      after_continuation = false;
+      continue;
+    }
+
+    if (c == '%' || c == '!') {
+      i++;
+      previous_fragment = HELP_TARGET_FRAGMENT_STRAY_SIGIL;
+      after_continuation = false;
+      continue;
+    }
+
+    if (c == '(' || c == ')') {
+      i++;
+      previous_fragment = HELP_TARGET_FRAGMENT_PAREN;
+      after_continuation = false;
+      continue;
+    }
+
+    // At a general-fragment boundary, an adjacent `=` continues the argument
+    // only when its immediate text token includes at least one following byte.
+    // A lone `=` loses to the higher-precedence standard-separator token.
+    if (!standard_target && c == '=') {
+      if (!after_continuation &&
+          previous_fragment != HELP_TARGET_FRAGMENT_LITERAL) {
+        break;
+      }
+      size_t text_end = i + 1;
+      while (text_end < length &&
+             !is_help_target_boundary(s, tail[text_end]) &&
+             tail[text_end] != '^' && tail[text_end] != '"' &&
+             tail[text_end] != '%' && tail[text_end] != '!') {
+        text_end++;
+      }
+      while (text_end < length &&
+             (tail[text_end] == ',' || tail[text_end] == ';' ||
+              tail[text_end] == '=')) {
+        text_end++;
+      }
+      if (text_end == i + 1 &&
+          !(after_continuation &&
+            previous_fragment != HELP_TARGET_FRAGMENT_NONE)) {
+        break;
+      }
+      i = text_end;
+      previous_fragment = HELP_TARGET_FRAGMENT_LITERAL;
+      after_continuation = false;
+      continue;
+    }
+
+    // Consume one literal fragment at a time. In the general target form this
+    // naturally keeps comma/semicolon/equals bytes that occur after preceding
+    // literal text, matching `argument`; the standard form stops before them.
+    size_t text_end = i;
+    while (text_end < length &&
+           !is_help_target_boundary(s, tail[text_end]) &&
+           tail[text_end] != '^' && tail[text_end] != '"' &&
+           tail[text_end] != '%' && tail[text_end] != '!' &&
+           tail[text_end] != '(' && tail[text_end] != ')') {
+      text_end++;
+    }
+    if (!standard_target) {
+      while (text_end < length &&
+             (tail[text_end] == ',' || tail[text_end] == ';' ||
+              tail[text_end] == '=')) {
+        text_end++;
+      }
+    }
+    if (text_end == i) break;
+    i = text_end;
+    previous_fragment = HELP_TARGET_FRAGMENT_LITERAL;
+    after_continuation = false;
+  }
+  return i;
+}
+
+static size_t help_dup_target_end(const int32_t *tail, size_t length,
+                                  size_t start) {
+  if (start == length) return 0;
+  int32_t c = tail[start];
+  if (c >= '0' && c <= '9') return start + 1;
+  if (c == '%') {
+    return help_expansion_end(tail, length, start);
+  }
+  if (c == '!' && start + 1 < length && tail[start + 1] != '!') {
+    return help_expansion_end(tail, length, start);
+  }
+  return 0;
+}
+
+static bool help_tail_has_only_redirects(const Scanner *s,
+                                         const int32_t *tail,
+                                         size_t length) {
+  size_t i = 0;
+  bool after_redirect = false;
+  for (;;) {
+    size_t spacing_start = i;
+    bool descriptor_blocked_by_continuation =
+        skip_help_spacing(tail, length, &i);
+    bool separated_from_help_argument = i > spacing_start;
+    if (after_redirect) {
+      for (;;) {
+        bool consumed_punctuation = false;
+        while (i < length &&
+               (tail[i] == ',' || tail[i] == ';' || tail[i] == '=')) {
+          i++;
+          consumed_punctuation = true;
+        }
+        if (consumed_punctuation) descriptor_blocked_by_continuation = false;
+        if (skip_help_spacing(tail, length, &i)) {
+          descriptor_blocked_by_continuation = true;
+        }
+        if (i == length ||
+            (tail[i] != ',' && tail[i] != ';' && tail[i] != '=')) {
+          break;
+        }
+      }
+    }
+    if (i == length || is_help_command_boundary(s, tail[i])) return true;
+
+    if (tail[i] >= '0' && tail[i] <= '9') {
+      if (!after_redirect && !separated_from_help_argument) return false;
+      // The grammar's external descriptor token cannot skip a preceding
+      // continuation without either widening the descriptor's source range or
+      // letting the digit become an ordinary argument. Preserve malformed CST
+      // state instead of selecting a clean but structurally false help form.
+      if (descriptor_blocked_by_continuation) return false;
+      i++;
+      if (i == length || (tail[i] != '<' && tail[i] != '>')) return false;
+    }
+    if (tail[i] != '<' && tail[i] != '>') return false;
+
+    int32_t operator = tail[i++];
+    if (operator == '>' && i < length && tail[i] == '>') i++;
+    bool duplicate = i < length && tail[i] == '&';
+    if (duplicate) i++;
+
+    bool standard_target = true;
+    if (duplicate) {
+      while (i < length &&
+             (tail[i] == ' ' || tail[i] == '\t' || tail[i] == ',' ||
+              tail[i] == ';' || tail[i] == '=')) {
+        i++;
+      }
+    } else {
+      bool had_spacing = false;
+      bool had_separator =
+          skip_help_target_prefix(tail, length, &i, &had_spacing);
+      standard_target =
+          had_separator ||
+          (!had_spacing &&
+           help_redirect_target_has_separator(s, tail, length, i));
+    }
+
+    size_t target_end = duplicate ? help_dup_target_end(tail, length, i)
+                                  : help_redirect_target_end(
+                                        s, tail, length, i, standard_target);
+    if ((duplicate && target_end == 0) ||
+        (!duplicate && target_end == i)) {
+      return false;
+    }
+    i = target_end;
+    after_redirect = true;
+  }
+}
+
+static bool help_line_ends_in_quote(const int32_t *tail, size_t start,
+                                    size_t length) {
+  bool in_quote = false;
+  size_t i = start;
+  while (i < length) {
+    if (!in_quote && tail[i] == '^') {
+      i++;
+      if (i < length && tail[i] != '%' && tail[i] != '!') {
+        if (tail[i] == '\r' && i + 1 < length && tail[i + 1] == '\n') {
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      continue;
+    }
+
+    size_t expansion_end = help_expansion_end(tail, length, i);
+    if (expansion_end > 0) {
+      i = expansion_end;
+      continue;
+    }
+    if (tail[i] == '"') in_quote = !in_quote;
+    i++;
+  }
+  return in_quote;
+}
+
+static bool help_tail_has_odd_trailing_carets(const int32_t *tail,
+                                               size_t length) {
+  size_t i = length;
+  if (i > 0 && tail[i - 1] == '\r') i--;
+  size_t carets = 0;
+  while (i > 0 && tail[i - 1] == '^') {
+    carets++;
+    i--;
+  }
+  return carets % 2 != 0;
+}
+
+// Accept an exact help tail followed only by redirects. Buffering the logical
+// line makes paired-expansion lookahead reversible: when no close exists, the
+// sigil is literal and parsing resumes at its real target boundary.
+static bool scan_help_command_tail(const Scanner *s, TSLexer *lexer) {
+  int32_t *tail = NULL;
+  size_t length = 0;
+  size_t capacity = 0;
+  size_t line_start = 0;
+
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '\r' || c == '\n') {
+      if (help_line_ends_in_quote(tail, line_start, length) ||
+          !help_tail_has_odd_trailing_carets(tail, length)) {
+        break;
+      }
+    }
+
+    if (length == capacity) {
+      size_t next_capacity = capacity == 0 ? 64 : capacity * 2;
+      int32_t *next = ts_realloc(tail, next_capacity * sizeof(*tail));
+      if (next == NULL) {
+        ts_free(tail);
+        return false;
+      }
+      tail = next;
+      capacity = next_capacity;
+    }
+    tail[length++] = c;
+    lexer->advance(lexer, false);
+    if (c == '\n') line_start = length;
+  }
+
+  bool result = help_tail_has_only_redirects(s, tail, length);
+  ts_free(tail);
+  return result;
+}
+
+// Match the name of an exact documented help command. The token ends before
+// the required horizontal space. Looking through the `/?` tail prevents the
+// generic command rule from accepting extra arguments after these keywords.
+static bool scan_help_command_name(const Scanner *s, TSLexer *lexer,
+                                   bool want_rem) {
+  int32_t c = lexer->lookahead;
+  bool is_rem_name = false;
+  if (c == 'i' || c == 'I') {
+    lexer->advance(lexer, false);
+    c = lexer->lookahead;
+    if (c != 'f' && c != 'F') return false;
+    lexer->advance(lexer, false);
+  } else if (c == 'f' || c == 'F') {
+    lexer->advance(lexer, false);
+    c = lexer->lookahead;
+    if (c != 'o' && c != 'O') return false;
+    lexer->advance(lexer, false);
+    c = lexer->lookahead;
+    if (c != 'r' && c != 'R') return false;
+    lexer->advance(lexer, false);
+  } else if (c == 'r' || c == 'R') {
+    is_rem_name = true;
+    lexer->advance(lexer, false);
+    c = lexer->lookahead;
+    if (c != 'e' && c != 'E') return false;
+    lexer->advance(lexer, false);
+    c = lexer->lookahead;
+    if (c != 'm' && c != 'M') return false;
+    lexer->advance(lexer, false);
+  } else {
+    return false;
+  }
+
+  lexer->mark_end(lexer);
+  bool rem_boundary =
+      is_rem_name &&
+      (lexer->eof(lexer) || is_rem_boundary(lexer->lookahead));
+
+  bool has_space = false;
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+    lexer->advance(lexer, false);
+    has_space = true;
+  }
+  if (has_space && lexer->lookahead == '/') {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '?') {
+      lexer->advance(lexer, false);
+      if (scan_help_command_tail(s, lexer)) {
+        lexer->result_symbol = HELP_COMMAND_NAME;
+        return true;
+      }
+    }
+  }
+
+  if (want_rem && rem_boundary) {
+    lexer->result_symbol = REM;
+    return true;
+  }
+  return false;
+}
+
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
   Scanner *s = payload;
@@ -354,6 +948,21 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
       lexer->advance(lexer, true);
       skipped_space = true;
+    }
+    // Tree-sitter normally consumes caret-newline as an extra before asking
+    // the external scanner about a body. Look through it here so an exact help
+    // command can still win over the missing-body/concatenation alternatives.
+    // If the following bytes are not a help form, declining this scan restores
+    // the input and leaves ordinary body parsing unchanged.
+    while (lexer->lookahead == '^') {
+      lexer->advance(lexer, true);
+      if (lexer->lookahead == '\r') lexer->advance(lexer, true);
+      if (lexer->lookahead != '\n') return false;
+      lexer->advance(lexer, true);
+      skipped_space = true;
+      while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+        lexer->advance(lexer, true);
+      }
     }
     if (lexer->lookahead == '\r') {
       lexer->mark_end(lexer);
@@ -404,6 +1013,14 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       s->depth++;
       lexer->result_symbol = BLOCK_OPEN;
       return true;
+    }
+    // IF and FOR help commands can begin a controller body in the same parser
+    // state that offers the missing-body boundary markers.
+    if (skipped_space && valid_symbols[HELP_COMMAND_NAME] &&
+        (c == 'i' || c == 'I' || c == 'f' || c == 'F' || c == 'r' ||
+         c == 'R')) {
+      if (scan_help_command_name(s, lexer, valid_symbols[REM])) return true;
+      return false;
     }
     if (c != '(' && c != ')' && c != '^' && c != 'r' && c != 'R' &&
         (c < '0' || c > '9')) {
@@ -614,12 +1231,14 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
+  bool want_help_command_name = valid_symbols[HELP_COMMAND_NAME];
   bool want_rem = valid_symbols[REM];
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
   bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
+  if (!want_help_command_name && !want_rem && !want_redirect_source &&
+      !want_caret && !want_paren) {
     return false;
   }
 
@@ -629,6 +1248,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   int32_t c = lexer->lookahead;
+
+  if (want_help_command_name &&
+      (c == 'i' || c == 'I' || c == 'f' || c == 'F' || c == 'r' ||
+       c == 'R')) {
+    if (scan_help_command_name(s, lexer, want_rem)) return true;
+    return false;
+  }
 
   // A source file descriptor is one digit directly adjacent to `<` or `>`.
   // Looking ahead here avoids stealing ordinary numeric arguments such as the
