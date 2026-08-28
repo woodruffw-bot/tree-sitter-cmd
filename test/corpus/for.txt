@@ -46,6 +46,64 @@ for/f %%i in (x) do echo %%i
       argument: (argument
         (loop_variable)))))
 
+========================================================
+FOR /F source lookahead preserves quote boundaries
+========================================================
+
+for /f %%a in ('echo %~dp0"foo'bar"') do echo %%a
+for /f "usebackq" %%b in (`echo %%^"foo` data) do echo %%b
+for /f %%c in ('echo %%!foo!"x'y"') do echo %%c
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
 ====================
 for /l range
 ====================
@@ -276,8 +334,8 @@ for /f "usebackq" %%L in (`dir /b`) do echo %%L
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (backquote_string
-        content: (backquote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -513,8 +571,8 @@ for /f %%a in ('echo ^(hi^)') do echo %%a
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -537,8 +595,8 @@ for /f %%a in ('echo don't stop') do echo %%a
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -561,8 +619,8 @@ for /f %%a in ('powershell -command Write-Output 'one' 'two'') do echo %%a
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -686,8 +744,8 @@ for /f %%a in ('echo unfinished) do echo %%a
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)
+      (for_f_command_source
+        content: (for_f_command_content)
         (MISSING "'")))
     (keyword)
     body: (command
@@ -733,8 +791,8 @@ for /f %%d in ('powershell -command "[DateTime]::UtcNow.ToString('yyyy-MM-dd')"'
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -759,8 +817,8 @@ for /f %%a in ('
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -768,7 +826,7 @@ for /f %%a in ('
         (loop_variable)))))
 
 ==============================================
-unterminated FOR /F backquote retains content
+unterminated FOR /F backquote remains an error
 ==============================================
 
 for /f "usebackq" %%a in (`echo hi
@@ -783,9 +841,554 @@ for /f "usebackq" %%a in (`echo hi
       argument: (argument
         (string)))
     (loop_variable_declaration)
+    (keyword)))
+
+=============================================
+for /f mode uses only standalone usebackq
+=============================================
+
+for /f "delims=usebackq" %%a in ('echo default') do echo %%a
+for /f "nousebackq" %%b in (`literal`) do echo %%b
+for /f "tokens=* use^backq" %%f in (`literal`) do echo %%f
+for /f "tokens=* usebackq" %%c in (`echo combined`) do echo %%c
+for /f usebackq^ tokens^=* %%d in (`echo escaped`) do echo %%d
+for /f "USEBACKQ" %%e in ('literal text') do echo %%e
+
+---
+
+(program
+  (for_statement
     (keyword)
-    (backquote_string
-      content: (backquote_content))))
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (text)
+        (escape_sequence)
+        (text)
+        (escape_sequence)
+        (text)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=======================================================
+active command delimiter must enclose the whole set
+=======================================================
+
+for /f %%a in ('literal' data.txt) do echo %%a
+for /f %%k in ('echo %%' data.txt) do echo %%k
+for /f "usebackq" %%l in (`echo %%` data.txt) do echo %%l
+for /f "usebackq" %%b in (`literal` data.txt) do echo %%b
+for /f "usebackq" %%d in (`echo %~dp0` data.txt) do echo %%d
+for /f "usebackq" %%h in (`echo %foo` data.txt) do echo %%h
+for /f "usebackq" %%i in (`echo %%"foo"` data.txt) do echo %%i
+for /f "usebackq" %%j in (`echo "foo^"` data.txt) do echo %%j
+for /f %%c in (= 'echo padded' ;) do echo %%c
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=======================================================
+active command delimiter followed by an adjacent suffix
+=======================================================
+
+for /f %%a in ('literal'x) do echo %%a
+for /f "usebackq" %%b in (`literal`x) do echo %%b
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (single_quote_string
+        content: (single_quote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+==================================================
+for /f quote modes preserve line continuations
+==================================================
+
+for /f %%a in ('echo one ^
+two') do echo %%a
+for /f "usebackq" %%b in (`echo one ^
+two`) do echo %%b
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+======================================================
+inactive delimiters expose raw outer metacharacters
+======================================================
+
+for /f %%a in (`literal & | < > ) text`) do echo %%a
+for /f "usebackq" %%b in ('literal & | < > ) text') do echo %%b
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (for_option
+      (for_flag))
+    (loop_variable_declaration)
+    (keyword)
+    (for_set
+      (backquote_string
+        (backquote_content)))
+    (ERROR
+      (redirect_operator)
+      (redirect_operator)))
+  (command
+    (command_name
+      (text))
+    (argument
+      (text))
+    (argument
+      (text))
+    (argument
+      (loop_variable)))
+  (ERROR
+    (keyword)
+    (for_option
+      (for_flag)
+      (argument
+        (string)))
+    (loop_variable_declaration)
+    (keyword)
+    (ERROR
+      (redirect_operator)
+      (redirect_operator)))
+  (command
+    (command_name
+      (text))
+    (argument
+      (text))
+    (argument
+      (text))
+    (argument
+      (loop_variable))))
+
+=================================================
+usebackq command keeps inner backticks
+=================================================
+
+for /f "usebackq" %%a in (`echo `one` `two``) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+=======================================================
+usebackq command protects outer metacharacters explicitly
+=======================================================
+
+for /f "usebackq" %%a in (`echo ^(hi^) ^& ^| ^< ^>`) do echo %%a
+for /f "usebackq" %%b in (`cmd /c "echo one & echo two"`) do echo %%b
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+============================================================
+unescaped operator terminates usebackq command source
+============================================================
+
+for /f "usebackq" %%a in (`echo one & echo two`) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    (ERROR)
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+==================================================
+unterminated usebackq command has a missing close
+==================================================
+
+for /f "usebackq" %%a in (`echo unfinished) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)
+        (MISSING "`")))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
 
 ================================================
 for set with parentheses in a quoted item
@@ -877,6 +1480,16 @@ FOR /F quoted sources protect paired expansions
 for /f %%a in ('echo %v:>=x%') do echo %%a
 for /f %%b in ('echo !v:|=x!') do echo %%b
 for /f "usebackq" %%c in ('%v:>=x%') do echo %%c
+for /f "usebackq" %%d in (`echo %v:>=x%`) do echo %%d
+for /f %%e in (`%v:>=x%`) do echo %%e
+for /f "usebackq" %%f in (`echo 100%% ready`) do echo %%f
+for /f %%g in ('echo 100%% ready') do echo %%g
+for /f %%h in ('echo %foo'bar%' data) do echo %%h
+for /f "usebackq" %%i in (`echo !foo`bar!` data) do echo %%i
+for /f %%j in ('echo %foo'bar%') do echo %%j
+for /f "usebackq" %%k in (`echo !foo`bar!`) do echo %%k
+for /f %%l in ('echo %foo'bar%"x'y"') do echo %%l
+for /f "usebackq" %%m in (`echo !foo`bar!"x`y"`) do echo %%m
 
 ---
 
@@ -888,8 +1501,8 @@ for /f "usebackq" %%c in ('%v:>=x%') do echo %%c
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
-      (single_quote_string
-        content: (single_quote_content)))
+      (for_f_command_source
+        content: (for_f_command_content)))
     (keyword)
     body: (command
       name: (command_name)
@@ -899,6 +1512,22 @@ for /f "usebackq" %%c in ('%v:>=x%') do echo %%c
     (keyword)
     option: (for_option
       (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
@@ -918,8 +1547,152 @@ for /f "usebackq" %%c in ('%v:>=x%') do echo %%c
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
       (single_quote_string
-        content: (single_quote_content)))
+        content: (single_quote_content
+          (variable)))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (backquote_string
+        content: (backquote_content
+          (delayed_variable)))
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content
+          (variable))))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content
+          (delayed_variable))))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content
+          (variable))))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    option: (for_option
+      (for_flag)
+      argument: (argument
+        (string)))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (for_f_command_source
+        content: (for_f_command_content
+          (delayed_variable))))
     (keyword)
     body: (command
       name: (command_name)

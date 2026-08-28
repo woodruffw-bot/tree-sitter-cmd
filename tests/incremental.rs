@@ -123,6 +123,11 @@ fn scanner_sensitive_edits_match_fresh_parses() {
             "|=x",
         ),
         (
+            "for /f \"usebackx\" %%a in (`echo mode`) do echo %%a\r\necho tail\r\n",
+            "usebackx",
+            "usebackq",
+        ),
+        (
             "for /f %%a in ('literal') do echo %%a\r\necho tail\r\n",
             "') do",
             "'x) do",
@@ -141,6 +146,96 @@ fn scanner_sensitive_edits_match_fresh_parses() {
             "for /f \"usebackq\" %%a in ('one' 'two') do echo %%a\r\necho tail\r\n",
             "usebackq",
             "usebackx",
+        ),
+        (
+            "for /f \"tokens=* use^backq\" %%a in (`literal`) do echo %%a\r\necho tail\r\n",
+            "^",
+            "",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`literal`) do echo %%a\r\necho tail\r\n",
+            "`) do",
+            "`x) do",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`literal`x) do echo %%a\r\necho tail\r\n",
+            "`x) do",
+            "`) do",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo %~dp0` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo %foo` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo %%\"foo\"` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo \"foo^\"` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f %%a in ('echo %%' data) do echo %%a\r\necho tail\r\n",
+            "' data",
+            "'",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo %%` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo %%^\"foo` data) do echo %%a\r\necho tail\r\n",
+            "` data",
+            "`",
+        ),
+        (
+            "for /f %%a in ('echo %%!foo!\"x'y\"') do echo %%a\r\necho tail\r\n",
+            "!foo!",
+            "!bar!",
+        ),
+        (
+            "for /f %%a in ('echo %~$E^\"foo' data) do echo %%a\r\necho tail\r\n",
+            "$E",
+            "$F",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo \"foo\r\nbar`) do echo %%a\r\necho tail\r\n",
+            "foo",
+            "baz",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo 100%% ready`) do echo %%a\r\necho tail\r\n",
+            "100%%",
+            "100%",
+        ),
+        (
+            "for /f %%a in ('echo %foo'bar%' data) do echo %%a\r\necho tail\r\n",
+            "bar",
+            "baz",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo !foo`bar!`) do echo %%a\r\necho tail\r\n",
+            "bar",
+            "baz",
+        ),
+        (
+            "for /f %%a in ('echo %foo'bar%\"x'y\"') do echo %%a\r\necho tail\r\n",
+            "x'y",
+            "x'z",
+        ),
+        (
+            "for /f \"usebackq\" %%a in (`echo !foo`bar!\"x`y\"`) do echo %%a\r\necho tail\r\n",
+            "x`y",
+            "x`z",
         ),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
@@ -194,6 +289,51 @@ fn deleting_final_quote_after_inner_apostrophe_becomes_neutral() {
     );
     assert!(!incremental.root_node().has_error());
     assert!(!fresh.root_node().has_error());
+
+    for tree in [&incremental, &fresh] {
+        let for_statement = tree.root_node().named_child(0).expect("FOR statement");
+        let for_set = for_statement.child_by_field_name("set").expect("FOR set");
+        assert_eq!(
+            for_set.named_child(0).expect("neutral quoted item").kind(),
+            "single_quote_string",
+        );
+        assert_eq!(
+            for_set.named_child(1).expect("adjacent suffix").kind(),
+            "argument",
+        );
+    }
+}
+
+#[test]
+fn deleting_for_f_final_backtick_matches_fresh_error_tree() {
+    let before = concat!(
+        "for /f \"usebackq\" %%a in (`echo two`) do echo %%a\r\n",
+        "echo tail\r\n",
+    );
+    let quote = before
+        .find("`) do")
+        .expect("final FOR /F backtick delimiter");
+    let (incremental, edited) = edited_tree(before.as_bytes(), quote..quote + 1, b"");
+    let fresh = parser()
+        .parse(edited.as_slice(), None)
+        .expect("fresh malformed parse");
+
+    assert_eq!(
+        incremental.root_node().to_sexp(),
+        fresh.root_node().to_sexp(),
+    );
+    assert!(incremental.root_node().has_error());
+    assert!(fresh.root_node().has_error());
+    for tree in [&incremental, &fresh] {
+        let root = tree.root_node();
+        let for_statement = root.named_child(0).expect("recovered FOR statement");
+        let tail = root.named_child(1).expect("command after FOR statement");
+        assert_eq!(for_statement.kind(), "for_statement");
+        assert!(for_statement.has_error());
+        assert_eq!(tail.kind(), "command");
+        assert!(!tail.has_error());
+        assert_eq!(tail.start_position().row, 1);
+    }
 }
 
 #[test]
@@ -316,6 +456,9 @@ fn chunked_input_matches_contiguous_input() {
         "for %%b in (foo 'bar' baz) do echo %%b\r\n",
         "for /f %%c in ('literal' data.txt) do echo %%c\r\n",
         "for /f \"usebackq\" %%d in ('one' 'two') do echo %%d\r\n",
+        "for /f \"tokens=* usebackq\" %%e in (`echo `one` `two``\r\n",
+        ") do echo %%e\r\n",
+        "for /f %%f in ('echo one ^\r\n  two') do echo %%f\r\n",
         ":   \r\n",
         ": target\r\n",
         "(goto :loop ; ignored)\r\n",

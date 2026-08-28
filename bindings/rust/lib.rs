@@ -248,8 +248,7 @@ mod tests {
                 "dir",
                 "echo backquoted",
                 "echo combined",
-                "echo escaped options",
-                "echo unfinished"
+                "echo escaped options"
             ]
         );
     }
@@ -259,6 +258,7 @@ mod tests {
         let source = concat!(
             "for /f %%a in ('echo don't stop') do echo %%a\r\n",
             "for /f %%a in ('echo 'one' 'two'') do echo %%a\r\n",
+            "for /f %%a in ('echo %%!foo!\"x'y\"') do echo %%a\r\n",
             "for %%a in (it's) do echo %%a\r\n",
         );
         let tree = parse(source);
@@ -267,7 +267,7 @@ mod tests {
         let for_statement = tree.root_node().named_child(0).expect("FOR statement");
         let for_set = only_field(for_statement, "set");
         let quoted = for_set.named_child(0).expect("single-quoted source");
-        assert_eq!(quoted.kind(), "single_quote_string");
+        assert_eq!(quoted.kind(), "for_f_command_source");
         assert_eq!(quoted.child_count(), 3);
         assert_eq!(
             &source[quoted.child(0).expect("opening quote").byte_range()],
@@ -278,11 +278,86 @@ mod tests {
             "'"
         );
 
-        let query = Query::new(&language(), "(single_quote_content) @content")
-            .expect("single-quote-content query should compile");
+        let query = Query::new(&language(), "(for_f_command_content) @content")
+            .expect("FOR /F command-content query should compile");
         assert_eq!(
             capture_texts(source, &query, "content"),
-            ["echo don't stop", "echo 'one' 'two'"]
+            ["echo don't stop", "echo 'one' 'two'", "echo %%!foo!\"x'y\""]
+        );
+    }
+
+    #[test]
+    fn test_for_f_paired_expansions_keep_active_delimiters_opaque() {
+        let source = concat!(
+            "for /f %%a in ('echo %foo'bar%' data) do echo %%a\r\n",
+            "for /f \"usebackq\" %%b in (`echo !foo`bar!` data) do echo %%b\r\n",
+            "for /f %%c in ('echo %foo'bar%') do echo %%c\r\n",
+            "for /f \"usebackq\" %%d in (`echo !foo`bar!`) do echo %%d\r\n",
+            "for /f %%e in ('echo %foo'bar%\"x'y\"') do echo %%e\r\n",
+            "for /f \"usebackq\" %%f in (`echo !foo`bar!\"x`y\"`) do echo %%f\r\n",
+        );
+        let tree = parse(source);
+        assert!(
+            !tree.root_node().has_error(),
+            "{}",
+            tree.root_node().to_sexp()
+        );
+
+        for index in 0..2 {
+            let statement = tree.root_node().named_child(index).expect("neutral FOR /F");
+            let set = only_field(statement, "set");
+            assert_eq!(set.named_child_count(), 2);
+            assert!(matches!(
+                set.named_child(0).expect("neutral quoted item").kind(),
+                "single_quote_string" | "backquote_string"
+            ));
+        }
+
+        let query = Query::new(&language(), "(for_f_command_content) @content")
+            .expect("FOR /F command-content query should compile");
+        assert_eq!(
+            capture_texts(source, &query, "content"),
+            [
+                "echo %foo'bar%",
+                "echo !foo`bar!",
+                "echo %foo'bar%\"x'y\"",
+                "echo !foo`bar!\"x`y\"",
+            ],
+        );
+
+        let percent = Query::new(&language(), "(variable) @expansion")
+            .expect("variable query should compile");
+        assert_eq!(
+            capture_texts(source, &percent, "expansion"),
+            ["%foo'bar%", "%foo'bar%", "%foo'bar%"],
+        );
+        let delayed = Query::new(&language(), "(delayed_variable) @expansion")
+            .expect("delayed-variable query should compile");
+        assert_eq!(
+            capture_texts(source, &delayed, "expansion"),
+            ["!foo`bar!", "!foo`bar!", "!foo`bar!"],
+        );
+
+        for malformed in [
+            "for /f %%a in ('echo %foo'bar%) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo !foo`bar!) do echo %%a\r\n",
+        ] {
+            assert!(parse(malformed).root_node().has_error(), "{malformed:?}");
+        }
+    }
+
+    #[test]
+    fn test_for_f_inner_double_quote_ends_at_newline() {
+        let source =
+            "for /f \"usebackq\" %%a in (`echo \"foo\r\nbar`) do echo %%a\r\n";
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        let query = Query::new(&language(), "(for_f_command_content) @content")
+            .expect("FOR /F command-content query should compile");
+        assert_eq!(
+            capture_texts(source, &query, "content"),
+            ["echo \"foo\r\nbar"],
         );
     }
 
@@ -364,6 +439,12 @@ mod tests {
             "for /f %%a in ('echo one ^< input') do echo %%a\r\n",
             "for /f %%a in ('echo one ^> output') do echo %%a\r\n",
             "for /f %%a in ('cmd /c \"echo one & echo two\"') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo ^(hi^)`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one ^& echo two`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one ^| find \"one\"`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one ^< input`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one ^> output`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`cmd /c \"echo one & echo two\"`) do echo %%a\r\n",
         ] {
             let tree = parse(source);
             assert!(
@@ -378,6 +459,15 @@ mod tests {
             "for /f %%a in ('echo one | find \"one\"') do echo %%a\r\n",
             "for /f %%a in ('echo one < input') do echo %%a\r\n",
             "for /f %%a in ('echo one > output') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo (hi)`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one & echo two`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one | find \"one\"`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one < input`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo one > output`) do echo %%a\r\n",
+            "for /f %%a in ('echo %foo&bar') do echo %%a\r\n",
+            "for /f %%a in ('echo !foo|bar') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo %foo>bar`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in (`echo !foo)bar`) do echo %%a\r\n",
         ] {
             let tree = parse(source);
             assert!(
@@ -402,15 +492,153 @@ mod tests {
     }
 
     #[test]
-    fn test_unterminated_backquote_has_neutral_delimiter_free_content() {
-        let source = "for /f \"usebackq\" %%a in (`echo unfinished";
-        let query = Query::new(&language(), "(backquote_content) @content")
-            .expect("backquote-content query should compile");
+    fn test_for_f_mode_is_explicit_and_options_stay_opaque() {
+        let source = concat!(
+            "for /f \"delims=usebackq\" %%a in ('echo default') do echo %%a\r\n",
+            "for /f \"nousebackq\" %%b in (`literal`) do echo %%b\r\n",
+            "for /f \"tokens=* usebackq\" %%c in (`echo combined`) do echo %%c\r\n",
+            "for /f usebackq^ tokens^=* %%d in (`echo escaped`) do echo %%d\r\n",
+            "for /f \"USEBACKQ\" %%e in ('literal text') do echo %%e\r\n",
+            "for /f %%f in ('literal' data.txt) do echo %%f\r\n",
+            "for /f \"usebackq\" %%g in (`literal` data.txt) do echo %%g\r\n",
+            "for /f %%h in ('literal'x) do echo %%h\r\n",
+            "for /f \"usebackq\" %%i in (`literal`x) do echo %%i\r\n",
+            "for /f %%j in ('literal'\"x\") do echo %%j\r\n",
+            "for /f \"usebackq\" %%k in (`literal`\"x\") do echo %%k\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
 
+        let sources = Query::new(&language(), "(for_f_command_source) @source")
+            .expect("FOR /F source query should compile");
+        assert_eq!(
+            capture_texts(source, &sources, "source"),
+            ["'echo default'", "`echo combined`", "`echo escaped`"]
+        );
+
+        let options = Query::new(&language(), "(for_option argument: (argument) @option)")
+            .expect("FOR option query should compile");
+        assert_eq!(
+            capture_texts(source, &options, "option"),
+            [
+                "\"delims=usebackq\"",
+                "\"nousebackq\"",
+                "\"tokens=* usebackq\"",
+                "usebackq^ tokens^=*",
+                "\"USEBACKQ\"",
+                "\"usebackq\"",
+                "\"usebackq\"",
+                "\"usebackq\""
+            ]
+        );
+    }
+
+    #[test]
+    fn test_incomplete_path_search_keeps_following_item_neutral() {
+        let source = "for /f %%a in ('echo %~$E^\"foo' data) do echo %%a\r\n";
+        let tree = parse(source);
+        let statement = tree.root_node().named_child(0).expect("FOR statement");
+        let set = only_field(statement, "set");
+
+        assert!(!tree.root_node().has_error());
+        assert_eq!(
+            set.named_child(0).expect("quoted item").kind(),
+            "single_quote_string",
+        );
+        let data = set.named_child(1).expect("following item");
+        assert_eq!(data.kind(), "argument");
+        assert_eq!(&source[data.byte_range()], "data");
+        let sources = Query::new(&language(), "(for_f_command_source) @source")
+            .expect("FOR source query");
+        assert!(capture_texts(source, &sources, "source").is_empty());
+    }
+
+    #[test]
+    fn test_inactive_for_f_delimiters_do_not_protect_outer_metacharacters() {
+        for source in [
+            "for /f %%a in (`literal ^) ^& ^| ^< ^>`) do echo %%a\r\n",
+            "for /f %%a in (`\"literal ) & | < >\"`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal ^) ^& ^| ^< ^>') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('\"literal ) & | < >\"') do echo %%a\r\n",
+        ] {
+            let tree = parse(source);
+            assert!(
+                !tree.root_node().has_error(),
+                "protected inactive delimiter content failed: {source:?}",
+            );
+        }
+
+        for source in [
+            "for /f %%a in (`literal ) text`) do echo %%a\r\n",
+            "for /f %%a in (`literal & text`) do echo %%a\r\n",
+            "for /f %%a in (`literal | text`) do echo %%a\r\n",
+            "for /f %%a in (`literal < text`) do echo %%a\r\n",
+            "for /f %%a in (`literal > text`) do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal ) text') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal & text') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal | text') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal < text') do echo %%a\r\n",
+            "for /f \"usebackq\" %%a in ('literal > text') do echo %%a\r\n",
+        ] {
+            let tree = parse(source);
+            assert!(
+                tree.root_node().has_error(),
+                "raw outer metacharacter parsed cleanly: {source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn test_for_f_quote_modes_preserve_line_continuations() {
+        let source = concat!(
+            "for /f %%a in ('echo one ^\ntwo') do echo %%a\n",
+            "for /f \"usebackq\" %%b in (`echo one ^\r\ntwo`) do echo %%b\r\n",
+            "for /f %%c in (`literal ^\ntext`) do echo %%c\n",
+            "for /f \"usebackq\" %%d in ('literal ^\r\ntext') do echo %%d\r\n",
+        );
+        let tree = parse(source);
+        assert!(!tree.root_node().has_error());
+
+        let commands = Query::new(&language(), "(for_f_command_content) @content")
+            .expect("FOR /F command-content query should compile");
+        assert_eq!(
+            capture_texts(source, &commands, "content"),
+            ["echo one ^\ntwo", "echo one ^\r\ntwo"]
+        );
+
+        let inactive = Query::new(
+            &language(),
+            "[(backquote_content) (single_quote_content)] @content",
+        )
+        .expect("inactive quote-content query should compile");
+        assert_eq!(
+            capture_texts(source, &inactive, "content"),
+            ["literal ^\ntext", "literal ^\r\ntext"]
+        );
+    }
+
+    #[test]
+    fn test_for_f_backquote_requires_final_delimiter() {
+        let source = "for /f \"usebackq\" %%a in (`echo unfinished) do echo %%a\r\n";
+        let tree = parse(source);
+        let root = tree.root_node();
+
+        assert!(root.has_error());
+        assert!(
+            root.to_sexp().contains("(MISSING \"`\")"),
+            "unfinished source must retain a real missing delimiter: {}",
+            root.to_sexp(),
+        );
+
+        let query = Query::new(&language(), "(for_f_command_content) @content")
+            .expect("FOR /F command-content query should compile");
         assert_eq!(
             capture_texts(source, &query, "content"),
             ["echo unfinished"]
         );
+
+        let eof_source = "for /f \"usebackq\" %%a in (`echo unfinished";
+        assert!(parse(eof_source).root_node().has_error());
     }
 
     #[test]

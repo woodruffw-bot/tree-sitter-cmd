@@ -60,12 +60,18 @@
 //   FOR_SINGLE_INNER_QUOTE / FOR_SINGLE_QUOTE_END
 //                - an apostrophe inside a single-quoted FOR source, or the
 //                  final delimiter before the FOR set's structural close.
-//   FOR_F_SINGLE_COMMAND_SOURCE_AHEAD
-//                - zero-width confirmation that an apostrophe-delimited source
-//                  encloses the whole FOR /F set rather than one neutral item.
+//   FOR_BACKQUOTE_INNER_QUOTE / FOR_BACKQUOTE_END
+//                - the same distinction for an active usebackq command.
+//   FOR_{SINGLE,BACKQUOTE}_{PERCENT,DELAYED}_EXPANSION
+//                - a paired expansion containing the active delimiter. The
+//                  scanner can look past the delimiter without letting an
+//                  unmatched sigil consume a later percent in the FOR body.
+//   FOR_F_SINGLE_COMMAND_SOURCE_AHEAD / FOR_F_BACKQUOTE_COMMAND_SOURCE_AHEAD
+//                - zero-width confirmation that the active delimiter encloses
+//                  the whole FOR set rather than one neutral set item.
 //   FOR_F_DEFAULT_MODE / FOR_F_USEBACKQ_MODE
-//                - zero-width selection of whether apostrophes are active after
-//                  inspecting only a standalone usebackq option.
+//                - zero-width selection of the active FOR /F command delimiter
+//                  after inspecting only a standalone usebackq option.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
 //                    zero-width CONCAT / STANDARD_CONCAT / target-lookahead /
@@ -105,11 +111,18 @@ enum TokenType {
   BODY_BOUNDARY,
   BODY_BOUNDARY_AGAIN,
   COMMAND_START,
-  FOR_F_DEFAULT_MODE,
-  FOR_F_USEBACKQ_MODE,
-  FOR_F_SINGLE_COMMAND_SOURCE_AHEAD,
   FOR_SINGLE_INNER_QUOTE,
   FOR_SINGLE_QUOTE_END,
+  FOR_BACKQUOTE_INNER_QUOTE,
+  FOR_BACKQUOTE_END,
+  FOR_SINGLE_PERCENT_EXPANSION,
+  FOR_SINGLE_DELAYED_EXPANSION,
+  FOR_BACKQUOTE_PERCENT_EXPANSION,
+  FOR_BACKQUOTE_DELAYED_EXPANSION,
+  FOR_F_SINGLE_COMMAND_SOURCE_AHEAD,
+  FOR_F_BACKQUOTE_COMMAND_SOURCE_AHEAD,
+  FOR_F_DEFAULT_MODE,
+  FOR_F_USEBACKQ_MODE,
   ERROR_SENTINEL,
 };
 
@@ -117,6 +130,23 @@ typedef struct {
   uint32_t depth; // number of currently-open structural blocks
   uint8_t body_boundaries;
 } Scanner;
+
+static bool is_for_variable_char(int32_t c) {
+  return c != ' ' && c != '\t' && c != '\r' && c != '\n' && c != '%' &&
+         c != '~' && c != '*' && c != '&' && c != '|' && c != '<' &&
+         c != '>' && c != '(' && c != ')' && c != '=' && c != '"';
+}
+
+static bool is_tilde_modifier(int32_t c) {
+  return c == 'd' || c == 'D' || c == 'p' || c == 'P' || c == 'n' ||
+         c == 'N' || c == 'x' || c == 'X' || c == 'f' || c == 'F' ||
+         c == 's' || c == 'S' || c == 'a' || c == 'A' || c == 't' ||
+         c == 'T' || c == 'z' || c == 'Z';
+}
+
+static bool is_env_name_start(int32_t c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
+}
 
 void *tree_sitter_cmd_external_scanner_create(void) {
   Scanner *s = ts_calloc(1, sizeof(Scanner));
@@ -290,6 +320,329 @@ static void skip_ws(TSLexer *lexer) {
   }
 }
 
+// Return the end of a complete paired expansion on one physical line. When an
+// expansion containing the active delimiter reaches the set's `)` before its
+// apparent closing sigil, accept that close only if a later delimiter can still
+// terminate the quoted item. This keeps an unmatched source sigil from pairing
+// with `%`/`!` in the FOR body.
+static size_t for_source_paired_expansion_end(const int32_t *line,
+                                              size_t length, size_t start,
+                                              int32_t delimiter) {
+  int32_t sigil = line[start];
+  if (start + 1 == length || line[start + 1] == sigil) return 0;
+  if (sigil == '%' &&
+      (line[start + 1] == '~' || line[start + 1] == '*' ||
+       (line[start + 1] >= '0' && line[start + 1] <= '9'))) {
+    return 0;
+  }
+
+  bool saw_delimiter = false;
+  bool saw_structural_close = false;
+  for (size_t i = start + 1; i < length; i++) {
+    if (line[i] == delimiter) saw_delimiter = true;
+    if (line[i] == ')') saw_structural_close = true;
+    if (line[i] != sigil) continue;
+
+    if (saw_delimiter && saw_structural_close) {
+      for (size_t j = i + 1; j < length; j++) {
+        if (line[j] == delimiter) return i + 1;
+      }
+      return 0;
+    }
+    return i + 1;
+  }
+  return 0;
+}
+
+// Confirm that an active FOR /F delimiter encloses the entire parenthesized
+// set. A delimiter followed by another set value remains a neutral quoted item.
+// Physical lines are buffered so paired expansions can protect an internal
+// active delimiter without making unmatched tails consume the later FOR body.
+static bool scan_for_f_command_source_ahead(const Scanner *s, TSLexer *lexer,
+                                            int32_t delimiter,
+                                            enum TokenType symbol) {
+  lexer->mark_end(lexer);
+  for (;;) {
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, true);
+    }
+    if (lexer->lookahead == '^') {
+      lexer->advance(lexer, true);
+      if (lexer->lookahead == '\r') lexer->advance(lexer, true);
+      if (lexer->lookahead != '\n') return false;
+      lexer->advance(lexer, true);
+      continue;
+    }
+    if (lexer->lookahead == ',' || lexer->lookahead == ';' ||
+        lexer->lookahead == '=' || lexer->lookahead == '\n') {
+      lexer->advance(lexer, false);
+      continue;
+    }
+    if (lexer->lookahead == '\r') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead != '\n') return false;
+      lexer->advance(lexer, false);
+      continue;
+    }
+    break;
+  }
+
+  if (s->depth == 0 || lexer->lookahead != delimiter) return false;
+  lexer->advance(lexer, false);
+
+  bool saw_delimiter = false;
+  bool delimiter_is_last = false;
+  for (;;) {
+    int32_t *line = NULL;
+    size_t length = 0;
+    size_t capacity = 0;
+    while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+           lexer->lookahead != '\n') {
+      if (length == capacity) {
+        size_t next_capacity = capacity == 0 ? 64 : capacity * 2;
+        int32_t *next = ts_realloc(line, next_capacity * sizeof(*line));
+        if (next == NULL) {
+          ts_free(line);
+          return false;
+        }
+        line = next;
+        capacity = next_capacity;
+      }
+      line[length++] = lexer->lookahead;
+      lexer->advance(lexer, false);
+    }
+
+    bool has_line_break = !lexer->eof(lexer);
+    bool in_double_quote = false;
+    size_t i = 0;
+    while (i < length) {
+      int32_t c = line[i];
+      if (!in_double_quote && c == '^') {
+        if (i + 1 == length) {
+          if (!has_line_break) delimiter_is_last = false;
+          i++;
+          continue;
+        }
+        delimiter_is_last = false;
+        i += 2;
+        continue;
+      }
+
+      if (c == '"') {
+        delimiter_is_last = false;
+        in_double_quote = !in_double_quote;
+        i++;
+        continue;
+      }
+
+      if (!in_double_quote && (c == '%' || c == '!')) {
+        int32_t sigil = c;
+        delimiter_is_last = false;
+
+        if (sigil == '%' && i + 1 < length &&
+            (line[i + 1] == '*' ||
+             (line[i + 1] >= '0' && line[i + 1] <= '9'))) {
+          i += 2;
+          continue;
+        }
+        if (sigil == '%' && i + 1 < length && line[i + 1] == '%') {
+          i += 2;
+          if (i < length && line[i] != delimiter && line[i] != '^' &&
+              line[i] != '!' && is_for_variable_char(line[i])) {
+            i++;
+          }
+          continue;
+        }
+        if (sigil == '%' && i + 1 < length && line[i + 1] == '~') {
+          i += 2;
+          while (i < length && is_tilde_modifier(line[i])) i++;
+          if (i < length && line[i] == '$') {
+            i++;
+            if (i < length && is_env_name_start(line[i])) {
+              while (i < length && line[i] != ':' && line[i] != '"' &&
+                     line[i] != '^' && line[i] != delimiter) {
+                i++;
+              }
+              if (i < length && line[i] == ':') i++;
+            }
+          }
+          if (i < length && line[i] >= '0' && line[i] <= '9') i++;
+          continue;
+        }
+
+        size_t expansion_end = for_source_paired_expansion_end(
+            line, length, i, delimiter);
+        if (expansion_end > 0) {
+          i = expansion_end;
+          continue;
+        }
+
+        size_t delimiter_index = i + 1;
+        while (delimiter_index < length &&
+               line[delimiter_index] != delimiter) {
+          delimiter_index++;
+        }
+        if (delimiter_index == length) {
+          ts_free(line);
+          lexer->result_symbol = symbol;
+          return true;
+        }
+        i = delimiter_index;
+        continue;
+      }
+
+      if (!in_double_quote && c == delimiter) {
+        saw_delimiter = true;
+        delimiter_is_last = true;
+        i++;
+        continue;
+      }
+
+      if (!in_double_quote && c == ')') {
+        bool result = !saw_delimiter || delimiter_is_last;
+        ts_free(line);
+        if (result) lexer->result_symbol = symbol;
+        return result;
+      }
+
+      if (!in_double_quote &&
+          (c == '&' || c == '|' || c == '<' || c == '>')) {
+        ts_free(line);
+        lexer->result_symbol = symbol;
+        return true;
+      }
+
+      if (!in_double_quote &&
+          (c == ' ' || c == '\t' || c == ',' || c == ';' || c == '=')) {
+        i++;
+        continue;
+      }
+
+      delimiter_is_last = false;
+      i++;
+    }
+    ts_free(line);
+
+    if (lexer->eof(lexer)) break;
+    if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+    if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+  }
+
+  if (saw_delimiter && !delimiter_is_last) return false;
+  lexer->result_symbol = symbol;
+  return true;
+}
+
+// Match a closed expansion only when it actually contains the surrounding
+// FOR /F delimiter. Internal grammar tokens handle the unambiguous case. If a
+// structural close appears before the expansion closes, require a later outer
+// delimiter; this prevents an unmatched source sigil from pairing with a `%`
+// or `!` in the FOR body after the set has already ended.
+static bool scan_for_source_delimited_expansion(TSLexer *lexer, int32_t sigil,
+                                                int32_t delimiter,
+                                                enum TokenType symbol) {
+  if (lexer->lookahead != sigil) return false;
+  lexer->advance(lexer, false);
+
+  if (lexer->eof(lexer) || lexer->lookahead == '\r' ||
+      lexer->lookahead == '\n' || lexer->lookahead == sigil) {
+    return false;
+  }
+  if (sigil == '%' &&
+      (lexer->lookahead == '~' || lexer->lookahead == '*' ||
+       (lexer->lookahead >= '0' && lexer->lookahead <= '9'))) {
+    return false;
+  }
+
+  bool saw_delimiter = false;
+  bool saw_structural_close = false;
+  while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+         lexer->lookahead != '\n') {
+    int32_t c = lexer->lookahead;
+    lexer->advance(lexer, false);
+    if (c == delimiter) saw_delimiter = true;
+    if (c == ')') saw_structural_close = true;
+    if (c != sigil) continue;
+    if (!saw_delimiter) return false;
+
+    lexer->mark_end(lexer);
+    if (!saw_structural_close) {
+      lexer->result_symbol = symbol;
+      return true;
+    }
+
+    while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+           lexer->lookahead != '\n') {
+      if (lexer->lookahead == delimiter) {
+        lexer->result_symbol = symbol;
+        return true;
+      }
+      lexer->advance(lexer, false);
+    }
+    return false;
+  }
+  return false;
+}
+
+// A FOR /F command source ends at the final active delimiter before the set's
+// structural close. ParseFor tokenizes the whole parenthesized set first, so
+// horizontal whitespace, newlines, caret line continuations, and standard
+// separators may follow the delimiter. Mark the token end immediately after
+// the quote so lookahead never consumes those bytes.
+static bool scan_for_command_quote(const Scanner *s, TSLexer *lexer,
+                                   const bool *valid_symbols,
+                                   int32_t delimiter,
+                                   enum TokenType inner_symbol,
+                                   enum TokenType end_symbol) {
+  if (s->depth == 0 || lexer->lookahead != delimiter) return false;
+
+  lexer->advance(lexer, false);
+  lexer->mark_end(lexer);
+
+  while (!lexer->eof(lexer)) {
+    switch (lexer->lookahead) {
+      case ' ':
+      case '\t':
+      case ',':
+      case ';':
+      case '=':
+      case '\n':
+        lexer->advance(lexer, false);
+        continue;
+      case '\r':
+        lexer->advance(lexer, false);
+        if (lexer->lookahead != '\n') return false;
+        lexer->advance(lexer, false);
+        continue;
+      case '^':
+        lexer->advance(lexer, false);
+        if (lexer->lookahead == '\r') {
+          lexer->advance(lexer, false);
+          if (lexer->lookahead != '\n') return false;
+        }
+        if (lexer->lookahead != '\n') {
+          if (!valid_symbols[inner_symbol]) return false;
+          lexer->result_symbol = inner_symbol;
+          return true;
+        }
+        lexer->advance(lexer, false);
+        continue;
+      case ')':
+        if (!valid_symbols[end_symbol]) return false;
+        lexer->result_symbol = end_symbol;
+        return true;
+      default:
+        if (!valid_symbols[inner_symbol]) return false;
+        lexer->result_symbol = inner_symbol;
+        return true;
+    }
+  }
+
+  if (!valid_symbols[inner_symbol]) return false;
+  lexer->result_symbol = inner_symbol;
+  return true;
+}
+
 static int32_t ascii_lower(int32_t c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
@@ -316,9 +669,11 @@ static void add_for_f_option_char(int32_t c, bool *found, size_t *length,
   (*length)++;
 }
 
-// Inspect the optional FOR /F argument without consuming it. Quotes and caret
-// escapes are removed only to decide whether one whitespace-delimited option
-// word is exactly `usebackq`; the public option argument stays opaque.
+// Inspect the optional FOR /F argument without consuming it. Quotes and
+// unquoted caret escapes are removed for the one question that changes cmd's
+// grammar: whether one whitespace-delimited option word is exactly `usebackq`.
+// Carets inside double quotes stay literal, matching cmd. Everything else
+// remains an opaque argument for the internal lexer.
 static bool scan_for_f_mode(TSLexer *lexer, const bool *valid_symbols) {
   lexer->mark_end(lexer);
 
@@ -332,7 +687,7 @@ static bool scan_for_f_mode(TSLexer *lexer, const bool *valid_symbols) {
     int32_t c = lexer->lookahead;
     if (c == '\r' || c == '\n') break;
 
-    if (c == '^') {
+    if (!in_quote && c == '^') {
       lexer->advance(lexer, false);
       if (lexer->lookahead == '\r') {
         lexer->advance(lexer, false);
@@ -377,218 +732,6 @@ static bool scan_for_f_mode(TSLexer *lexer, const bool *valid_symbols) {
   enum TokenType mode = found ? FOR_F_USEBACKQ_MODE : FOR_F_DEFAULT_MODE;
   if (!valid_symbols[mode]) return false;
   lexer->result_symbol = mode;
-  return true;
-}
-
-// Confirm that a single-quoted command source encloses the entire FOR /F set.
-// A delimiter followed by another set value remains a neutral quoted item.
-// With no delimiter before the structural close, keep the active branch so its
-// required closing token produces genuine MISSING/ERROR state.
-static bool scan_for_f_single_command_source_ahead(const Scanner *s,
-                                                   TSLexer *lexer) {
-  lexer->mark_end(lexer);
-  for (;;) {
-    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
-      lexer->advance(lexer, true);
-    }
-    if (lexer->lookahead == '^') {
-      lexer->advance(lexer, true);
-      if (lexer->lookahead == '\r') lexer->advance(lexer, true);
-      if (lexer->lookahead != '\n') return false;
-      lexer->advance(lexer, true);
-      continue;
-    }
-    if (lexer->lookahead == ',' || lexer->lookahead == ';' ||
-        lexer->lookahead == '=' || lexer->lookahead == '\n') {
-      lexer->advance(lexer, false);
-      continue;
-    }
-    if (lexer->lookahead == '\r') {
-      lexer->advance(lexer, false);
-      if (lexer->lookahead != '\n') return false;
-      lexer->advance(lexer, false);
-      continue;
-    }
-    break;
-  }
-
-  if (s->depth == 0 || lexer->lookahead != '\'') return false;
-  lexer->advance(lexer, false);
-
-  bool in_double_quote = false;
-  bool saw_delimiter = false;
-  bool delimiter_is_last = false;
-
-  while (!lexer->eof(lexer)) {
-    int32_t c = lexer->lookahead;
-
-    if (c == '^') {
-      lexer->advance(lexer, false);
-      if (lexer->lookahead == '\r') {
-        lexer->advance(lexer, false);
-        if (lexer->lookahead != '\n') {
-          delimiter_is_last = false;
-          lexer->result_symbol = FOR_F_SINGLE_COMMAND_SOURCE_AHEAD;
-          return true;
-        }
-      }
-      if (lexer->lookahead == '\n') {
-        lexer->advance(lexer, false);
-        continue;
-      }
-      delimiter_is_last = false;
-      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
-      continue;
-    }
-
-    if (c == '"') {
-      delimiter_is_last = false;
-      in_double_quote = !in_double_quote;
-      lexer->advance(lexer, false);
-      continue;
-    }
-
-    if (!in_double_quote && (c == '%' || c == '!')) {
-      int32_t sigil = c;
-      delimiter_is_last = false;
-      lexer->advance(lexer, false);
-
-      // Percent parameters and loop variables have no closing sigil. Consume
-      // their immediate spelling so a second percent is not mistaken for the
-      // start of a paired expansion.
-      if (sigil == '%' &&
-          (lexer->lookahead == '*' ||
-           (lexer->lookahead >= '0' && lexer->lookahead <= '9'))) {
-        lexer->advance(lexer, false);
-        continue;
-      }
-      if (sigil == '%' && lexer->lookahead == '%') {
-        lexer->advance(lexer, false);
-        if (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
-            lexer->lookahead != '\n') {
-          lexer->advance(lexer, false);
-        }
-        continue;
-      }
-      if (sigil == '%' && lexer->lookahead == '~') {
-        while (!lexer->eof(lexer) && lexer->lookahead != ' ' &&
-               lexer->lookahead != '\t' && lexer->lookahead != '\r' &&
-               lexer->lookahead != '\n' && lexer->lookahead != '&' &&
-               lexer->lookahead != '|' && lexer->lookahead != '<' &&
-               lexer->lookahead != '>' && lexer->lookahead != ')') {
-          lexer->advance(lexer, false);
-        }
-        continue;
-      }
-
-      // Paired expansions protect every byte through their closing sigil.
-      // If the close is absent, retain the active command-source branch so the
-      // malformed input cannot become a clean neutral item.
-      bool closed = false;
-      while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
-             lexer->lookahead != '\n') {
-        c = lexer->lookahead;
-        lexer->advance(lexer, false);
-        if (c == sigil) {
-          closed = true;
-          break;
-        }
-      }
-      if (!closed) {
-        lexer->result_symbol = FOR_F_SINGLE_COMMAND_SOURCE_AHEAD;
-        return true;
-      }
-      continue;
-    }
-
-    if (!in_double_quote && c == '\'') {
-      saw_delimiter = true;
-      delimiter_is_last = true;
-      lexer->advance(lexer, false);
-      continue;
-    }
-
-    if (!in_double_quote && c == ')') {
-      if (saw_delimiter && !delimiter_is_last) return false;
-      lexer->result_symbol = FOR_F_SINGLE_COMMAND_SOURCE_AHEAD;
-      return true;
-    }
-
-    if (!in_double_quote && (c == '&' || c == '|' || c == '<' || c == '>')) {
-      lexer->result_symbol = FOR_F_SINGLE_COMMAND_SOURCE_AHEAD;
-      return true;
-    }
-
-    if (!in_double_quote &&
-        (c == ' ' || c == '\t' || c == ',' || c == ';' || c == '=' ||
-         c == '\r' || c == '\n')) {
-      lexer->advance(lexer, false);
-      continue;
-    }
-
-    delimiter_is_last = false;
-    lexer->advance(lexer, false);
-  }
-
-  if (saw_delimiter && !delimiter_is_last) return false;
-  lexer->result_symbol = FOR_F_SINGLE_COMMAND_SOURCE_AHEAD;
-  return true;
-}
-
-// A single-quoted FOR /F command source ends at the final apostrophe before the
-// set's structural close. ParseFor tokenizes the whole parenthesized set first,
-// so horizontal whitespace, newlines, caret line continuations, and standard
-// separators may occur after that delimiter without making an earlier
-// apostrophe the close. Mark the token end immediately after the quote so
-// lookahead never consumes those bytes.
-static bool scan_for_single_quote(const Scanner *s, TSLexer *lexer,
-                                  const bool *valid_symbols) {
-  if (s->depth == 0 || lexer->lookahead != '\'') return false;
-
-  lexer->advance(lexer, false);
-  lexer->mark_end(lexer);
-
-  while (!lexer->eof(lexer)) {
-    switch (lexer->lookahead) {
-      case ' ':
-      case '\t':
-      case ',':
-      case ';':
-      case '=':
-      case '\n':
-        lexer->advance(lexer, false);
-        continue;
-      case '\r':
-        lexer->advance(lexer, false);
-        if (lexer->lookahead != '\n') return false;
-        lexer->advance(lexer, false);
-        continue;
-      case '^':
-        lexer->advance(lexer, false);
-        if (lexer->lookahead == '\r') {
-          lexer->advance(lexer, false);
-          if (lexer->lookahead != '\n') return false;
-        }
-        if (lexer->lookahead != '\n') {
-          if (!valid_symbols[FOR_SINGLE_INNER_QUOTE]) return false;
-          lexer->result_symbol = FOR_SINGLE_INNER_QUOTE;
-          return true;
-        }
-        lexer->advance(lexer, false);
-        continue;
-      case ')':
-        if (!valid_symbols[FOR_SINGLE_QUOTE_END]) return false;
-        lexer->result_symbol = FOR_SINGLE_QUOTE_END;
-        return true;
-      default:
-        if (!valid_symbols[FOR_SINGLE_INNER_QUOTE]) return false;
-        lexer->result_symbol = FOR_SINGLE_INNER_QUOTE;
-        return true;
-    }
-  }
-
-  if (!valid_symbols[FOR_SINGLE_INNER_QUOTE]) return false;
-  lexer->result_symbol = FOR_SINGLE_INNER_QUOTE;
   return true;
 }
 
@@ -664,8 +807,34 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return scan_for_f_mode(lexer, valid_symbols);
   }
 
+  if (lexer->lookahead == '%' &&
+      valid_symbols[FOR_SINGLE_PERCENT_EXPANSION]) {
+    return scan_for_source_delimited_expansion(
+        lexer, '%', '\'', FOR_SINGLE_PERCENT_EXPANSION);
+  }
+  if (lexer->lookahead == '!' &&
+      valid_symbols[FOR_SINGLE_DELAYED_EXPANSION]) {
+    return scan_for_source_delimited_expansion(
+        lexer, '!', '\'', FOR_SINGLE_DELAYED_EXPANSION);
+  }
+  if (lexer->lookahead == '%' &&
+      valid_symbols[FOR_BACKQUOTE_PERCENT_EXPANSION]) {
+    return scan_for_source_delimited_expansion(
+        lexer, '%', '`', FOR_BACKQUOTE_PERCENT_EXPANSION);
+  }
+  if (lexer->lookahead == '!' &&
+      valid_symbols[FOR_BACKQUOTE_DELAYED_EXPANSION]) {
+    return scan_for_source_delimited_expansion(
+        lexer, '!', '`', FOR_BACKQUOTE_DELAYED_EXPANSION);
+  }
+
   if (valid_symbols[FOR_F_SINGLE_COMMAND_SOURCE_AHEAD]) {
-    return scan_for_f_single_command_source_ahead(s, lexer);
+    return scan_for_f_command_source_ahead(
+        s, lexer, '\'', FOR_F_SINGLE_COMMAND_SOURCE_AHEAD);
+  }
+  if (valid_symbols[FOR_F_BACKQUOTE_COMMAND_SOURCE_AHEAD]) {
+    return scan_for_f_command_source_ahead(
+        s, lexer, '`', FOR_F_BACKQUOTE_COMMAND_SOURCE_AHEAD);
   }
 
   if ((valid_symbols[BODY_BOUNDARY] || valid_symbols[BODY_BOUNDARY_AGAIN]) &&
@@ -903,7 +1072,15 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   // single-quoted command source. Earlier apostrophes stay opaque content.
   if (valid_symbols[FOR_SINGLE_INNER_QUOTE] ||
       valid_symbols[FOR_SINGLE_QUOTE_END]) {
-    return scan_for_single_quote(s, lexer, valid_symbols);
+    return scan_for_command_quote(s, lexer, valid_symbols, '\'',
+                                  FOR_SINGLE_INNER_QUOTE,
+                                  FOR_SINGLE_QUOTE_END);
+  }
+  if (valid_symbols[FOR_BACKQUOTE_INNER_QUOTE] ||
+      valid_symbols[FOR_BACKQUOTE_END]) {
+    return scan_for_command_quote(s, lexer, valid_symbols, '`',
+                                  FOR_BACKQUOTE_INNER_QUOTE,
+                                  FOR_BACKQUOTE_END);
   }
 
   // STRING_END: terminate a double-quoted string. Checked before whitespace

@@ -48,6 +48,7 @@
 ; ---------------------------------------------------------------------------
 (string) @string
 (caret_quoted_string) @string
+(for_f_command_source) @string
 (backquote_string) @string
 (single_quote_string) @string
 (escape_sequence) @string.escape

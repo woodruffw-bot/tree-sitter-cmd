@@ -205,6 +205,25 @@
     }
   },
   {
+    "type": "backquote_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "backquote_string",
     "named": true,
     "fields": {
@@ -514,6 +533,41 @@
     "fields": {}
   },
   {
+    "type": "for_f_command_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "for_f_command_source",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "for_f_command_content",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "for_option",
     "named": true,
     "fields": {
@@ -553,6 +607,10 @@
         },
         {
           "type": "backquote_string",
+          "named": true
+        },
+        {
+          "type": "for_f_command_source",
           "named": true
         },
         {
@@ -1908,7 +1966,21 @@
   {
     "type": "single_quote_content",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "delayed_variable",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "single_quote_string",
@@ -2052,10 +2124,6 @@
   },
   {
     "type": "all_arguments",
-    "named": true
-  },
-  {
-    "type": "backquote_content",
     "named": true
   },
   {

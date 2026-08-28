@@ -45,9 +45,9 @@ changes cmd's own syntax. FOR `/R` is grammar-relevant because it may consume a
 path before the loop variable. FOR `/F usebackq` is grammar-relevant because it
 changes which quote delimiter marks a command source. A zero-width scanner
 guard recognizes only a case-insensitive, whitespace-delimited `usebackq` word
-after cmd quote removal and caret decoding. The public source bytes remain one
-generic `argument`. Other `/F` parsing keywords, including `tokens=`, `delims=`,
-`skip=`, and `eol=`, remain opaque text in that argument.
+after cmd quote removal and caret decoding. The same source bytes still appear
+as one generic `argument`. Other `/F` parsing keywords, including `tokens=`,
+`delims=`, `skip=`, and `eol=`, remain opaque text in that argument.
 
 Two deliberate conformance choices:
 
@@ -140,9 +140,10 @@ counter:
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
-| `FOR_F_DEFAULT_MODE` / `FOR_F_USEBACKQ_MODE` | zero-width selection after inspecting only a standalone `usebackq` option word |
-| `FOR_F_SINGLE_COMMAND_SOURCE_AHEAD` | zero-width confirmation that an apostrophe-delimited source encloses the whole FOR `/F` set |
 | `FOR_SINGLE_INNER_QUOTE` / `FOR_SINGLE_QUOTE_END` | an inner source apostrophe and the final delimiter before a FOR set's structural close |
+| `FOR_BACKQUOTE_INNER_QUOTE` / `FOR_BACKQUOTE_END` | the equivalent inner/final distinction for an active `usebackq` command |
+| `FOR_F_SINGLE_COMMAND_SOURCE_AHEAD` / `FOR_F_BACKQUOTE_COMMAND_SOURCE_AHEAD` | zero-width confirmation that the active delimiter encloses the whole FOR set |
+| `FOR_F_DEFAULT_MODE` / `FOR_F_USEBACKQ_MODE` | zero-width selection after inspecting only a standalone `usebackq` option word |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
 | `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
 | `COMMAND_START` | deliberately unavailable after those markers, producing a genuine anonymous MISSING `"command"` error |
@@ -304,23 +305,30 @@ argument, so an illegal second switch is not hidden as an option or path.
 
 `/F` command quoting depends on its options. By default, `'single-quoted'` is a
 command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
-command and single quotes are literal. The `backquote_string` and
-`single_quote_string` content nodes are delimiter-free but neutral. For a
-single-quoted source that encloses the whole `/F` set, only the final apostrophe
-before the structural set close is the delimiter, so earlier apostrophes remain
-source content. A quote followed by another set value instead closes at its
-next apostrophe and stays a neutral item. Under an exact standalone `usebackq`,
-single quotes always take that neutral next-apostrophe form. Apostrophes in a
-plain FOR set remain ordinary argument text. Outer `)`, `&`, `|`, `<`, and `>`
-bytes keep their cmd tokenizer roles unless protected by double quotes or caret
-escapes. The predecessor injection query keeps its raw-text `usebackq`
-heuristic and requires the delimiter-specific node to be the set's only named
-item. The stacked mode-CST successor removes that heuristic by querying the
-public command-source node directly. This avoids assigning command semantics
-to partial-set forms and avoids range adjustment directives that the Rust
-highlighter does not apply. A single-quoted source may span lines. An
-error-recovery pattern keeps an unterminated `usebackq` command injectable while
-it is being edited.
+command and single quotes are literal. The option scanner recognizes only an
+exact standalone `usebackq` word, case-insensitively. Thus `nousebackq` and
+`delims=usebackq` stay in the default mode, while `tokens=* usebackq` selects
+backquotes. Quote removal and caret escapes affect this one decision without
+subdividing the public option `argument`.
+
+When the mode's active delimiter encloses the whole set, apart from ignored
+separators and newlines, the CST exposes a shared `for_f_command_source` with a
+delimiter-free `content: (for_f_command_content)` child. The inactive delimiter
+and a quoted item followed by another set value, whether adjacent or separated,
+remain neutral
+`backquote_string` / `backquote_content` or `single_quote_string` /
+`single_quote_content` nodes. Plain FOR sets do not use the neutral
+single-quote node; apostrophes remain ordinary argument text. Only the final
+active delimiter before the structural set close terminates a command source,
+so earlier apostrophes or backticks remain exact source content. Outer `)`,
+`&`, `|`, `<`, and `>` bytes keep their cmd tokenizer roles unless protected by
+double quotes or caret escapes. Both active closing delimiters are required;
+unfinished sources retain genuine MISSING or ERROR state rather than becoming
+an opaque valid node.
+
+The injection query now captures the shared content node directly. It does not
+reparse `/F` options, infer mode with a regular expression, or add a recovery
+fallback. Single-quoted and backquoted command sources may span lines.
 
 ### GOTO and CALL
 
@@ -408,9 +416,10 @@ full list):
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
   `for_statement` (with `for_option` / `for_flag`,
-  `loop_variable_declaration`, `for_set`, and the `backquote_string` /
-  `single_quote_string` quoted items, whose interiors are neutral
-  `backquote_content` / `single_quote_content` nodes),
+  `loop_variable_declaration`, `for_set`, the mode-specific
+  `for_f_command_source` / `for_f_command_content` nodes, and inactive
+  `backquote_string` / `backquote_content` or `single_quote_string` /
+  `single_quote_content` quoted items),
   `goto_statement` (with `label_reference`, `label_name`, and `label_text`),
   `call_statement`, and `label` (with `label_name` and `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,

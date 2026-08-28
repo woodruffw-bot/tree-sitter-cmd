@@ -142,9 +142,39 @@ function immediateExpansion($) {
 }
 
 /** Expansions that stay opaque inside a quoted FOR /F source. */
-function immediateForSourceExpansion() {
+function immediateForSourceExpansion(delimiter) {
   return token.immediate(
-    prec(5, /(?:%[^%0-9~*\r\n][^%\r\n]*%|![^!\r\n]+!)/),
+    prec(
+      8,
+      new RegExp(
+        '(?:%[^%0-9~*' +
+          delimiter +
+          '\\r\\n][^%' +
+          delimiter +
+          '\\r\\n]*%|![^!' +
+          delimiter +
+          '\\r\\n]+!)',
+      ),
+    ),
+  );
+}
+
+/** An unmatched sigil and its delimiter-bounded tail inside a FOR /F source. */
+function immediateForSourceUnmatchedExpansion(delimiter) {
+  const stop = delimiter + '"^&|<>)\\r\\n';
+  return token.immediate(
+    prec(
+      7,
+      new RegExp(
+        '(?:%[^%0-9~*' +
+          stop +
+          '][^%' +
+          stop +
+          ']*|![^!' +
+          stop +
+          ']+|[%!])',
+      ),
+    ),
   );
 }
 
@@ -158,7 +188,7 @@ function quietPrefix($) {
   );
 }
 
-/** Build the option-through-set portion of a FOR statement. */
+/** Build the mode-specific portion of a FOR statement through its set close. */
 function forHeader($, option, set) {
   return seq(
     option,
@@ -196,11 +226,18 @@ module.exports = grammar({
     $.body_boundary,
     $.body_boundary_again,
     $._command_start,
-    $._for_f_default_mode,
-    $._for_f_usebackq_mode,
-    $._for_f_single_command_source_ahead,
     $._for_single_inner_quote,
     $._for_single_quote_end,
+    $._for_backquote_inner_quote,
+    $._for_backquote_end,
+    $._for_single_percent_expansion,
+    $._for_single_delayed_expansion,
+    $._for_backquote_percent_expansion,
+    $._for_backquote_delayed_expansion,
+    $._for_f_single_command_source_ahead,
+    $._for_f_backquote_command_source_ahead,
+    $._for_f_default_mode,
+    $._for_f_usebackq_mode,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
     // zero-width tokens that would otherwise prevent recovery from advancing.
@@ -571,8 +608,9 @@ module.exports = grammar({
         ),
       ),
 
-    // These hidden markers inspect only standalone `usebackq`. The public
-    // option payload remains one opaque argument in either branch.
+    // These hidden mode markers inspect the same opaque argument consumed by
+    // `_for_arg`. They distinguish only a standalone `usebackq` option. The
+    // public `for_option` CST remains a flag plus a generic argument.
     _for_f_default_option: ($) =>
       seq(
         alias(opt('/f'), $.for_flag),
@@ -622,89 +660,153 @@ module.exports = grammar({
       ),
     _for_set_separator: ($) => choice($._standard_separator, $._newline),
 
-    // Final-apostrophe semantics apply only when one single-quoted item spans
-    // the whole `/F` set. Otherwise apostrophes delimit a neutral item, while
-    // plain FOR sets keep apostrophes in ordinary argument text.
+    // In an `/F` set, the active command delimiter must enclose the whole list.
+    // A source may have only ignored separators around it. If another value is
+    // present, the same bytes remain a neutral delimiter-specific item.
     _for_f_default_set: ($) =>
       choice(
         seq(
           $._for_f_single_command_source_ahead,
           repeat($._for_set_separator),
-          $.single_quote_string,
+          alias($._for_f_single_command_source, $.for_f_command_source),
           repeat($._for_set_separator),
         ),
-        repeat1($._for_f_set_item),
+        $._for_f_set_items,
       ),
-    _for_f_usebackq_set: ($) => repeat1($._for_f_set_item),
+    _for_f_usebackq_set: ($) =>
+      choice(
+        seq(
+          $._for_f_backquote_command_source_ahead,
+          repeat($._for_set_separator),
+          alias($._for_f_backquote_command_source, $.for_f_command_source),
+          repeat($._for_set_separator),
+        ),
+        $._for_f_usebackq_set_items,
+      ),
+    _for_f_set_items: ($) => repeat1($._for_f_set_item),
     _for_f_set_item: ($) =>
       choice(
         $._for_set_value,
-        alias($._for_f_neutral_single_quote_string, $.single_quote_string),
+        $.single_quote_string,
         $._for_set_separator,
       ),
+    _for_f_usebackq_set_items: ($) =>
+      repeat1(
+        choice(
+          alias($._standard_argument, $.argument),
+          alias($._for_f_closed_backquote_string, $.backquote_string),
+          $.single_quote_string,
+          $._for_set_separator,
+        ),
+      ),
+    _for_f_closed_backquote_string: ($) =>
+      seq(
+        token(prec(2, '`')),
+        optional(field('content', $.backquote_content)),
+        token.immediate(prec(3, '`')),
+      ),
 
-    // A backquoted FOR /F item. It is a command only with `usebackq` and may be
-    // unterminated. Keep the content in a neutral, delimiter-free child. The
-    // injection query assigns command semantics only when this quote mode is
-    // active.
+    _for_f_single_command_source: ($) =>
+      seq(
+        token(prec(2, "'")),
+        optional(
+          field(
+            'content',
+            alias($._for_f_single_command_content, $.for_f_command_content),
+          ),
+        ),
+        alias($._for_single_quote_end, "'"),
+      ),
+    _for_f_single_command_content: ($) =>
+      repeat1(
+        choice(
+          token.immediate(prec(4, /[^'"^&|<>)%!\r\n]+/)),
+          token.immediate(prec(4, /"[^"\r\n]*"?/)),
+          token.immediate(prec(4, /\^\r?\n/)),
+          token.immediate(prec(4, /\^[^\r\n]/)),
+          token.immediate(prec(9, /%%/)),
+          alias($._for_single_percent_expansion, $.variable),
+          alias($._for_single_delayed_expansion, $.delayed_variable),
+          immediateForSourceExpansion("'"),
+          immediateForSourceUnmatchedExpansion("'"),
+          $._for_single_inner_quote,
+          $._newline,
+        ),
+      ),
+    _for_f_backquote_command_source: ($) =>
+      seq(
+        token(prec(2, '`')),
+        optional(
+          field(
+            'content',
+            alias($._for_f_backquote_command_content, $.for_f_command_content),
+          ),
+        ),
+        alias($._for_backquote_end, '`'),
+      ),
+    _for_f_backquote_command_content: ($) =>
+      repeat1(
+        choice(
+          token.immediate(prec(4, /[^`"^&|<>)%!\r\n]+/)),
+          token.immediate(prec(4, /"[^"\r\n]*"?/)),
+          token.immediate(prec(4, /\^\r?\n/)),
+          token.immediate(prec(4, /\^[^\r\n]/)),
+          token.immediate(prec(9, /%%/)),
+          alias($._for_backquote_percent_expansion, $.variable),
+          alias($._for_backquote_delayed_expansion, $.delayed_variable),
+          immediateForSourceExpansion('`'),
+          immediateForSourceUnmatchedExpansion('`'),
+          $._for_backquote_inner_quote,
+          $._newline,
+        ),
+      ),
+
+    // Neutral delimiter-specific items remain available when their delimiter
+    // is not the active command form for the whole `/F` set. Apostrophes and
+    // backticks do not protect raw cmd metacharacters; only double-quoted and
+    // caret-escaped spans keep those bytes inside the neutral content node.
     backquote_string: ($) =>
       seq(
         token(prec(2, '`')),
         optional(field('content', $.backquote_content)),
         optional(token.immediate(prec(3, '`'))),
       ),
-    backquote_content: ($) => token.immediate(prec(4, /[^`\r\n]+/)),
+    backquote_content: ($) =>
+      repeat1(
+        choice(
+          token.immediate(prec(3, /[^`"^&|<>)%!\r\n]+/)),
+          token.immediate(prec(3, /"[^"\r\n]*"?/)),
+          token.immediate(prec(3, /\^\r?\n/)),
+          token.immediate(prec(3, /\^[^\r\n]/)),
+          token.immediate(prec(9, /%%/)),
+          alias($._for_backquote_percent_expansion, $.variable),
+          alias($._for_backquote_delayed_expansion, $.delayed_variable),
+          immediateForSourceExpansion('`'),
+          immediateForSourceUnmatchedExpansion('`'),
+        ),
+      ),
 
-    // A single-quoted FOR /F item. It is a command unless `usebackq` is active.
-    // The closing quote is required so a stray apostrophe in a plain FOR set
-    // (`for %%a in (it's)`) stays text. cmd treats the final apostrophe before
-    // the set's structural close as the delimiter; earlier apostrophes remain
-    // opaque source content. Double-quoted and caret-escaped spans protect cmd
-    // metacharacters. Newlines are also accepted because cmd permits a FOR /F
-    // command source to span lines. As with backquotes, the content node is
-    // neutral until a query applies the active quote mode.
+    // A neutral `/F` single-quoted item closes at its next apostrophe. The
+    // active default-mode command source above has final-delimiter content.
+    // Plain FOR sets keep apostrophes in ordinary argument text instead.
     single_quote_string: ($) =>
       seq(
         token(prec(2, "'")),
         optional(field('content', $.single_quote_content)),
-        alias($._for_single_quote_end, "'"),
+        token.immediate(prec(3, "'")),
       ),
     single_quote_content: ($) =>
       repeat1(
         choice(
-          token.immediate(prec(4, /[^'"^&|<>)%!\r\n]+/)),
-          token.immediate(prec(4, /"[^"\r\n]*"/)),
-          token.immediate(prec(4, /\^\r?\n/)),
-          token.immediate(prec(4, /\^[^\r\n]/)),
-          immediateForSourceExpansion(),
-          token.immediate(prec(1, /[%!]/)),
-          $._for_single_inner_quote,
-          $._newline,
-        ),
-      ),
-    _for_f_neutral_single_quote_string: ($) =>
-      seq(
-        token(prec(2, "'")),
-        optional(
-          field(
-            'content',
-            alias(
-              $._for_f_neutral_single_quote_content,
-              $.single_quote_content,
-            ),
-          ),
-        ),
-        token.immediate(prec(3, "'")),
-      ),
-    _for_f_neutral_single_quote_content: ($) =>
-      repeat1(
-        choice(
           token.immediate(prec(3, /[^'"^&|<>)%!\r\n]+/)),
-          token.immediate(prec(3, /"[^"\r\n]*"/)),
+          token.immediate(prec(3, /"[^"\r\n]*"?/)),
           token.immediate(prec(3, /\^\r?\n/)),
           token.immediate(prec(3, /\^[^\r\n]/)),
-          immediateForSourceExpansion(),
-          token.immediate(prec(1, /[%!]/)),
+          token.immediate(prec(9, /%%/)),
+          alias($._for_single_percent_expansion, $.variable),
+          alias($._for_single_delayed_expansion, $.delayed_variable),
+          immediateForSourceExpansion("'"),
+          immediateForSourceUnmatchedExpansion("'"),
         ),
       ),
 
