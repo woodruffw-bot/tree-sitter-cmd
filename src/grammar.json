@@ -3863,7 +3863,7 @@
         "value": 2,
         "content": {
           "type": "PATTERN",
-          "value": "[,;=](?:(?:[ \\t]|\\^\\r?\\n)*[,;=])*"
+          "value": "[,;=](?:[ \\t]*[,;=])*"
         }
       }
     },
@@ -3874,7 +3874,7 @@
         "value": 2,
         "content": {
           "type": "PATTERN",
-          "value": "[,;](?:(?:[ \\t]|\\^\\r?\\n)*[,;])*"
+          "value": "[,;](?:[ \\t]*[,;])*"
         }
       }
     },
@@ -3952,8 +3952,17 @@
     "escape_sequence": {
       "type": "TOKEN",
       "content": {
-        "type": "PATTERN",
-        "value": "\\^[^\\r\\n%!]"
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "\\^[^\\r\\n%!]"
+          },
+          {
+            "type": "PATTERN",
+            "value": "\\^\\r?\\n(?:[^\\r\\n%!]|\\r?\\n)"
+          }
+        ]
       }
     },
     "string": {
@@ -4365,13 +4374,6 @@
     {
       "type": "PATTERN",
       "value": "[ \\t]"
-    },
-    {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "\\^\\r?\\n"
-      }
     }
   ],
   "conflicts": [

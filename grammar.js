@@ -5,11 +5,10 @@
  *
  *   - cmd.exe has no whole-file grammar; each physical line is expanded, parsed
  *     and executed in turn. We model the whole file as one CST for tooling.
- *   - `extras` is `[ \t]` plus an invisible caret line-continuation (`^\n`,
- *     modelled like tree-sitter-bash's `\\\n`): it splices the next physical
- *     line without leaving a node, so a continued word is one word and a
- *     continued separator still separates. Newlines are significant statement
- *     terminators.
+ *   - `extras` contains only horizontal whitespace. A caret-newline is not
+ *     transparent: cmd discards the newline, then treats the first character
+ *     of the next physical line as a forced literal. The grammar keeps the
+ *     complete `^\nX` spelling in an `escape_sequence` node.
  *   - A "word" (command name / argument) is a run of adjacent fragments: bare
  *     text, quoted strings, caret escapes and expansions. Adjacency without
  *     whitespace is expressed with the zero-width external `_concat` token, so
@@ -115,8 +114,7 @@ function redirected($) {
 
 /**
  * Expansion spellings that must begin at the current byte. Duplication targets
- * use these aliases so global extras cannot turn a caret continuation into
- * spacing before a target.
+ * use these aliases so the target must begin at the current byte.
  */
 function immediateExpansion($) {
   return choice(
@@ -190,13 +188,11 @@ module.exports = grammar({
   // target the category without adding wrapper nodes to the CST.
   supertypes: ($) => [$._expansion, $._redirection],
 
-  // Whitespace and caret line-continuations interleave anywhere. The
-  // continuation `^\n` is an anonymous, invisible extra (tree-sitter-bash treats
-  // `\\\n` the same way): it never appears as a node, so it cannot glue words
-  // that whitespace should split. `echo a ^\nb` is two arguments (the space
-  // ends the first), while `echo a^\nb` is the single word `ab` (the join is
-  // adjacency, handled by `_concat`). See GRAMMAR_DESIGN.md §4.1.
-  extras: ($) => [/[ \t]/, token(/\^\r?\n/)],
+  // Only horizontal whitespace is globally ignorable. A caret-newline cannot
+  // be an extra: cmd discards the newline, then forces the first character of
+  // the next physical line to be literal. `escape_sequence` consumes the full
+  // `^\nX` spelling so a continued metacharacter cannot become an operator.
+  extras: ($) => [/[ \t]/],
 
   conflicts: ($) => [
     [$.quiet_statement, $.label],
@@ -990,7 +986,7 @@ module.exports = grammar({
     // Handle duplication: `2>&1`, `>&2`, `<&3`. cmd skips its standard
     // separators before the target, but this parser phase does not treat a
     // caret-newline as such a separator. Keep both the spacing and target
-    // immediate so the global continuation extra cannot bridge that boundary.
+    // immediate so a caret escape cannot bridge that boundary.
     redirect_dup: ($) =>
       choice(
         seq(
@@ -1109,13 +1105,13 @@ module.exports = grammar({
     _standard_text: ($) => token(/[^ \t\r\n&|<>()^"%!,;=]+/),
 
     // These stay hidden in the CST, like spaces in the same parser slots. A
-    // token covers the full run, including interleaved spaces/continuations,
+    // token covers the full run, including interleaved horizontal spaces,
     // so an optional separator does not make following CST fields repeatable.
     // Lexical precedence keeps a leading run out of `_cmd_punct_lead`.
     _standard_separator: ($) =>
-      token(prec(2, /[,;=](?:(?:[ \t]|\^\r?\n)*[,;=])*/)),
+      token(prec(2, /[,;=](?:[ \t]*[,;=])*/)),
     _if_comparison_separator: ($) =>
-      token(prec(2, /[,;](?:(?:[ \t]|\^\r?\n)*[,;])*/)),
+      token(prec(2, /[,;](?:[ \t]*[,;])*/)),
 
     _fragment: ($) =>
       choice(
@@ -1136,14 +1132,19 @@ module.exports = grammar({
     text: ($) => token(/[^ \t\r\n&|<>()^"%!]+/),
     _stray_sigil: ($) => token(/[%!]/),
 
-    // A caret escapes the single following character — but NOT a `%`/`!` that
-    // begins an expansion: in cmd `^%VAR%` expands `%VAR%` first and the caret
-    // escapes the *result*, so the caret must not swallow the opening sigil (or
-    // the now-unbalanced `%`/`!` makes a later one match greedily across the
-    // line). So `^&`, `^"`, `^^`, `^)` escape their char here, while a caret
-    // before `%`/`!` is a lone `_caret_escape` (external) followed by the
-    // expansion, and `^`-newline is the line-continuation extra.
-    escape_sequence: ($) => token(/\^[^\r\n%!]/),
+    // A caret escapes the single following character. When that character is
+    // a newline, cmd discards it and forces the first character of the next
+    // physical line to be literal. Keep `^X` and `^\nX` as source-visible
+    // escape nodes. Do not consume `%`/`!` here: percent expansion precedes
+    // caret handling, and delayed expansion follows it, so `_caret_escape`
+    // keeps the caret separate from the expansion node in those cases.
+    escape_sequence: ($) =>
+      token(
+        choice(
+          /\^[^\r\n%!]/,
+          /\^\r?\n(?:[^\r\n%!]|\r?\n)/,
+        ),
+      ),
 
     // cmd does not strip quotes; they only group, and `%VAR%`/`!VAR!` still
     // expand inside them, so the interior is sub-noded: literal text interleaved
