@@ -42,11 +42,10 @@ Out of scope (runtime behavior, not syntax):
 
 The grammar does not parse option languages belonging to invoked programs. It
 also keeps cmd built-in option payloads opaque unless an option materially
-changes cmd's own syntax. FOR `/R` is grammar-relevant because it may consume a
-path before the loop variable. FOR `/F usebackq` is grammar-relevant because it
-changes which quote delimiter marks a command source. Other `/F` parsing
-keywords, including `tokens=`, `delims=`, `skip=`, and `eol=`, remain text in a
-single argument node.
+changes the outer syntax. FOR `/R` is grammar-relevant because it may consume a
+path before the loop variable. `/F` parsing keywords, including `usebackq`,
+`tokens=`, `delims=`, `skip=`, and `eol=`, remain text in a single argument
+node.
 
 Two deliberate conformance choices:
 
@@ -347,17 +346,15 @@ is a complete standard token, so `/ffoo`, `/rC:\src`, and `/d/r` do not become
 separator-delimited argument. A slash-leading word is not an ordinary argument,
 so an illegal second switch is not hidden as an option or path.
 
-`/F` command quoting depends on its options. By default, `'single-quoted'` is a
-command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
-command and single quotes are literal. The `backquote_string` and
-`single_quote_string` nodes keep inner `)` and operators literal. Their content
-nodes are delimiter-free but neutral. The injection query checks the `/F` option
-text and captures only the command form for the active quote mode. This avoids
-assigning command semantics to the inactive delimiter and avoids range
-adjustment directives that the Rust highlighter does not apply. A
-single-quoted source may span lines. Apostrophes inside a double-quoted span are
-part of the source. An error-recovery pattern keeps an unterminated `usebackq`
-command injectable while it is being edited.
+`/F` command quoting depends on the complete option payload and on whether the
+first and final active delimiters enclose the reconstructed set. The grammar
+does not infer that runtime-sensitive role. Apostrophes and backticks therefore
+remain ordinary `for_set` argument text, matched and unmatched alike, and the
+injection query assigns them no nested-command language. This preserves source
+bytes without inventing neutral quote nodes or accepting an unmatched delimiter
+by synthesizing its mate. Apostrophes and backticks do not hide raw outer
+operators or parentheses during CMD's outer parse. Those characters must be
+caret-protected where they would otherwise be structural.
 
 ### GOTO and CALL
 
@@ -453,9 +450,7 @@ full list):
 - **Control flow**: `if_statement` (with `if_flag`, `not`, `comparison` /
   `comparison_operator`, and `unary_condition` / `condition_keyword`),
   `for_statement` (with `for_option` / `for_flag`,
-  `loop_variable_declaration`, `for_set`, and the `backquote_string` /
-  `single_quote_string` quoted items, whose interiors are neutral
-  `backquote_content` / `single_quote_content` nodes),
+  `loop_variable_declaration`, and `for_set`),
   `goto_statement` (with `label_reference`, `label_name`, and `label_text`),
   `call_statement`, and `label` (with `label_name` and `label_text`).
 - **SET**: `set_statement`, with the `set_assignment`, `set_prompt`, `set_arith`,

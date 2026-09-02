@@ -197,22 +197,6 @@
     }
   },
   {
-    "type": "backquote_string",
-    "named": true,
-    "fields": {
-      "content": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "backquote_content",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "block",
     "named": true,
     "fields": {
@@ -495,14 +479,6 @@
       "types": [
         {
           "type": "argument",
-          "named": true
-        },
-        {
-          "type": "backquote_string",
-          "named": true
-        },
-        {
-          "type": "single_quote_string",
           "named": true
         }
       ]
@@ -1837,27 +1813,6 @@
     }
   },
   {
-    "type": "single_quote_content",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "single_quote_string",
-    "named": true,
-    "fields": {
-      "content": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "single_quote_content",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "string",
     "named": true,
     "fields": {},
@@ -1939,10 +1894,6 @@
     "named": false
   },
   {
-    "type": "'",
-    "named": false
-  },
-  {
     "type": "(",
     "named": false
   },
@@ -1963,15 +1914,7 @@
     "named": false
   },
   {
-    "type": "`",
-    "named": false
-  },
-  {
     "type": "all_arguments",
-    "named": true
-  },
-  {
-    "type": "backquote_content",
     "named": true
   },
   {

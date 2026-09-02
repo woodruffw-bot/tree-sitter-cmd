@@ -223,57 +223,18 @@ mod tests {
     }
 
     #[test]
-    fn test_injections_follow_for_f_quote_mode() {
+    fn test_for_quote_modes_do_not_claim_injection_semantics() {
         let source = concat!(
             "for /f %%a in ('ver') do echo %%a\r\n",
-            "for /f %%a in ('echo normal') do echo %%a\r\n",
-            "for /f %%a in ('powershell -command \"ToString('yyyy-MM-dd')\"') do echo %%a\r\n",
-            "for /f %%a in ('%1 -c \"sys.stdout.write('nt')\"') do echo %%a\r\n",
-            "for /f %%a in ('\r\n  echo multiline\r\n') do echo %%a\r\n",
-            "for /f %%a in (`not-a-command`) do echo %%a\r\n",
-            "for /f \"tokens=*\" %%a in ('echo options') do echo %%a\r\n",
-            "for /f \"delims=usebackq\" %%a in ('echo delimiter') do echo %%a\r\n",
-            "for /f \"usebackq\" %%a in (`dir`) do echo %%a\r\n",
-            "for /f \"usebackq\" %%a in (`echo backquoted`) do echo %%a\r\n",
-            "for /f \"tokens=* usebackq\" %%a in (`echo combined`) do echo %%a\r\n",
-            "for /f usebackq^ tokens^=* %%a in (`echo escaped options`) do echo %%a\r\n",
-            "for /f usebackq^ tokens^=* %%a in ('not-a-command') do echo %%a\r\n",
-            "for /f \"USEBACKQ\" %%a in ('not-a-command') do echo %%a\r\n",
-            "for /r %%a in ('not-a-command') do echo %%a\r\n",
-            "for /f \"usebackq\" %%a in (`echo unfinished",
+            "for /f %%b in ('echo unmatched) do echo %%b\r\n",
+            "for /f \"usebackq\" %%c in (`dir`) do echo %%c\r\n",
+            "for /f \"usebackq\" %%d in (`echo unmatched) do echo %%d\r\n",
         );
         let query = Query::new(&language(), super::INJECTIONS_QUERY)
             .expect("injections query should compile");
 
-        assert_eq!(
-            capture_texts(source, &query, "injection.content"),
-            [
-                "ver",
-                "echo normal",
-                "powershell -command \"ToString('yyyy-MM-dd')\"",
-                "%1 -c \"sys.stdout.write('nt')\"",
-                "\r\n  echo multiline\r\n",
-                "echo options",
-                "echo delimiter",
-                "dir",
-                "echo backquoted",
-                "echo combined",
-                "echo escaped options",
-                "echo unfinished"
-            ]
-        );
-    }
-
-    #[test]
-    fn test_unterminated_backquote_has_neutral_delimiter_free_content() {
-        let source = "for /f \"usebackq\" %%a in (`echo unfinished";
-        let query = Query::new(&language(), "(backquote_content) @content")
-            .expect("backquote-content query should compile");
-
-        assert_eq!(
-            capture_texts(source, &query, "content"),
-            ["echo unfinished"]
-        );
+        assert!(query.capture_names().is_empty());
+        assert!(!parse(source).root_node().has_error());
     }
 
     #[test]

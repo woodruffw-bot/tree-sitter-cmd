@@ -112,6 +112,10 @@ context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
 - An unquoted `(` in a `FOR` set ends the set at the first `)`. Quote a set
   item that contains parentheses, such as
   `for %%a in ("file (1).txt")`.
+- `/F` apostrophe/backtick command-source modes are not inferred. Their bytes
+  remain generic `for_set` argument text and receive no language injection.
+  Apostrophes and backticks do not shield outer operators or parentheses;
+  caret-protect those characters where CMD's outer parse requires it.
 - Caret-spelled control-flow keywords are not decoded into keyword nodes. They
   may remain generic command text or produce an error.
 - Variable names that contain a literal newline, as used by `%LF%` macros, are

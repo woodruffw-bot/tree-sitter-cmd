@@ -587,48 +587,15 @@ module.exports = grammar({
     _for_arg_text: ($) =>
       token(/[^/,;= \t\r\n&|<>()^"%!][^,;= \t\r\n&|<>()^"%!]*/),
 
+    // Keep apostrophes and backticks in ordinary arguments. Their /F roles
+    // depend on the complete option payload and the reconstructed whole set;
+    // recognizing them here would invent quote syntax for plain FOR forms and
+    // make unmatched delimiters recover as synthesized matches.
     for_set: ($) =>
       repeat1(
         choice(
           alias($._standard_argument, $.argument),
-          $.backquote_string,
-          $.single_quote_string,
           $._standard_separator,
-          $._newline,
-        ),
-      ),
-
-    // A backquoted FOR /F item. It is a command only with `usebackq` and may be
-    // unterminated. Keep the content in a neutral, delimiter-free child. The
-    // injection query assigns command semantics only when this quote mode is
-    // active.
-    backquote_string: ($) =>
-      seq(
-        token(prec(2, '`')),
-        optional(field('content', $.backquote_content)),
-        optional(token.immediate(prec(3, '`'))),
-      ),
-    backquote_content: ($) => token.immediate(prec(4, /[^`\r\n]+/)),
-
-    // A single-quoted FOR /F item. It is a command unless `usebackq` is active.
-    // The closing quote is required so a stray apostrophe in a plain FOR set
-    // (`for %%a in (it's)`) stays text. Double-quoted spans may contain literal
-    // apostrophes, as in embedded PowerShell and Python snippets. Newlines are
-    // also accepted because cmd permits a FOR /F command source to span lines.
-    // As with backquotes, the content node is neutral until a query applies the
-    // active quote mode.
-    single_quote_string: ($) =>
-      seq(
-        token(prec(2, "'")),
-        optional(field('content', $.single_quote_content)),
-        token.immediate("'"),
-      ),
-    single_quote_content: ($) =>
-      repeat1(
-        choice(
-          token.immediate(prec(4, /[^'"^\r\n]+/)),
-          token.immediate(prec(4, /"[^"\r\n]*"/)),
-          token.immediate(prec(4, /\^[^\r\n]/)),
           $._newline,
         ),
       ),
