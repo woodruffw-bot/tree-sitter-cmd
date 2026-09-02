@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           cpython-get-externals.bat
 Upstream:       CPython
-Source:         https://github.com/python/cpython/blob/main/PCbuild/get_externals.bat
+Source:         https://github.com/python/cpython/blob/ab8ebe9034a85c441d1bb4208fa2d667fd38cc4d/PCbuild/get_externals.bat
+Git blob:       47399fe65d1e542dcb3f0aeb09ad96d64b273366
 SPDX-License-Identifier: PSF-2.0
 Copyright (c) the Python Software Foundation
-Full license:   https://github.com/python/cpython/blob/main/LICENSE
+Full license:   https://github.com/python/cpython/blob/ab8ebe9034a85c441d1bb4208fa2d667fd38cc4d/LICENSE

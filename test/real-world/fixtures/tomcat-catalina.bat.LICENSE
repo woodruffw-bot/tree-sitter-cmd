@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           tomcat-catalina.bat
 Upstream:       Apache Tomcat
-Source:         https://github.com/apache/tomcat/blob/main/bin/catalina.bat
+Source:         https://github.com/apache/tomcat/blob/87dc4caebf773c1ff221addca6eac86ad76c55ee/bin/catalina.bat
+Git blob:       0b7d8ba8bd945878df86b1beb6f0154d692ebcd3
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

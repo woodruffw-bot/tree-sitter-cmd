@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           mvn.cmd
 Upstream:       Apache Maven
-Source:         https://github.com/apache/maven/blob/master/apache-maven/src/assembly/maven/bin/mvn.cmd
+Source:         https://github.com/apache/maven/blob/60dc6342b4042488583763df1ae41fcdfbac48d1/apache-maven/src/assembly/maven/bin/mvn.cmd
+Git blob:       f6a14130772beb6125137c5a33db60335c3545dc
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

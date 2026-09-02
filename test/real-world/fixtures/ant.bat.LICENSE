@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           ant.bat
 Upstream:       Apache Ant
-Source:         https://github.com/apache/ant/blob/master/src/script/ant.bat
+Source:         https://github.com/apache/ant/blob/75761891317d8127a74a2f49bc438ca57c416a72/src/script/ant.bat
+Git blob:       004d5af6409e27bcec44456a330b5684bc24e114
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

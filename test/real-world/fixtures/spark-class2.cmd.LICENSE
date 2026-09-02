@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           spark-class2.cmd
 Upstream:       Apache Spark
-Source:         https://github.com/apache/spark/blob/master/bin/spark-class2.cmd
+Source:         https://github.com/apache/spark/blob/56c65d58729dba4abf9dd039a37e05bcb7e79526/bin/spark-class2.cmd
+Git blob:       8703f5a86f109fb233334d919f710023232a6d5d
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

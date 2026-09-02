@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           flutter.bat
 Upstream:       Flutter
-Source:         https://github.com/flutter/flutter/blob/master/bin/flutter.bat
+Source:         https://github.com/flutter/flutter/blob/c087fb36be9de04a55cf0a59d1eeb477f2a1dbee/bin/flutter.bat
+Git blob:       246cbb5d3fd0dc80c5fb8fab879cff170d6d4dd7
 SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) the Flutter Authors
-Full license:   https://github.com/flutter/flutter/blob/master/LICENSE
+Full license:   https://github.com/flutter/flutter/blob/c087fb36be9de04a55cf0a59d1eeb477f2a1dbee/LICENSE

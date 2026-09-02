@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           venv-activate.bat
 Upstream:       pypa/virtualenv
-Source:         https://github.com/pypa/virtualenv/blob/main/src/virtualenv/activation/batch/activate.bat
+Source:         https://github.com/pypa/virtualenv/blob/34066ecfcaca9164b82341b81de491d043cc2b9e/src/virtualenv/activation/batch/activate.bat
+Git blob:       06192921fd2bcc84ca852788e0cd4a26ee998000
 SPDX-License-Identifier: MIT
 Copyright (c) the virtualenv developers
-Full license:   https://github.com/pypa/virtualenv/blob/main/LICENSE
+Full license:   https://github.com/pypa/virtualenv/blob/34066ecfcaca9164b82341b81de491d043cc2b9e/LICENSE

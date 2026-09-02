@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           npocmaka-ifDefined.bat
 Upstream:       npocmaka/batch.scripts (discovers_and_bugs/bugs/ifDefined.bat)
-Source:         https://github.com/npocmaka/batch.scripts/blob/master/discovers_and_bugs/bugs/ifDefined.bat
+Source:         https://github.com/npocmaka/batch.scripts/blob/d7111ea93231ebf22414775b4e286345a4df15d9/discovers_and_bugs/bugs/ifDefined.bat
+Git blob:       d33d647f6d260f83000013ec854d99f01dba06d9
 SPDX-License-Identifier: MIT
 Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
-Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+Full license:   https://github.com/npocmaka/batch.scripts/blob/d7111ea93231ebf22414775b4e286345a4df15d9/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: SET variable names containing spaces (`set sim salabim=magic`), vs the shorter `set sim` prefix

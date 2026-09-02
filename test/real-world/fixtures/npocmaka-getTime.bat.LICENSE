@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           npocmaka-getTime.bat
 Upstream:       npocmaka/batch.scripts (DateAndTime/getTime.bat)
-Source:         https://github.com/npocmaka/batch.scripts/blob/master/DateAndTime/getTime.bat
+Source:         https://github.com/npocmaka/batch.scripts/blob/9ce6c51fa81f1901cc644998aa0402293db0684a/DateAndTime/getTime.bat
+Git blob:       ee919820b10bc306186fd15fa22bfdacd94b2321
 SPDX-License-Identifier: MIT
 Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
-Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+Full license:   https://github.com/npocmaka/batch.scripts/blob/9ce6c51fa81f1901cc644998aa0402293db0684a/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: WMIC-driven FOR /F parsing and call-with-byref-variable patterns

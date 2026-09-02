@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           npocmaka-md5.bat
 Upstream:       npocmaka/batch.scripts (fileUtils/md5.bat)
-Source:         https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/md5.bat
+Source:         https://github.com/npocmaka/batch.scripts/blob/6aaafbbf7c047a9be8defe8c5e161e66e4106fbe/fileUtils/md5.bat
+Git blob:       f432f2ce4c16d234a36f5b164b38eaf25cdfa810
 SPDX-License-Identifier: MIT
 Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
-Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+Full license:   https://github.com/npocmaka/batch.scripts/blob/6aaafbbf7c047a9be8defe8c5e161e66e4106fbe/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: the `(echo()` robust blank-line idiom inside parenthesised blocks

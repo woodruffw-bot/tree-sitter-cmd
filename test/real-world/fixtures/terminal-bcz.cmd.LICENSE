@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           terminal-bcz.cmd
 Upstream:       Windows Terminal
-Source:         https://github.com/microsoft/terminal/blob/main/tools/bcz.cmd
+Source:         https://github.com/microsoft/terminal/blob/d6714f3ca94f994321ba6e7848b734a4ca166fbe/tools/bcz.cmd
+Git blob:       72e15498e17ad011a93c51c6425e6bd032c9f3c4
 SPDX-License-Identifier: MIT
 Copyright (c) Microsoft Corporation
-Full license:   https://github.com/microsoft/terminal/blob/main/LICENSE
+Full license:   https://github.com/microsoft/terminal/blob/d6714f3ca94f994321ba6e7848b734a4ca166fbe/LICENSE

@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           conda.bat
 Upstream:       conda
-Source:         https://github.com/conda/conda/blob/main/conda/shell/condabin/conda.bat
+Source:         https://github.com/conda/conda/blob/aee55cc8ca6b588e3ffbf11ce1df103b6c4c145b/conda/shell/condabin/conda.bat
+Git blob:       24b0658fae4f6b72e498d5f9d255723d3b257620
 SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) Anaconda, Inc. and contributors
-Full license:   https://github.com/conda/conda/blob/main/LICENSE
+Full license:   https://github.com/conda/conda/blob/aee55cc8ca6b588e3ffbf11ce1df103b6c4c145b/LICENSE

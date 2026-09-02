@@ -41,7 +41,8 @@ Add cases as new constructs or bugs surface; do not rewrite existing ones.
 
 1. Drop the script in `fixtures/`, kept verbatim.
 2. Add a `fixtures/<name>.LICENSE` sibling with its provenance and license.
-3. Add a row to `sources.tsv`: `<name>\t<source-url>`.
+3. Add a row to `sources.tsv`: `<name>\t<source-url>`. For a GitHub source,
+   use a `blob` URL with the full 40-character commit ID.
 4. Confirm `cargo test --test real_world` passes.
 
 Add a row to `contracts.tsv` when a fixture is meant to preserve a specific

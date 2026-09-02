@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           gfw-vcpkg-copy-dlls.bat
 Upstream:       Git for Windows (git)
-Source:         https://github.com/git-for-windows/git/blob/main/compat/vcbuild/vcpkg_copy_dlls.bat
+Source:         https://github.com/git-for-windows/git/blob/f661476ee4698cf7bfa734b91330048a54d7ee11/compat/vcbuild/vcpkg_copy_dlls.bat
+Git blob:       8bea0cbf83b6cf259846428d5faaf4c4c664f37b
 SPDX-License-Identifier: GPL-2.0-only
 Copyright (c) the Git contributors
-Full license:   https://github.com/git-for-windows/git/blob/main/COPYING
+Full license:   https://github.com/git-for-windows/git/blob/f661476ee4698cf7bfa734b91330048a54d7ee11/COPYING

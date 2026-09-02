@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           npocmaka-firstLinesP.bat
 Upstream:       npocmaka/batch.scripts (fileUtils/firstLinesP.bat)
-Source:         https://github.com/npocmaka/batch.scripts/blob/master/fileUtils/firstLinesP.bat
+Source:         https://github.com/npocmaka/batch.scripts/blob/2cb1c7fea5078eb88c9a221cbad4022c69bf1da1/fileUtils/firstLinesP.bat
+Git blob:       42811c6902ce52993b3d745bb3390cc61c2cd73f
 SPDX-License-Identifier: MIT
 Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
-Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+Full license:   https://github.com/npocmaka/batch.scripts/blob/2cb1c7fea5078eb88c9a221cbad4022c69bf1da1/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: stacked `@@` quiet prefixes and leading `;` command separators
