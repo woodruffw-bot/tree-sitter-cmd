@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           gradlew.bat
 Upstream:       Gradle
-Source:         https://github.com/gradle/gradle/blob/master/gradlew.bat
+Source:         https://github.com/gradle/gradle/blob/d78343ef82b98eee68aa960e66c7d43c7a9785a3/gradlew.bat
+Git blob:       7e60b7292031b071dcd74102d12ed7abfc196791
 SPDX-License-Identifier: Apache-2.0
 Copyright the Gradle authors
-Full license:   https://github.com/gradle/gradle/blob/master/LICENSE
+Full license:   https://github.com/gradle/gradle/blob/d78343ef82b98eee68aa960e66c7d43c7a9785a3/LICENSE

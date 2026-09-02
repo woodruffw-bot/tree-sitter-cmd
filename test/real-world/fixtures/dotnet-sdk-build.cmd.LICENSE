@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           dotnet-sdk-build.cmd
 Upstream:       .NET SDK
-Source:         https://github.com/dotnet/sdk/blob/main/build.cmd
+Source:         https://github.com/dotnet/sdk/blob/0a74d579fde092d52266b88d262736068f419dcc/build.cmd
+Git blob:       efa38a1c8d2738d039b787ecdcffa5a7f9befd29
 SPDX-License-Identifier: MIT
 Copyright (c) .NET Foundation and contributors
-Full license:   https://github.com/dotnet/sdk/blob/main/LICENSE.TXT
+Full license:   https://github.com/dotnet/sdk/blob/0a74d579fde092d52266b88d262736068f419dcc/LICENSE.TXT

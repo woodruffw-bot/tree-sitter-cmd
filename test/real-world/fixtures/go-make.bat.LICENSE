@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           go-make.bat
 Upstream:       Go
-Source:         https://github.com/golang/go/blob/master/src/make.bat
+Source:         https://github.com/golang/go/blob/6abfe7b0deaeb62d9f8d4bf09475efec68db9a1b/src/make.bat
+Git blob:       29105cd8a54d98d3b15afb7747a00a9740f4b5d4
 SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) the Go Authors
-Full license:   https://github.com/golang/go/blob/master/LICENSE
+Full license:   https://github.com/golang/go/blob/6abfe7b0deaeb62d9f8d4bf09475efec68db9a1b/LICENSE

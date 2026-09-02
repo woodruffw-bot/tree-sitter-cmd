@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           kafka-run-class.bat
 Upstream:       Apache Kafka
-Source:         https://github.com/apache/kafka/blob/trunk/bin/windows/kafka-run-class.bat
+Source:         https://github.com/apache/kafka/blob/58e136c1e96dbcad9f38b1e269c236e93344c8e4/bin/windows/kafka-run-class.bat
+Git blob:       9a7cf3228c521bc3886809037c2a46879ec73702
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

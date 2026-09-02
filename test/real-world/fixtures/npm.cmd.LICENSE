@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           npm.cmd
 Upstream:       npm (bundled in nodejs/node)
-Source:         https://github.com/nodejs/node/blob/main/deps/npm/bin/npm.cmd
+Source:         https://github.com/nodejs/node/blob/ad86a12964814633acc5c374feed09291a51e743/deps/npm/bin/npm.cmd
+Git blob:       1a02e83ac365a91ee3e3d3c502ef39abef93f6d3
 SPDX-License-Identifier: Artistic-2.0
 Copyright npm, Inc. and contributors
-Full license:   https://github.com/npm/cli/blob/latest/LICENSE
+Full license:   https://github.com/nodejs/node/blob/ad86a12964814633acc5c374feed09291a51e743/deps/npm/LICENSE

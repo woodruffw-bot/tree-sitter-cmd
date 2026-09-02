@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           cpython-rt.bat
 Upstream:       CPython
-Source:         https://github.com/python/cpython/blob/main/PCbuild/rt.bat
+Source:         https://github.com/python/cpython/blob/10f950c9bb0ff4583f361a42aaed562b330e1dba/PCbuild/rt.bat
+Git blob:       d5c9a24f292327cb28edccf1aac513a03520088f
 SPDX-License-Identifier: PSF-2.0
 Copyright (c) the Python Software Foundation
-Full license:   https://github.com/python/cpython/blob/main/LICENSE
+Full license:   https://github.com/python/cpython/blob/10f950c9bb0ff4583f361a42aaed562b330e1dba/LICENSE

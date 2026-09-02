@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           npocmaka-getJavaVersion.bat
 Upstream:       npocmaka/batch.scripts (Java/getJavaVersion.bat)
-Source:         https://github.com/npocmaka/batch.scripts/blob/master/Java/getJavaVersion.bat
+Source:         https://github.com/npocmaka/batch.scripts/blob/3959e210800d282264201b633683b6664273b591/Java/getJavaVersion.bat
+Git blob:       ba37c6e0eae0604797140634432827ea63f2d58e
 SPDX-License-Identifier: MIT
 Copyright (c) 2014 Vasil Arnaudov and batch.scripts contributors
-Full license:   https://github.com/npocmaka/batch.scripts/blob/master/LICENSE
+Full license:   https://github.com/npocmaka/batch.scripts/blob/3959e210800d282264201b633683b6664273b591/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: caret-escaped, unquoted FOR /F options (tokens^=2-5^ delims^=.-_)

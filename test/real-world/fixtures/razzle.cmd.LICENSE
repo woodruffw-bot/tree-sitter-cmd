@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           razzle.cmd
 Upstream:       Microsoft Windows Terminal
-Source:         https://github.com/microsoft/terminal/blob/main/tools/razzle.cmd
+Source:         https://github.com/microsoft/terminal/blob/47018442cdb0fac323f9d68ff8e3156909882b9b/tools/razzle.cmd
+Git blob:       0dd2085b148a3b8058c9987b8f68c402b58295a4
 SPDX-License-Identifier: MIT
 Copyright (c) Microsoft Corporation
-Full license:   https://github.com/microsoft/terminal/blob/main/LICENSE
+Full license:   https://github.com/microsoft/terminal/blob/47018442cdb0fac323f9d68ff8e3156909882b9b/LICENSE

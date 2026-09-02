@@ -5,9 +5,10 @@ license of its upstream project, shown below.
 
 File:           cpython-prepare-libffi.bat
 Upstream:       CPython
-Source:         https://github.com/python/cpython/blob/main/PCbuild/prepare_libffi.bat
+Source:         https://github.com/python/cpython/blob/f23371fbc9bb283207ecebf8efd81a22538b4327/PCbuild/prepare_libffi.bat
+Git blob:       ef36c36e058a15dbb05e086945fc41346480c4e9
 SPDX-License-Identifier: PSF-2.0
 Copyright (c) the Python Software Foundation
-Full license:   https://github.com/python/cpython/blob/main/LICENSE
+Full license:   https://github.com/python/cpython/blob/f23371fbc9bb283207ecebf8efd81a22538b4327/LICENSE
 
 Notable for tree-sitter-cmd because it exercises: caret-escaped expansions (`if ^%VCVARSALL:~0,1% NEQ ^" ...`), where the caret escapes the *result* of `%VAR:~..%`, not the percent sign

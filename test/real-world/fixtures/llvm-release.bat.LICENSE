@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           llvm-release.bat
 Upstream:       LLVM
-Source:         https://github.com/llvm/llvm-project/blob/main/llvm/utils/release/build_llvm_release.bat
+Source:         https://github.com/llvm/llvm-project/blob/668800da4bd581a4992d935e5c66a010782f6a82/llvm/utils/release/build_llvm_release.bat
+Git blob:       f15065970a167de3d7a061db7d6830df638814b1
 SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 Copyright (c) the LLVM contributors
-Full license:   https://github.com/llvm/llvm-project/blob/main/LICENSE.TXT
+Full license:   https://github.com/llvm/llvm-project/blob/668800da4bd581a4992d935e5c66a010782f6a82/LICENSE.TXT

@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           node-vcbuild.bat
 Upstream:       Node.js
-Source:         https://github.com/nodejs/node/blob/main/vcbuild.bat
+Source:         https://github.com/nodejs/node/blob/614050b657e9757c1097aa85f92f2cb51149dc0d/vcbuild.bat
+Git blob:       28494815df1d64105da5bdbf44bb01856792bf4b
 SPDX-License-Identifier: MIT
 Copyright Node.js contributors
-Full license:   https://github.com/nodejs/node/blob/main/LICENSE
+Full license:   https://github.com/nodejs/node/blob/614050b657e9757c1097aa85f92f2cb51149dc0d/LICENSE

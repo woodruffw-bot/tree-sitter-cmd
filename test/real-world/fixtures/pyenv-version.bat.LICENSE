@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           pyenv-version.bat
 Upstream:       pyenv-win
-Source:         https://github.com/pyenv-win/pyenv-win/blob/master/pyenv-win/libexec/pyenv-version.bat
+Source:         https://github.com/pyenv-win/pyenv-win/blob/9187dee5d9c04905ca14be7095133229f4ea7f45/pyenv-win/libexec/pyenv-version.bat
+Git blob:       f02eac0fa8efb063e66ead1427fd62ddecd8c2b3
 SPDX-License-Identifier: MIT
 Copyright (c) the pyenv-win contributors
-Full license:   https://github.com/pyenv-win/pyenv-win/blob/master/LICENSE
+Full license:   https://github.com/pyenv-win/pyenv-win/blob/9187dee5d9c04905ca14be7095133229f4ea7f45/LICENSE

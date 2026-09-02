@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           dotnet-build.cmd
 Upstream:       .NET runtime
-Source:         https://github.com/dotnet/runtime/blob/main/build.cmd
+Source:         https://github.com/dotnet/runtime/blob/ae6744a5a851f07d6ae76222529aae38447c832a/build.cmd
+Git blob:       fd4aba34c4c92ce0366b1fda932b936a21fd0ee7
 SPDX-License-Identifier: MIT
 Copyright (c) .NET Foundation and contributors
-Full license:   https://github.com/dotnet/runtime/blob/main/LICENSE.TXT
+Full license:   https://github.com/dotnet/runtime/blob/ae6744a5a851f07d6ae76222529aae38447c832a/LICENSE.TXT

@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           zookeeper-zkenv.cmd
 Upstream:       Apache ZooKeeper
-Source:         https://github.com/apache/zookeeper/blob/master/bin/zkEnv.cmd
+Source:         https://github.com/apache/zookeeper/blob/85551f9be5b054fa4aee0636597b12bda2ecb2e8/bin/zkEnv.cmd
+Git blob:       de9fc929b616922b438fa25e2ef6a4131993c1b9
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0

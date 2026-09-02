@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           vcpkg-bootstrap.bat
 Upstream:       Microsoft vcpkg
-Source:         https://github.com/microsoft/vcpkg/blob/master/bootstrap-vcpkg.bat
+Source:         https://github.com/microsoft/vcpkg/blob/97c1d748be4ed5d95e3a68b2fe4a9ef7837f19aa/bootstrap-vcpkg.bat
+Git blob:       54e0b85a225030ab1a9e0096cdb6f637ee84c326
 SPDX-License-Identifier: MIT
 Copyright (c) Microsoft Corporation
-Full license:   https://github.com/microsoft/vcpkg/blob/master/LICENSE.txt
+Full license:   https://github.com/microsoft/vcpkg/blob/97c1d748be4ed5d95e3a68b2fe4a9ef7837f19aa/LICENSE.txt

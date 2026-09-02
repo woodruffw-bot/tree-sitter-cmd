@@ -5,7 +5,8 @@ license of its upstream project, shown below.
 
 File:           tomcat-setclasspath.bat
 Upstream:       Apache Tomcat
-Source:         https://github.com/apache/tomcat/blob/main/bin/setclasspath.bat
+Source:         https://github.com/apache/tomcat/blob/6f4b064fec4dd99a48d1e2ae11fdc993e9aebe7f/bin/setclasspath.bat
+Git blob:       ded6ac13b6c4aaef45d5023b583ea3dd941bebc6
 SPDX-License-Identifier: Apache-2.0
 Copyright the Apache Software Foundation
 Full license:   https://www.apache.org/licenses/LICENSE-2.0
