@@ -29,6 +29,7 @@ second
     argument: (argument
       (text))
     argument: (argument
+      (escape_sequence)
       (text))))
 
 ============================================
@@ -45,6 +46,7 @@ LONG
     name: (command_name)
     argument: (argument
       (text)
+      (escape_sequence)
       (text))))
 
 ============================================
@@ -59,6 +61,7 @@ ho hi
 (program
   (command
     name: (command_name
+      (escape_sequence)
       (text))
     argument: (argument
       (text))))
@@ -73,15 +76,117 @@ echo a ^
 ---
 
 (program
-  (and_list
+  (seq_list
     left: (command
       name: (command_name)
       argument: (argument
-        (text)))
+        (text))
+      argument: (argument
+        (escape_sequence)))
     right: (command
       name: (command_name)
       argument: (argument
         (text)))))
+
+================================================
+line continuation makes a single pipe literal
+================================================
+
+echo a ^
+| echo b
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (escape_sequence))
+    argument: (argument
+      (text))
+    argument: (argument
+      (text))))
+
+===================================================
+line continuation changes double pipe to single pipe
+===================================================
+
+echo a ^
+|| echo b
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      argument: (argument
+        (escape_sequence)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+================================================
+continued close paren stays literal in a block
+================================================
+
+(
+  echo kept ^
+) literal
+)
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      argument: (argument
+        (escape_sequence))
+      argument: (argument
+        (text)))))
+
+============================================
+continued caret before an expansion is visible
+============================================
+
+echo ^
+%PATH%
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (escape_sequence)
+      (variable))))
+
+============================================
+empty-line continuation keeps forced newline
+============================================
+
+echo a ^
+
+b
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))
+    argument: (argument
+      (escape_sequence)
+      (text))))
 
 ====================
 caret escape of pipe
@@ -167,3 +272,19 @@ echo Usage: build.bat ^<target^>
       (escape_sequence)
       (text)
       (escape_sequence))))
+
+============================================
+dangling line continuation remains an error
+============================================
+
+echo a ^
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (ERROR
+    (UNEXPECTED '\0')))

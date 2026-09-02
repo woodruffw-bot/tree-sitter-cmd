@@ -136,11 +136,15 @@ grammar token, including command heads, IF and FOR syntax, FOR-set items, GOTO
 targets, and redirection targets. Ordinary command and SET value tails keep the
 same punctuation as text.
 
-`extras` is `[/[ \t]/, token(/\^\r?\n/)]`. The line continuation is an anonymous,
-invisible extra, the same approach tree-sitter-bash uses for `\\\n`: it produces
-no node and is transparent to word adjacency, so `echo a^\nb` joins into one word
-while `echo a ^\nb` stays two arguments. Newline is a statement terminator and
-stays structural. `\r` is swallowed by matching every newline as `/\r?\n/`.
+`extras` contains only `/[ \t]/`. A caret-newline is not transparent. During
+`ParseTokenEx`, cmd discards the newline and treats the first character of the
+next physical line as a forced literal. The grammar therefore represents
+`^\nX` as one `escape_sequence` node. `echo a^\nb` remains one argument, while
+the space in `echo a ^\nb` ends the first argument. In both forms, the node
+retains the caret, newline, and forced character. A normal unescaped newline is
+a statement terminator and stays structural. The forced character may itself
+be a newline, as in the common `SET LF=^\n\n` macro. `\r` is included only as
+part of the grammar's `/\r?\n/` newline spelling.
 
 The external scanner (`src/scanner.c`) owns the genuinely context-sensitive
 tokens. Its state is a block-depth counter plus a two-step missing-body boundary
@@ -156,7 +160,7 @@ counter:
 | `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
 | `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
-| `CARET_ESCAPE` | a lone `^` that escapes a following `%`/`!` expansion |
+| `CARET_ESCAPE` | `^` or `^\n` before a `%`/`!` expansion; the sigil stays in the following expansion node |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
 | `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
@@ -216,19 +220,17 @@ existing `quiet` field directly on the `label` node.
 
 Two distinct mechanisms:
 
-- **Line continuation `^\n`** splices the next physical line. cmd resolves this
-  before tokenization, so it is purely lexical and must be transparent to word
-  boundaries. It is modeled as the anonymous extra described in section 3.
-  Residual imprecision: a mid-word caret before an indented next line
-  (`echo a^\n   b`) joins to `ab`, where cmd would produce `a   b`. The common
-  `arg ^\n   arg` form (space before the caret) is unaffected. A *dangling*
-  continuation — a caret at the end of the file, with no following line to splice
-  onto — is an error node, since the invisible extra has nothing to splice onto.
-  Continuation onto a following line, blank or not, is fine.
-- **Mid-line escape `^x`** makes the following metacharacter literal. The common
-  cases are a fixed token. A caret before a `%`/`!` expansion is the scanner's
-  `CARET_ESCAPE`: in cmd `^%VAR%` expands `%VAR%` first and the caret escapes the
-  result, so the caret must not swallow the `%`/`!`.
+- **Line continuation `^\nX`** discards the physical newline and forces `X` to
+  be literal. The grammar keeps all three source parts in one `escape_sequence`
+  node. This distinction matters for operators. In `^\n&&`, the first `&` is
+  literal and the second is a single command separator. In `^\n|`, the pipe is
+  literal and does not begin a pipeline. A continuation without a following
+  character remains an error.
+- **Mid-line escape `^x`** makes the following character literal. A caret before
+  a `%`/`!` expansion is the scanner's `CARET_ESCAPE`. Percent expansion runs
+  before caret handling, while delayed expansion runs later, so the caret must
+  not swallow the expansion's opening sigil. The scanner applies the same split
+  to a continued caret directly before `%`/`!`.
 
 Caret inside quotes is a known imprecision: `^` is literal inside `"..."` in
 phase 2, but phase 5 removes carets even inside quotes when the line contains a
@@ -487,9 +489,9 @@ scripts.
 - **Linefeed-named variables** (`%LF%` macros built by a caret/`%LF%` dance to
   fold multi-line code onto one logical line) are not supported. This is a
   torture-test trick rather than mainstream batch.
-- **Dangling caret continuation** (a caret at the end of the file, with no
-  following line to splice onto) is an error node; continuation onto a following
-  line, blank or not, is fine.
+- **Caret-spelled grammar keywords** are not decoded. Cmd can recognize a
+  keyword after removing carets, including a caret-newline within the word.
+  The grammar may retain such a spelling as a generic command or an error.
 - **FOR reference scope**: the grammar cannot resolve which one-character FOR
   variables are in scope. A lexical `%%x` form can therefore be a
   `loop_variable` reference outside a FOR body. It is never a

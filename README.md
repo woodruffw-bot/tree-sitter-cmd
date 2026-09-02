@@ -109,9 +109,8 @@ context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
 - An unquoted `(` in a `FOR` set ends the set at the first `)`. Quote a set
   item that contains parentheses, such as
   `for %%a in ("file (1).txt")`.
-- A caret that continues a word onto an indented line is joined into one word.
-  `cmd.exe` treats it as two arguments. The common `arg ^` form is not
-  affected. A final caret with no following line produces an error node.
+- Caret-spelled control-flow keywords are not decoded into keyword nodes. They
+  may remain generic command text or produce an error.
 - Variable names that contain a literal newline, as used by `%LF%` macros, are
   not supported.
 

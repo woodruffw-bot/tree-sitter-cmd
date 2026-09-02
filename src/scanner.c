@@ -23,11 +23,10 @@
 //   BLOCK_OPEN   - `(` that opens a command block or FOR set (structural).
 //   BLOCK_CLOSE  - `)` that closes a structural block / FOR set.
 //   LPAREN/RPAREN- a literal `(` / `)` appearing in an argument or IF operand.
-//   CARET_ESCAPE - a lone `^` that escapes a following `%`/`!` expansion. In cmd
-//                  `^%VAR%` expands `%VAR%` first and the caret escapes the
-//                  result, so the caret must not swallow the `%`/`!`; we emit it
-//                  as a one-char token (the grammar's `escape_sequence` handles
-//                  `^X` for any other X, and `^`-newline is line continuation).
+//   CARET_ESCAPE - the source caret that escapes a following `%`/`!`
+//                  expansion. It covers either `^` or a continued `^` plus
+//                  newline, but not the sigil. Keeping the sigil outside this
+//                  token preserves the following expansion node.
 //   STRING_END   - the terminator of a double-quoted string. Inside a string the
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
@@ -651,16 +650,29 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
-  // A lone caret escaping a following `%`/`!` expansion: consume just the `^`
-  // (so `%VAR%` / `!VAR!` is still recognised as its own token). Any other `^X`
-  // is left to the grammar's `escape_sequence`, and `^`-newline to the line
-  // continuation, so decline unless the very next char is `%` or `!`.
+  // Keep a caret before `%`/`!` separate from the expansion. The caret may be
+  // directly adjacent, or it may first escape a physical newline. In the
+  // continued form, consume through the newline but leave the sigil for the
+  // grammar's expansion token.
   if (want_caret && c == '^') {
     lexer->advance(lexer, false);
     lexer->mark_end(lexer);
     if (lexer->lookahead == '%' || lexer->lookahead == '!') {
       lexer->result_symbol = CARET_ESCAPE;
       return true;
+    }
+
+    if (lexer->lookahead == '\r') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead != '\n') return false;
+    }
+    if (lexer->lookahead == '\n') {
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      if (lexer->lookahead == '%' || lexer->lookahead == '!') {
+        lexer->result_symbol = CARET_ESCAPE;
+        return true;
+      }
     }
     return false;
   }
