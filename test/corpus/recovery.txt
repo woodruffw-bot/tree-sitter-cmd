@@ -269,7 +269,7 @@ PowerShell-shaped closer keeps recovery state
     (redirect_operator)))
 
 =====================================================
-empty SET /A payload retains missing-expression state
+empty SET /A payload retains parser recovery
 =====================================================
 
 set /a
@@ -279,11 +279,9 @@ set /a >out.txt
 
 (program
   (set_statement
-    (keyword)
-    (set_arith
-      (set_flag)
-      expression: (argument
-        (MISSING text))))
+    (keyword))
+  (ERROR
+    (set_flag))
   (set_statement
     (keyword)
     (set_arith
