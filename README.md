@@ -106,6 +106,9 @@ context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
 - `!VAR!` is always parsed as a delayed reference, even when delayed expansion
   is not active and the text is literal at runtime.
 - `SET /A` expressions are an argument tail, not an arithmetic syntax tree.
+- An additional `=` in the attached right operand of an `IF` `==` comparison
+  is not yet preserved. For example, `if b===b ...` loses the third `=` from
+  the operand CST.
 - An unquoted `(` in a `FOR` set ends the set at the first `)`. Quote a set
   item that contains parentheses, such as
   `for %%a in ("file (1).txt")`.

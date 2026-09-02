@@ -213,18 +213,17 @@ module.exports = grammar({
 
     _line: ($) => seq(optional($._line_content), $._newline),
 
-    // `colon_comment` reaches here through `_statement`, so it must not also be
-    // a direct alternative (that would be two paths to the same node).
-    _line_content: ($) => choice($._statement, $.label),
+    // Parser comments are recognized only at the lowest `&` precedence. They
+    // may begin a physical line or follow `&`. The low-precedence `@` prefix
+    // also recurses into this level. Direct IF/FOR bodies and operands of
+    // `||`, `&&`, or `|` cannot consume a colon comment.
+    _line_content: ($) => choice($._statement, $.label, $.colon_comment),
 
     _newline: ($) => token(/\r?\n/),
 
     // ---------------------------------------------------------------------
     // Statements and the command-operator ladder.
     // ---------------------------------------------------------------------
-    // `colon_comment` is a statement so a `::` comment is accepted after an
-    // operator, like the `& rem` form. cmd treats `::` as an inline comment that
-    // runs to end of line, so `dir &:: note` is `dir` then a trailing comment.
     _statement: ($) =>
       choice(
         $._unit,
@@ -232,7 +231,6 @@ module.exports = grammar({
         $.or_list,
         $.and_list,
         $.pipeline,
-        $.colon_comment,
       ),
 
     seq_list: ($) =>
@@ -241,7 +239,9 @@ module.exports = grammar({
         seq(
           field('left', $._statement),
           '&',
-          optional(field('right', $._statement)),
+          optional(
+            field('right', choice($._statement, $.colon_comment)),
+          ),
         ),
       ),
 
@@ -281,16 +281,18 @@ module.exports = grammar({
       ),
 
     // `@` is a low-precedence unary operator. It suppresses the echo of the
-    // complete statement that follows, including an operator expression. Keep
-    // each stacked prefix as its own source-backed wrapper so `@@cmd` retains
-    // both operators and their nesting.
+    // complete statement that follows, including an operator expression.
+    // ParsePrimary handles `@` by re-entering ParseCommandOp(C_OP_LOWEST), so a
+    // colon parser comment is also a valid body here. Keep each stacked prefix
+    // as its own source-backed wrapper so `@@cmd` retains both operators and
+    // their nesting.
     quiet_statement: ($) =>
       prec.right(
         PREC.QUIET,
         seq(
           field('quiet', $.quiet),
           choice(
-            field('body', $._statement),
+            field('body', choice($._statement, $.colon_comment)),
             $._missing_quiet_body,
           ),
         ),
@@ -347,14 +349,17 @@ module.exports = grammar({
           optional($._standard_separator),
           optional(
             seq(
-              alias(opt('/i'), $.if_flag),
-              optional($._standard_separator),
+              // Unlike SET/FOR options, `/I` competes with a valid comparison
+              // operand in this slot. Keep it at ordinary lexical precedence
+              // so a longer operand such as `/ileft` wins as one word.
+              alias(ci('/i'), $.if_flag),
+              $._required_standard_separator,
             ),
           ),
           optional(
             seq(
               alias(ci('not'), $.not),
-              optional($._standard_separator),
+              $._required_standard_separator,
             ),
           ),
           field('condition', $._if_condition),
@@ -382,19 +387,33 @@ module.exports = grammar({
       seq(
         field('left', $._if_operand),
         optional($._if_comparison_separator),
-        field('operator', $.comparison_operator),
-        optional($._standard_separator),
+        choice(
+          seq(
+            field(
+              'operator',
+              alias('==', $.comparison_operator),
+            ),
+            optional($._standard_separator),
+          ),
+          seq(
+            field(
+              'operator',
+              alias(
+                choice(
+                  ci('equ'),
+                  ci('neq'),
+                  ci('lss'),
+                  ci('leq'),
+                  ci('gtr'),
+                  ci('geq'),
+                ),
+                $.comparison_operator,
+              ),
+            ),
+            $._required_if_operator_separator,
+          ),
+        ),
         field('right', $._if_operand),
-      ),
-    comparison_operator: ($) =>
-      choice(
-        '==',
-        ci('equ'),
-        ci('neq'),
-        ci('lss'),
-        ci('leq'),
-        ci('gtr'),
-        ci('geq'),
       ),
 
     unary_condition: ($) =>
@@ -406,7 +425,7 @@ module.exports = grammar({
             $.condition_keyword,
           ),
         ),
-        optional($._standard_separator),
+        $._required_standard_separator,
         field('argument', $._if_operand),
       ),
 
@@ -447,7 +466,7 @@ module.exports = grammar({
           optional(
             seq(
               field('option', $.for_option),
-              optional($._standard_separator),
+              $._required_standard_separator,
             ),
           ),
           field('variable', $._loop_variable_declaration),
@@ -496,9 +515,11 @@ module.exports = grammar({
       ),
 
     // FOR options. `/R [path]` and `/F [options]` each take one optional word.
-    // `/D` and `/R` may be combined in either order. No other mixed switch set
-    // is valid. The optional argument cannot start with `/`, which keeps an
-    // illegal second switch from being accepted as an `/F` option or `/R` path.
+    // `/D /R [path]`, pathless `/R /D`, and `/R path /D` are valid. Windows
+    // rejects `/R /D path`: in that order the root cannot follow `/D`. No other
+    // mixed switch set is valid. The optional argument cannot start with `/`,
+    // which keeps an illegal second switch from becoming an `/F` option or an
+    // ordinary `/R` path.
     // The argument may be quoted (`/f "tokens=2 delims=,"`) or caret-escaped and
     // unquoted (`/f tokens^=2-5^ delims^=.-_`).
     for_option: ($) =>
@@ -506,36 +527,42 @@ module.exports = grammar({
         alias(opt('/l'), $.for_flag),
         seq(
           alias(opt('/f'), $.for_flag),
-          optional($._standard_separator),
-          optional(field('argument', alias($._for_arg, $.argument))),
+          optional(
+            seq(
+              $._required_standard_separator,
+              field('argument', alias($._for_arg, $.argument)),
+            ),
+          ),
         ),
         seq(
           alias(opt('/d'), $.for_flag),
-          optional($._standard_separator),
           optional(
             seq(
+              $._required_standard_separator,
               alias(opt('/r'), $.for_flag),
-              optional($._standard_separator),
-              optional(field('argument', alias($._for_arg, $.argument))),
+              optional(
+                seq(
+                  $._required_standard_separator,
+                  field('argument', alias($._for_arg, $.argument)),
+                ),
+              ),
             ),
           ),
         ),
         seq(
           alias(opt('/r'), $.for_flag),
-          optional($._standard_separator),
           optional(
-            choice(
-              seq(
+            seq(
+              $._required_standard_separator,
+              choice(
                 alias(opt('/d'), $.for_flag),
-                optional($._standard_separator),
-                optional(field('argument', alias($._for_arg, $.argument))),
-              ),
-              seq(
-                field('argument', alias($._for_arg, $.argument)),
-                optional(
-                  seq(
-                    optional($._standard_separator),
-                    alias(opt('/d'), $.for_flag),
+                seq(
+                  field('argument', alias($._for_arg, $.argument)),
+                  optional(
+                    seq(
+                      $._required_standard_separator,
+                      alias(opt('/d'), $.for_flag),
+                    ),
                   ),
                 ),
               ),
@@ -1103,6 +1130,15 @@ module.exports = grammar({
         alias($._rparen, $.text),
       ),
     _standard_text: ($) => token(/[^ \t\r\n&|<>()^"%!,;=]+/),
+
+    // ParseIf and ParseFor compare these spellings against a complete fetched
+    // token. Consume the source delimiter explicitly so a short option or
+    // operator token cannot match the prefix of a longer word. Immediate
+    // lexical precedence keeps horizontal-space extras from hiding it.
+    _required_standard_separator: ($) =>
+      token.immediate(prec(3, /[ \t,;=]+/)),
+    _required_if_operator_separator: ($) =>
+      token.immediate(prec(3, /[ \t,;][ \t,;=]*/)),
 
     // These stay hidden in the CST, like spaces in the same parser slots. A
     // token covers the full run, including interleaved horizontal spaces,

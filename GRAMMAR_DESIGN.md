@@ -131,10 +131,14 @@ cmd's internal-command delimiters (`:.\,/;=[]`), so `goto:eof`, `call:label`,
 and `set/a` recognize the command without requiring a space. `_cmd_path` keeps
 dotted executable names and explicit paths such as `if.exe` from being mistaken
 for internal commands. A leading drive letter also stays intact. A hidden
-`_standard_separator` consumes `,`, `;`, and `=` only where cmd fetches a new
-grammar token, including command heads, IF and FOR syntax, FOR-set items, GOTO
-targets, and redirection targets. Ordinary command and SET value tails keep the
-same punctuation as text.
+`_standard_separator` consumes `,`, `;`, and `=` in parser slots where cmd has
+already established a token boundary. Horizontal space remains an extra. IF
+modifiers, unary condition keywords, and FOR switches instead use
+`_required_standard_separator`, an immediate hidden token that proves a source
+delimiter was present. Textual IF comparison operators use
+`_required_if_operator_separator`: whitespace, comma, or semicolon must end the
+operator token, after which the remaining standard separators may include
+equals. Ordinary command and SET value tails keep the same punctuation as text.
 
 `extras` contains only `/[ \t]/`. A caret-newline is not transparent. During
 `ParseTokenEx`, cmd discards the newline and treats the first character of the
@@ -306,15 +310,21 @@ take leading redirections. The consequence and alternative each consume a full
 command-operator expression. For example, both commands in
 `IF 1==1 ECHO a & ECHO b` belong to the consequence. An `ELSE` after the
 consequence starts the alternative instead of becoming part of that expression.
+`/I` is recognized only as a complete standard token. In
+`IF /ileft==right ...`, the longer `/ileft` word remains the comparison's left
+operand rather than becoming an `/I` flag plus `left`.
 An absent consequence or alternative records a MISSING `"command"` at the
 controller's own line boundary; it never becomes an empty `command_name` or
 adopts the following physical line.
 The separator slot immediately before a binary comparison operator accepts only
-`,` and `;`, not `=`. This matches cmd's special-case token fetch: `=` must stay
-available for the two-byte `==` operator. Thus `IF left==right ...` is a valid
-comparison, while `IF left=equ=right ...` is malformed rather than an `EQU`
-comparison padded with equals separators. After the operator, all three standard
-separators apply again before the right operand.
+`,` and `;`, not `=`. This matches cmd's special token fetch: `=` must stay
+available for the two-byte `==` operator. A textual operator must also end at a
+real whitespace, comma, or semicolon delimiter. Once that delimiter ends the
+operator token, standard separators, including `=`, are skipped before the
+right operand. Thus `IF left equright ...` and `IF left equ=right ...` do not
+become `EQU` comparisons. Compact `==` comparisons remain a separate path.
+Their attached right operand does not yet preserve an additional `=` byte, so
+sources such as `IF b===b ...` are a known CST limitation.
 
 ### FOR
 
@@ -329,10 +339,13 @@ is shared between those CST roles so an outer-loop reference can begin a `/R`
 path (for example, `%%a\sub`) without stealing the following binder. `FOR /L`
 accepts the non-comma numeric separators `;`, `=`, and space, e.g. `(1;1=5)`.
 These separators split the set into three `argument` nodes just as commas do.
-`/D` and `/R` may be combined in either order. Other mixed switch sets remain
-syntax errors.
-`/R` and `/F` each accept one optional argument. A slash-leading word is not an
-argument, so an illegal second switch is not hidden as an option or path.
+`/D` and `/R` may be combined as `/D /R [path]`, pathless `/R /D`, or
+`/R path /D`. Windows rejects `/R /D path`: in that order an explicit root
+cannot follow `/D`. Other mixed switch sets remain syntax errors. Every switch
+is a complete standard token, so `/ffoo`, `/rC:\src`, and `/d/r` do not become
+`/F`, `/R path`, or `/D /R` forms. `/R` and `/F` each accept one optional,
+separator-delimited argument. A slash-leading word is not an ordinary argument,
+so an illegal second switch is not hidden as an option or path.
 
 `/F` command quoting depends on its options. By default, `'single-quoted'` is a
 command and backquotes are literal. With `usebackq`, `` `backquoted` `` is a
@@ -400,11 +413,16 @@ Leading redirections belong to the comment, while a hyphen continues a command
 name, so `>nul rem text` is a comment and `rem-tool` is a command.
 `::` is a degenerate label used as a comment. A single colon at the start of a
 physical line defines a label when a valid name follows it. Leading whitespace
-after the colon is ignored, and spaces may occur inside the name. At command
-position after an operator, a colon instead starts a comment through end of
-line. This covers `dir &:note`, `dir &:: note`, and `call :init &:# note`.
-Colon comments inside a block are unsafe in real cmd, but the grammar parses
-them without cascading; a linter layer could warn.
+after the colon is ignored, and spaces may occur inside the name. Parser-level
+colon comments are recognized only at the lowest `&` precedence. They may begin
+a physical line or follow `&`, which covers `dir &:note`, `dir &:: note`, and
+`call :init &:# note`. ReactOS handles `@` by recursively calling
+`ParseCommandOp(C_OP_LOWEST)`, so `@:: note` is a quiet statement whose body is
+a colon comment. A direct colon cannot satisfy an IF or FOR body or the required
+right operand of `||`, `&&`, or `|`; those spellings retain a syntax error.
+Colon-comment lines inside blocks enter the same grammar slot, but remain unsafe
+in real cmd. This avoids cascading CST damage without claiming that the spelling
+is portable batch syntax; a linter layer could warn.
 
 `<#` and `#>` are PowerShell comment delimiters, not CMD comments. Under CMD,
 their `<` and `>` characters keep their redirection roles. The surrounding

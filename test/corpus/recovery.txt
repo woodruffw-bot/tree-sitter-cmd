@@ -70,9 +70,10 @@ echo after
 (program
   (ERROR
     (keyword)
-    (text))
-  (command
-    name: (command_name
+    (ERROR
+      (text))
+    (argument
+      (text)
       (variable)
       (text)))
   (command
