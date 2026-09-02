@@ -27,21 +27,22 @@ set PATH >value.txt EXTRA=one
   (set_statement
     (keyword)
     (set_assignment
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
       value: (argument
         (text))))
   (set_statement
     (keyword)
     (set_assignment
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (variable_name)
       value: (argument
         (text)))))
 
@@ -59,22 +60,24 @@ set /p foo >out bar=prompt
     (keyword)
     (set_prompt
       (set_flag)
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (variable_name)
       prompt: (argument
         (text))))
   (set_statement
     (keyword)
     (set_prompt
       (set_flag)
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (variable_name)
       prompt: (argument
         (text)))))
 
@@ -90,11 +93,12 @@ set foo >out bar=value
   (set_statement
     (keyword)
     (set_assignment
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (variable_name)
       value: (argument
         (text)))))
 
@@ -110,11 +114,11 @@ set x>out=value
   (set_statement
     (keyword)
     (set_assignment
-      name: (variable_name
-        redirect: (redirect_file
-          operator: (redirect_operator)
-          target: (argument
-            (text))))
+      name: (variable_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
       value: (argument
         (text)))))
 

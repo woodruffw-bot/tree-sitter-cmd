@@ -203,7 +203,7 @@ module.exports = grammar({
     [$.set_arith],
     [$.set_quoted],
     [$.set_display],
-    [$.set_display, $._set_binding_name],
+    [$.set_display, $._set_binding],
   ],
 
   rules: {
@@ -745,10 +745,7 @@ module.exports = grammar({
     // SET name=value  (the value is the rest of the logical line)
     set_assignment: ($) =>
       seq(
-        field(
-          'name',
-          alias($._set_binding_name, $.variable_name),
-        ),
+        $._set_binding,
         '=',
         repeat(
           choice(
@@ -776,12 +773,7 @@ module.exports = grammar({
     _set_prompt_body: ($) =>
       choice(
         seq(
-          optional(
-            field(
-              'name',
-              alias($._set_binding_name, $.variable_name),
-            ),
-          ),
+          optional($._set_binding),
           '=',
           repeat(
             choice(
@@ -911,20 +903,21 @@ module.exports = grammar({
         ),
       ),
 
-    // Redirections are removed before SET interprets its payload. Keep a
-    // logical name as one node even when source redirections split its text.
-    // The assignment form also permits a final redirect immediately before
-    // `=`. The zero-width end token verifies that the next non-horizontal byte
-    // really is `=`, so a display's terminal redirect is not recovered as an
-    // assignment with a missing delimiter.
-    _set_binding_name: ($) =>
+    // Redirections are removed before SET interprets its payload. Keep each
+    // surviving name segment in a separate source-contiguous `variable_name`,
+    // with the redirect as a sibling between them. The assignment form also
+    // permits a final redirect immediately before `=`. The zero-width end
+    // token verifies that the next non-horizontal byte really is `=`, so a
+    // display's terminal redirect is not recovered as an assignment with a
+    // missing delimiter.
+    _set_binding: ($) =>
       seq(
-        $._set_name,
+        field('name', alias($._set_name, $.variable_name)),
         repeat(
           seq(
             repeat1(field('redirect', $._redirection)),
             choice(
-              $._set_name,
+              field('name', alias($._set_name, $.variable_name)),
               $._set_binding_end,
             ),
           ),

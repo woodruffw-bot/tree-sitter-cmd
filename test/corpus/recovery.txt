@@ -293,3 +293,22 @@ set /a >out.txt
           (text)))
       expression: (argument
         (MISSING text)))))
+
+============================================================
+incomplete SET /P name keeps redirect outside variable range
+============================================================
+
+set /p na>out
+
+---
+
+(program
+  (set_statement
+    (keyword))
+  (ERROR
+    (set_flag)
+    (variable_name)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))

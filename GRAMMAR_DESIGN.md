@@ -390,17 +390,19 @@ In the CST, `_redirection` is a transparent supertype over `redirect_file` and
 separate from the punctuation-only `operator` field. Ordinary commands, GOTO,
 CALL, and SET preserve redirections before and within their argument tails. IF
 and FOR still reject leading redirections, matching cmd. Redirections are
-removed before SET interprets an unquoted assignment or `/P` name, so one
-`variable_name` may contain positional `redirect` children between its surviving
-source segments. A redirect inside other SET payload text is a `redirect` field
-on the matching `set_*` node. Terminal SET redirects remain fields on
-`set_statement`. Redirection ordering is preserved positionally; last-wins and
-stream-merge semantics are runtime.
+removed before SET interprets an unquoted assignment or `/P` name. Each
+surviving, source-contiguous name segment is a separate
+`name: (variable_name)` field, with positional `redirect` siblings between the
+segments. This keeps every variable range contiguous while letting tools
+reconstruct the logical name. A redirect inside other SET payload text is a
+`redirect` field on the matching `set_*` node. Terminal SET redirects remain
+fields on `set_statement`. Redirection ordering is preserved positionally;
+last-wins and stream-merge semantics are runtime.
 
 Because file targets stop at contextual standard separators, the adjacent
 spelling `set x>out=value` keeps `out` as the redirect target and reconnects
-`x` to the assignment delimiter. The `variable_name` therefore contains the
-source-backed redirect while the following value remains a normal field.
+`x` to the assignment delimiter. The assignment contains `name`, `redirect`,
+then the following `value`, all with source-contiguous ranges.
 
 ### REM and ::
 
