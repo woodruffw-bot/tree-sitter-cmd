@@ -786,11 +786,13 @@ module.exports = grammar({
           optional($._set_ignored_tail),
         ),
       ),
-    // SET /A expression  (refined to an arithmetic sub-grammar in M7)
+    // SET /A expression. Keep the arithmetic language opaque, but require at
+    // least one expression. cmd rejects an empty payload after redirections are
+    // removed.
     set_arith: ($) =>
       seq(
         alias(opt('/a'), $.set_flag),
-        repeat(
+        repeat1(
           choice(
             field('expression', $.argument),
             seq(

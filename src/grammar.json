@@ -2769,7 +2769,7 @@
           "value": "set_flag"
         },
         {
-          "type": "REPEAT",
+          "type": "REPEAT1",
           "content": {
             "type": "CHOICE",
             "members": [
