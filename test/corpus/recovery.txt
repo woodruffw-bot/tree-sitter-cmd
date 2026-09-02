@@ -235,3 +235,21 @@ for %%i in (one) do
         (text)))
     (keyword)
     body: (MISSING "command")))
+
+==================================================
+incomplete quiet statement stays on its own line
+==================================================
+
+@
+echo after
+
+---
+
+(program
+  (quiet_statement
+    quiet: (quiet)
+    body: (MISSING "command"))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))

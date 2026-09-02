@@ -123,9 +123,10 @@ quiet colon forms
   (label
     quiet: (quiet)
     name: (label_name))
-  (colon_comment
+  (quiet_statement
     quiet: (quiet)
-    (comment_text)))
+    body: (colon_comment
+      (comment_text))))
 
 ========================================
 label-like colon is a comment after an op

@@ -11,7 +11,8 @@ Learn references, and the dBenham/jeb batch-line-parser phase model. See
 
 ## What it parses
 
-- Commands, argument tails, and the `@` echo-suppression prefix.
+- Commands, argument tails, and low-precedence `@` echo suppression over full
+  statements.
 - The `&`, `&&`, `||`, and `|` operators. The grammar uses cmd precedence:
   `&` < `||` < `&&` < `|`.
 - Input, output, and handle redirections, including leading redirections.
@@ -83,6 +84,7 @@ transcodes a file to UTF-8, ranges refer to the transcoded bytes. Callers that
 need original file offsets must retain their own offset map or use an
 encoding-aware Tree-sitter input API.
 
+
 ## Testing
 
 ```sh
@@ -92,7 +94,7 @@ cargo test       # Rust and real-world regression tests
 ```
 
 The unit corpus contains focused inputs and expected syntax trees. Rust
-integration tests parse UTF-8 upstream fixture bytes and reject `ERROR` or
+integration tests parse upstream scripts from raw bytes and reject `ERROR` or
 `MISSING` nodes. Each fixture retains its third-party license. See
 [`test/real-world/README.md`](test/real-world/README.md).
 

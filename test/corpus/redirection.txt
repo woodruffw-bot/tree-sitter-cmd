@@ -125,6 +125,32 @@ leading redirection
     argument: (argument
       (text))))
 
+========================================
+quiet scope keeps leading redirection
+========================================
+
+@2>nul del x & echo done
+
+---
+
+(program
+  (quiet_statement
+    quiet: (quiet)
+    body: (seq_list
+      left: (command
+        redirect: (redirect_file
+          source: (file_descriptor)
+          operator: (redirect_operator)
+          target: (argument
+            (text)))
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
 ======================
 block with redirection
 ======================
