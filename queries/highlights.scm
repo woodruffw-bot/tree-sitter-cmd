@@ -7,7 +7,6 @@
 (rem_comment
   (keyword) @comment)
 (colon_comment) @comment
-(powershell_comment) @comment
 (comment_text) @comment
 (label_text) @comment
 

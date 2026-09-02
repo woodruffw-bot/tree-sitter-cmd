@@ -237,7 +237,6 @@ module.exports = grammar({
         $.and_list,
         $.pipeline,
         $.colon_comment,
-        $.powershell_comment,
       ),
 
     seq_list: ($) =>
@@ -1248,14 +1247,6 @@ module.exports = grammar({
             seq(token(/:/), optional(alias($._line_text, $.comment_text))),
           ),
         ),
-      ),
-    // Batch and PowerShell polyglots use these markers so PowerShell sees a
-    // block comment while cmd reaches the batch section. Keep marker lines
-    // opaque so their punctuation does not trigger redirection recovery.
-    powershell_comment: ($) =>
-      choice(
-        seq(token(/<#/), optional(alias($._line_text, $.comment_text))),
-        token(/#>[^\r\n]*/),
       ),
     _line_text: ($) => token(/[^\r\n]+/),
   },
