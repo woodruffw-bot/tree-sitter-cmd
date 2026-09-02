@@ -1605,7 +1605,7 @@
     "fields": {
       "expression": {
         "multiple": true,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "argument",

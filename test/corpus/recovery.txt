@@ -267,3 +267,30 @@ PowerShell-shaped closer keeps recovery state
     name: (command_name))
   (ERROR
     (redirect_operator)))
+
+=====================================================
+empty SET /A payload retains missing-expression state
+=====================================================
+
+set /a
+set /a >out.txt
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_arith
+      (set_flag)
+      expression: (argument
+        (MISSING text))))
+  (set_statement
+    (keyword)
+    (set_arith
+      (set_flag)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      expression: (argument
+        (MISSING text)))))
