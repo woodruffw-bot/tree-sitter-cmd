@@ -60,6 +60,10 @@ mod windows {
 
     fn run_cmd(comspec: &OsString, path: &Path) -> std::process::Output {
         Command::new(comspec)
+            .current_dir(
+                path.parent()
+                    .expect("oracle script has a parent directory"),
+            )
             .arg("/d")
             .arg("/c")
             .arg(path)
@@ -117,11 +121,35 @@ mod windows {
             },
             OracleCase {
                 name: "if-flag-prefix",
-                source: b"@echo off\r\nif /ileft==right echo should-not-run\r\n",
+                source: b"@echo off\r\nif /ia==A echo should-not-run\r\n",
+            },
+            OracleCase {
+                name: "if-attached-equals-remainder",
+                source: b"@echo off\r\nif b===b echo should-not-run\r\n",
             },
             OracleCase {
                 name: "for-flag-prefix",
                 source: b"@echo off\r\nfor /ffoo %%a in (x) do echo %%a\r\n",
+            },
+            OracleCase {
+                name: "for-r-path-prefix",
+                source: b"@echo off\r\nfor /rC:\\src %%a in (x) do echo %%a\r\n",
+            },
+            OracleCase {
+                name: "for-combined-flag-prefix",
+                source: b"@echo off\r\nfor /d/r %%a in (x) do echo %%a\r\n",
+            },
+            OracleCase {
+                name: "for-d-r-root",
+                source: b"@echo off\r\nfor /d /r . %%a in (x) do echo %%a\r\n",
+            },
+            OracleCase {
+                name: "for-r-d-root-invalid",
+                source: b"@echo off\r\nfor /r /d . %%a in (x) do echo %%a\r\n",
+            },
+            OracleCase {
+                name: "for-r-root-d",
+                source: b"@echo off\r\nfor /r . /d %%a in (x) do echo %%a\r\n",
             },
             OracleCase {
                 name: "colon-if-body",
@@ -134,6 +162,14 @@ mod windows {
             OracleCase {
                 name: "colon-pipeline",
                 source: b"@echo off\r\necho left | ::note\r\necho after\r\n",
+            },
+            OracleCase {
+                name: "colon-and",
+                source: b"@echo off\r\necho left && ::note\r\necho after\r\n",
+            },
+            OracleCase {
+                name: "colon-quiet",
+                source: b"@echo off\r\n@::note\r\necho after\r\n",
             },
             OracleCase {
                 name: "for-f-unmatched-apostrophe",
@@ -167,6 +203,10 @@ mod windows {
         ));
         fs::create_dir(&directory)
             .unwrap_or_else(|error| panic!("creating {}: {error}", directory.display()));
+        fs::create_dir_all(directory.join("x"))
+            .unwrap_or_else(|error| panic!("creating oracle root entry: {error}"));
+        fs::create_dir_all(directory.join("child").join("x"))
+            .unwrap_or_else(|error| panic!("creating nested oracle root entry: {error}"));
 
         let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
         for case in cases {

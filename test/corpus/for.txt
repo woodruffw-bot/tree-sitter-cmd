@@ -203,9 +203,9 @@ for /r /d %%d in (*) do echo %%d
       argument: (argument
         (loop_variable)))))
 
-============================
-for /r /d with path
-============================
+==========================================
+for /r /d rejects a following path
+==========================================
 
 for /r /d C:\src %%d in (*) do echo %%d
 
@@ -216,9 +216,35 @@ for /r /d C:\src %%d in (*) do echo %%d
     (keyword)
     option: (for_option
       (for_flag)
+      (for_flag))
+    (ERROR)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+============================
+for /r path /d
+============================
+
+for /r C:\src /d %%d in (*) do echo %%d
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    option: (for_option
       (for_flag)
       argument: (argument
-        (text)))
+        (text))
+      (for_flag))
     variable: (loop_variable_declaration)
     (keyword)
     set: (for_set
@@ -406,19 +432,19 @@ for %%~fA in (file.txt) do echo %%A
   (ERROR
     (keyword))
   (command
-    (command_name
+    name: (command_name
       (loop_variable))
-    (argument
+    argument: (argument
       (text))
-    (argument
+    argument: (argument
       (text)
       (text)
       (text))
-    (argument
+    argument: (argument
       (text))
-    (argument
+    argument: (argument
       (text))
-    (argument
+    argument: (argument
       (loop_variable))))
 
 =========================================

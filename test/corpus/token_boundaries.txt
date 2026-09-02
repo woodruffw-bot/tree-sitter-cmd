@@ -1,0 +1,256 @@
+=========================================
+textual IF operator is not a word prefix
+=========================================
+
+if left equright echo no
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (text))
+  (command
+    name: (command_name)
+    argument: (argument
+      (text))))
+
+===================================
+IF flag is not an operand prefix
+===================================
+
+if /ileft==right echo no
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+==========================================
+IF control words are not operand prefixes
+==========================================
+
+if notable==x echo no
+if existx==x echo no
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+====================================
+FOR F switch is not a word prefix
+====================================
+
+for /ffoo %%a in (x) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    (ERROR
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+====================================
+FOR R switch requires a separator
+====================================
+
+for /rC:\src %%a in (x) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    (ERROR
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+========================================
+FOR switches require separate tokens
+========================================
+
+for /d/r %%a in (x) do echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    (ERROR
+      (for_flag))
+    option: (for_option
+      (for_flag))
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
+==========================================
+colon comment is not an IF consequence
+==========================================
+
+if 1==1 ::note
+
+---
+
+(program
+  (ERROR
+    (keyword)
+    (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text))))
+  (colon_comment
+    (comment_text)))
+
+=====================================
+colon comment is not a FOR body
+=====================================
+
+for %%a in (x) do ::note
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    (ERROR)
+    body: (command
+      name: (command_name))))
+
+================================================
+quiet prefix re-enters colon-comment precedence
+================================================
+
+@::note
+
+---
+
+(program
+  (quiet_statement
+    quiet: (quiet)
+    body: (colon_comment
+      (comment_text))))
+
+========================================
+colon comment is not an AND operand
+========================================
+
+echo left && ::note
+
+---
+
+(program
+  (and_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (ERROR)
+    right: (command
+      name: (command_name))))
+
+=======================================
+colon comment is not an OR operand
+=======================================
+
+echo left || ::note
+
+---
+
+(program
+  (or_list
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (ERROR)
+    right: (command
+      name: (command_name))))
+
+=============================================
+colon comment is not a pipeline operand
+=============================================
+
+echo left | ::note
+
+---
+
+(program
+  (pipeline
+    left: (command
+      name: (command_name)
+      argument: (argument
+        (text)))
+    (ERROR)
+    right: (command
+      name: (command_name))))
