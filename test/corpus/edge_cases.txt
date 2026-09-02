@@ -38,10 +38,11 @@ quiet prefix on rem
 ---
 
 (program
-  (rem_comment
+  (quiet_statement
     quiet: (quiet)
-    (keyword)
-    (comment_text)))
+    body: (rem_comment
+      (keyword)
+      (comment_text))))
 
 ====================
 quiet prefix on if
@@ -52,17 +53,18 @@ quiet prefix on if
 ---
 
 (program
-  (if_statement
+  (quiet_statement
     quiet: (quiet)
-    (keyword)
-    condition: (unary_condition
-      kind: (condition_keyword)
-      argument: (argument
-        (text)))
-    consequence: (command
-      name: (command_name)
-      argument: (argument
-        (text)))))
+    body: (if_statement
+      (keyword)
+      condition: (unary_condition
+        kind: (condition_keyword)
+        argument: (argument
+          (text)))
+      consequence: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
 
 =========================
 if parenthesized operands
@@ -249,12 +251,14 @@ stacked quiet prefixes
 ---
 
 (program
-  (command
+  (quiet_statement
     quiet: (quiet)
-    quiet: (quiet)
-    name: (command_name)
-    argument: (argument
-      (text))))
+    body: (quiet_statement
+      quiet: (quiet)
+      body: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
 
 ================================
 set name containing an expansion
@@ -334,7 +338,7 @@ set "exe=call "%exe%.bat""
         (text)))))
 
 ========================================
-quiet prefixes stay on concrete statements
+quiet prefixes wrap their statement scope
 ========================================
 
 if exist x @echo yes else @@echo no
@@ -350,18 +354,21 @@ for %%i in (x) do @echo %%i
       kind: (condition_keyword)
       argument: (argument
         (text)))
-    consequence: (command
+    consequence: (quiet_statement
       quiet: (quiet)
-      name: (command_name)
-      argument: (argument
-        (text)))
+      body: (command
+        name: (command_name)
+        argument: (argument
+          (text))))
     (keyword)
-    alternative: (command
+    alternative: (quiet_statement
       quiet: (quiet)
-      quiet: (quiet)
-      name: (command_name)
-      argument: (argument
-        (text))))
+      body: (quiet_statement
+        quiet: (quiet)
+        body: (command
+          name: (command_name)
+          argument: (argument
+            (text))))))
   (for_statement
     (keyword)
     variable: (loop_variable_declaration)
@@ -370,20 +377,24 @@ for %%i in (x) do @echo %%i
       (argument
         (text)))
     (keyword)
-    body: (command
+    body: (quiet_statement
       quiet: (quiet)
-      name: (command_name)
-      argument: (argument
-        (loop_variable))))
-  (and_list
-    left: (command
-      quiet: (quiet)
-      name: (command_name)
-      argument: (argument
-        (text)))
-    right: (command
-      quiet: (quiet)
-      quiet: (quiet)
-      name: (command_name)
-      argument: (argument
-        (text)))))
+      body: (command
+        name: (command_name)
+        argument: (argument
+          (loop_variable)))))
+  (quiet_statement
+    quiet: (quiet)
+    body: (and_list
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (quiet_statement
+        quiet: (quiet)
+        body: (quiet_statement
+          quiet: (quiet)
+          body: (command
+            name: (command_name)
+            argument: (argument
+              (text))))))))

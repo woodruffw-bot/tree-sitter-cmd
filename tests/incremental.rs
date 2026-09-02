@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use tree_sitter::{InputEdit, Parser, Point, Tree};
+use tree_sitter::{InputEdit, Node, Parser, Point, Tree};
 
 fn parser() -> Parser {
     let mut parser = Parser::new();
@@ -33,6 +33,10 @@ fn point_after(mut point: Point, text: &[u8]) -> Point {
         }
     }
     point
+}
+
+fn source_slice<'a>(node: Node<'_>, source: &'a [u8]) -> &'a [u8] {
+    &source[node.start_byte()..node.end_byte()]
 }
 
 fn edited_tree(source: &[u8], range: Range<usize>, replacement: &[u8]) -> (Tree, Vec<u8>) {
@@ -119,6 +123,97 @@ fn scanner_sensitive_edits_match_fresh_parses() {
     for (before, needle, replacement) in cases {
         assert_incremental_matches_fresh(before, needle, replacement);
     }
+}
+
+#[test]
+fn quiet_scope_edits_match_fresh_parses() {
+    let cases = [
+        ("echo one & echo two\n", "echo one", "@echo one"),
+        ("@echo one & echo two\n", "@", ""),
+        (
+            "if exist marker echo one & echo two\n",
+            "echo one",
+            "@echo one",
+        ),
+        ("@@echo one\n", "@@", "@"),
+    ];
+
+    for (before, needle, replacement) in cases {
+        assert_incremental_matches_fresh(before, needle, replacement);
+    }
+}
+
+#[test]
+fn quiet_statement_fields_retain_exact_source_slices() {
+    let source = b"@echo one & echo two\n";
+    let tree = parser().parse(source, None).expect("quiet compound parse");
+    let root = tree.root_node();
+    assert!(!root.has_error());
+    assert_eq!(root.named_child_count(), 1);
+
+    let statement = root.named_child(0).expect("quiet statement");
+    assert_eq!(statement.kind(), "quiet_statement");
+    assert_eq!(source_slice(statement, source), b"@echo one & echo two");
+
+    let quiet = statement.child_by_field_name("quiet").expect("quiet field");
+    let body = statement.child_by_field_name("body").expect("body field");
+    assert_eq!(quiet.kind(), "quiet");
+    assert_eq!(source_slice(quiet, source), b"@");
+    assert_eq!(body.kind(), "seq_list");
+    assert_eq!(source_slice(body, source), b"echo one & echo two");
+
+    let left = body.child_by_field_name("left").expect("left command");
+    let right = body.child_by_field_name("right").expect("right command");
+    assert_eq!(left.kind(), "command");
+    assert_eq!(right.kind(), "command");
+    assert_eq!(source_slice(left, source), b"echo one");
+    assert_eq!(source_slice(right, source), b"echo two");
+
+    let stacked_source = b"@@echo off\n";
+    let stacked = parser()
+        .parse(stacked_source, None)
+        .expect("stacked quiet parse");
+    let outer = stacked.root_node().named_child(0).expect("outer quiet");
+    let inner = outer.child_by_field_name("body").expect("inner quiet");
+    assert_eq!(outer.kind(), "quiet_statement");
+    assert_eq!(inner.kind(), "quiet_statement");
+    assert_eq!(source_slice(outer, stacked_source), b"@@echo off");
+    assert_eq!(source_slice(inner, stacked_source), b"@echo off");
+    assert_eq!(
+        source_slice(
+            outer.child_by_field_name("quiet").expect("outer operator"),
+            stacked_source,
+        ),
+        b"@",
+    );
+    assert_eq!(
+        source_slice(
+            inner.child_by_field_name("quiet").expect("inner operator"),
+            stacked_source,
+        ),
+        b"@",
+    );
+}
+
+#[test]
+fn missing_quiet_body_stays_on_its_physical_line() {
+    let source = b"@\necho after\n";
+    let tree = parser().parse(source, None).expect("missing body parse");
+    let root = tree.root_node();
+    assert!(root.has_error());
+    assert_eq!(root.named_child_count(), 2);
+
+    let quiet = root.named_child(0).expect("quiet statement");
+    let tail = root.named_child(1).expect("following command");
+    assert_eq!(quiet.kind(), "quiet_statement");
+    assert!(quiet.has_error());
+    assert_eq!(quiet.end_position().row, 0);
+    let body = quiet.child_by_field_name("body").expect("missing body");
+    assert!(body.is_missing());
+    assert_eq!(body.kind(), "command");
+    assert_eq!(tail.kind(), "command");
+    assert_eq!(tail.start_position().row, 1);
+    assert!(!tail.has_error());
 }
 
 #[test]

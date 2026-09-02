@@ -17,6 +17,27 @@ echo a & echo b
       argument: (argument
         (text)))))
 
+===========================================
+quiet prefix wraps the complete sequence
+===========================================
+
+@echo one & echo two
+
+---
+
+(program
+  (quiet_statement
+    quiet: (quiet)
+    body: (seq_list
+      left: (command
+        name: (command_name)
+        argument: (argument
+          (text)))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
+
 ====================
 and list
 ====================

@@ -20,7 +20,8 @@
  *   - Keywords are case-insensitive and recognised by keyword extraction
  *     (`word: $._cmd_text`): a keyword matches only as a whole word, so `set`
  *     is a keyword but `setlocal` is a command, with no token precedence needed.
- *   - Command operators bind, lowest to highest: `&` < `||` < `&&` < `|`
+ *   - The unary quiet operator `@` binds below the command-operator ladder.
+ *     Binary operators bind, lowest to highest: `&` < `||` < `&&` < `|`
  *     (matching ReactOS's `OpString` ordering).
  *
  * @author tree-sitter-cmd contributors
@@ -34,6 +35,7 @@
 
 // Operator precedences, lowest to highest binding.
 const PREC = {
+  QUIET: 0, // @
   SEQ: 1, // &
   OR: 2, // ||
   AND: 3, // &&
@@ -141,8 +143,8 @@ function immediateExpansion($) {
   );
 }
 
-/** Attach `@` prefixes and skip separators before the command they suppress. */
-function quietPrefix($) {
+/** Preserve `@` prefixes on label definitions, which are not statements. */
+function labelQuietPrefix($) {
   return repeat(
     seq(
       field('quiet', $.quiet),
@@ -197,6 +199,8 @@ module.exports = grammar({
   extras: ($) => [/[ \t]/, token(/\^\r?\n/)],
 
   conflicts: ($) => [
+    [$.quiet_statement, $.label],
+    [$._unit, $.label],
     [$.for_option],
     [$.set_assignment],
     [$._set_prompt_body],
@@ -264,13 +268,12 @@ module.exports = grammar({
         seq(field('left', $._statement), '|', field('right', $._statement)),
       ),
 
-    // A `@` echo-suppress prefix may precede any command form, not just a
-    // plain command (e.g. `@rem`, `@if`, `@echo off`). cmd accepts the prefix
-    // stacked (`@@fc ...`), each `@` a redundant suppression, so allow a run.
+    // A statement unit is a leaf command form or a low-precedence `@` wrapper.
     _unit: ($) =>
       seq(
         optional($._standard_separator),
         choice(
+          $.quiet_statement,
           $.command,
           $.block,
           $.rem_comment,
@@ -282,6 +285,22 @@ module.exports = grammar({
         ),
       ),
 
+    // `@` is a low-precedence unary operator. It suppresses the echo of the
+    // complete statement that follows, including an operator expression. Keep
+    // each stacked prefix as its own source-backed wrapper so `@@cmd` retains
+    // both operators and their nesting.
+    quiet_statement: ($) =>
+      prec.right(
+        PREC.QUIET,
+        seq(
+          field('quiet', $.quiet),
+          choice(
+            field('body', $._statement),
+            $._missing_quiet_body,
+          ),
+        ),
+      ),
+
     // A parenthesised compound. Newlines inside act like `&`. Redirections may
     // appear before or after the block. The parentheses are supplied by the
     // external scanner (which tracks block vs literal-paren nesting), so
@@ -289,7 +308,6 @@ module.exports = grammar({
     block: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           repeat(redirected($)),
           alias($._block_open, '('),
           optional($._block_body),
@@ -309,7 +327,6 @@ module.exports = grammar({
       prec.right(
         PREC.COMMAND,
         seq(
-          quietPrefix($),
           repeat(redirected($)),
           field('name', $.command_name),
           repeat(
@@ -331,7 +348,6 @@ module.exports = grammar({
     if_statement: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           kw($, 'if'),
           optional($._standard_separator),
           optional(
@@ -431,7 +447,6 @@ module.exports = grammar({
     for_statement: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           kw($, 'for'),
           optional($._standard_separator),
           optional(
@@ -457,8 +472,9 @@ module.exports = grammar({
         ),
       ),
 
-    // An absent controller body retains only Tree-sitter's anonymous MISSING
-    // command in the CST. The boundary markers are implementation terminals.
+    // An absent controller or quiet-statement body retains only Tree-sitter's
+    // anonymous MISSING command in the CST. The boundary markers are
+    // implementation terminals.
     _missing_consequence: ($) =>
       seq(
         alias($.body_boundary, '_body_boundary'),
@@ -472,6 +488,12 @@ module.exports = grammar({
         field('alternative', alias($._command_start, 'command')),
       ),
     _missing_for_body: ($) =>
+      seq(
+        alias($.body_boundary, '_body_boundary'),
+        alias($.body_boundary_again, '_body_boundary'),
+        field('body', alias($._command_start, 'command')),
+      ),
+    _missing_quiet_body: ($) =>
       seq(
         alias($.body_boundary, '_body_boundary'),
         alias($.body_boundary_again, '_body_boundary'),
@@ -600,7 +622,6 @@ module.exports = grammar({
     goto_statement: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           repeat(redirected($)),
           kw($, 'goto'),
           optional($._standard_separator),
@@ -651,7 +672,6 @@ module.exports = grammar({
     call_statement: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           repeat(redirected($)),
           kw($, 'call'),
           repeat(redirected($)),
@@ -671,7 +691,6 @@ module.exports = grammar({
     set_statement: ($) =>
       prec.right(
         seq(
-          quietPrefix($),
           repeat(redirected($)),
           kw($, 'set'),
           // Redirections before the payload remain statement children. Once a
@@ -1187,14 +1206,17 @@ module.exports = grammar({
     // Labels and comments
     // ---------------------------------------------------------------------
     label: ($) =>
-      prec(
-        2,
-        seq(
-          quietPrefix($),
-          token(/:/),
-          optional($._label_leading_space),
-          field('name', alias($._label_name, $.label_name)),
-          optional(alias($._label_tail, $.label_text)),
+      prec.dynamic(
+        1,
+        prec(
+          2,
+          seq(
+            labelQuietPrefix($),
+            token(/:/),
+            optional($._label_leading_space),
+            field('name', alias($._label_name, $.label_name)),
+            optional(alias($._label_tail, $.label_text)),
+          ),
         ),
       ),
     _label_name: ($) =>
@@ -1210,7 +1232,6 @@ module.exports = grammar({
     // not an expansion that tooling should treat as live code.
     rem_comment: ($) =>
       seq(
-        quietPrefix($),
         repeat(redirected($)),
         alias($._rem, $.keyword),
         optional(alias($._rem_text, $.comment_text)),
@@ -1219,7 +1240,6 @@ module.exports = grammar({
       prec(
         1,
         seq(
-          quietPrefix($),
           choice(
             seq(token(/::/), optional(alias($._line_text, $.comment_text))),
             // A colon at command position consumes the rest of that physical

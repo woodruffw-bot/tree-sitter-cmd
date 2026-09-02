@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_statement_fields_have_one_concrete_node() {
+    fn test_statement_fields_follow_quiet_scope() {
         let source = concat!(
             "if exist x @echo yes else @@echo no\r\n",
             "for %%i in (x) do @echo %%i\r\n",
@@ -170,23 +170,37 @@ mod tests {
         let if_statement = root.named_child(0).expect("if statement");
         let consequence = only_field(if_statement, "consequence");
         let alternative = only_field(if_statement, "alternative");
-        assert_eq!(consequence.kind(), "command");
-        assert_eq!(alternative.kind(), "command");
-        assert_eq!(field_children(consequence, "quiet").len(), 1);
-        assert_eq!(field_children(alternative, "quiet").len(), 2);
+        assert_eq!(consequence.kind(), "quiet_statement");
+        assert_eq!(&source[consequence.byte_range()], "@echo yes");
+        assert_eq!(only_field(consequence, "quiet").kind(), "quiet");
+        assert_eq!(only_field(consequence, "body").kind(), "command");
+        assert_eq!(alternative.kind(), "quiet_statement");
+        assert_eq!(&source[alternative.byte_range()], "@@echo no");
+        assert_eq!(only_field(alternative, "quiet").kind(), "quiet");
+        let inner_alternative = only_field(alternative, "body");
+        assert_eq!(inner_alternative.kind(), "quiet_statement");
+        assert_eq!(only_field(inner_alternative, "body").kind(), "command");
 
         let for_statement = root.named_child(1).expect("for statement");
         let body = only_field(for_statement, "body");
-        assert_eq!(body.kind(), "command");
-        assert_eq!(field_children(body, "quiet").len(), 1);
+        assert_eq!(body.kind(), "quiet_statement");
+        assert_eq!(&source[body.byte_range()], "@echo %%i");
+        assert_eq!(only_field(body, "quiet").kind(), "quiet");
+        assert_eq!(only_field(body, "body").kind(), "command");
 
-        let and_list = root.named_child(2).expect("and list");
+        let outer_quiet = root.named_child(2).expect("outer quiet statement");
+        assert_eq!(outer_quiet.kind(), "quiet_statement");
+        assert_eq!(only_field(outer_quiet, "quiet").kind(), "quiet");
+        let and_list = only_field(outer_quiet, "body");
+        assert_eq!(and_list.kind(), "and_list");
         let left = only_field(and_list, "left");
         let right = only_field(and_list, "right");
         assert_eq!(left.kind(), "command");
-        assert_eq!(right.kind(), "command");
-        assert_eq!(field_children(left, "quiet").len(), 1);
-        assert_eq!(field_children(right, "quiet").len(), 2);
+        assert_eq!(right.kind(), "quiet_statement");
+        assert_eq!(&source[right.byte_range()], "@@echo right");
+        let inner_right = only_field(right, "body");
+        assert_eq!(inner_right.kind(), "quiet_statement");
+        assert_eq!(only_field(inner_right, "body").kind(), "command");
     }
 
     #[test]

@@ -47,11 +47,12 @@ quiet prefix
 ---
 
 (program
-  (command
+  (quiet_statement
     quiet: (quiet)
-    name: (command_name)
-    argument: (argument
-      (text))))
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
 
 ====================
 path command name

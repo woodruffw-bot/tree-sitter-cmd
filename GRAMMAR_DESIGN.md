@@ -17,7 +17,8 @@ not drive grammar structure. The target scope is `source.dosbatch`, file types
 
 In scope:
 
-- Simple commands (name plus argument tail) and the `@` quiet prefix.
+- Simple commands (name plus argument tail) and the low-precedence `@` quiet
+  operator.
 - Sequencing and boolean operators `&`, `&&`, `||`, and pipes `|`.
 - Redirections `>`, `>>`, `<`, `N>`, `N>>`, `N<`, and handle duplication `N>&M`.
 - Parenthesized command blocks, multi-line, with attached redirections.
@@ -78,6 +79,7 @@ A leading Unicode byte-order mark is handled by Tree-sitter's lexer. Mixed
 encodings have no implicit recovery policy: callers must reject them or
 normalize them before parsing. The Rust real-world fixture harness deliberately
 accepts UTF-8 files only so it does not silently test an unknown decoder.
+
 
 ## 2. Why cmd is hard to parse
 
@@ -194,6 +196,17 @@ command `echo(`. Concretely, this makes `echo (text)`, `echo.version(s)`, and
 the `(echo()` blank-line idiom all parse the way cmd runs them.
 
 ## 5. Tricky areas
+
+### Quiet statements
+
+`@` is a low-precedence unary operator over the complete statement that
+follows. For example, `@echo one & echo two` suppresses echo for the full
+sequence, not only for its left command. The CST represents this with a
+source-backed `quiet_statement` containing `quiet` and `body` fields. Stacked
+prefixes remain nested wrappers, so `@@echo off` retains both source operators.
+An absent body is genuine parser recovery and does not adopt the next physical
+line. Label definitions are not executable statements, so `@:label` keeps its
+existing `quiet` field directly on the `label` node.
 
 ### Caret escaping and line continuation
 
@@ -405,7 +418,8 @@ sub-grammar; see Limitations.
 The named nodes group into these families (see `src/node-types.json` for the
 full list):
 
-- **Top level**: `program`, `command`, `command_name`, `quiet`.
+- **Top level**: `program`, `quiet_statement`, `command`, `command_name`,
+  `quiet`.
 - **Operators**: `seq_list`, `or_list`, `and_list`, `pipeline`.
 - **Redirection**: `_redirection`, `redirect_file`, `redirect_dup`,
   `redirect_operator`, `redirect_dup_operator`, and `file_descriptor`.
@@ -429,10 +443,12 @@ full list):
 - **Comments**: `rem_comment`, `colon_comment`, `powershell_comment`,
   `comment_text`; keywords surface as the aliased `keyword` node.
 
-Operators use conventional left-associative tree-sitter precedence (cmd binding,
-loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from ReactOS's
-right-leaning operator tree, which would add complexity with no benefit to a
-static tool; observable left-to-right reading order is preserved either way.
+The unary `@` operator binds more loosely than the binary command operators.
+Those operators use conventional left-associative tree-sitter precedence (cmd
+binding, loosest to tightest: `&` < `||` < `&&` < `|`). This diverges from
+ReactOS's right-leaning operator tree, which would add complexity with no
+benefit to a static tool; observable left-to-right reading order is preserved
+either way.
 
 ## 7. Prior art
 
