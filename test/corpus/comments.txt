@@ -140,19 +140,30 @@ call :Init &:# inline comment
     right: (colon_comment
       (comment_text))))
 
-========================
-PowerShell polyglot markers
-========================
+=========================================
+PowerShell delimiters retain CMD syntax
+=========================================
 
-<# :# PowerShell block comment
-#>
+<# echo body
+#>out
 
 ---
 
 (program
-  (powershell_comment
-    (comment_text))
-  (powershell_comment))
+  (command
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))
+    name: (command_name)
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name)
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text)))))
 
 =====================================
 short rem bodies stay opaque in blocks

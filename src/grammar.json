@@ -94,10 +94,6 @@
         {
           "type": "SYMBOL",
           "name": "colon_comment"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "powershell_comment"
         }
       ]
     },
@@ -4356,47 +4352,6 @@
           }
         ]
       }
-    },
-    "powershell_comment": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "TOKEN",
-              "content": {
-                "type": "PATTERN",
-                "value": "<#"
-              }
-            },
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_line_text"
-                  },
-                  "named": true,
-                  "value": "comment_text"
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "TOKEN",
-          "content": {
-            "type": "PATTERN",
-            "value": "#>[^\\r\\n]*"
-          }
-        }
-      ]
     },
     "_line_text": {
       "type": "TOKEN",

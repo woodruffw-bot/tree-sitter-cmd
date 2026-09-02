@@ -253,3 +253,17 @@ echo after
     name: (command_name)
     argument: (argument
       (text))))
+
+==============================================
+PowerShell-shaped closer keeps recovery state
+==============================================
+
+#>
+
+---
+
+(program
+  (command
+    name: (command_name))
+  (ERROR
+    (redirect_operator)))

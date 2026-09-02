@@ -404,10 +404,10 @@ line. This covers `dir &:note`, `dir &:: note`, and `call :init &:# note`.
 Colon comments inside a block are unsafe in real cmd, but the grammar parses
 them without cascading; a linter layer could warn.
 
-Batch and PowerShell polyglots commonly use `<#` and `#>` marker lines. The
-grammar represents those lines as `powershell_comment` nodes so their marker
-punctuation does not enter redirection recovery. This is a surface-syntax
-convenience; it does not attempt to parse the embedded PowerShell program.
+`<#` and `#>` are PowerShell comment delimiters, not CMD comments. Under CMD,
+their `<` and `>` characters keep their redirection roles. The surrounding
+bytes therefore parse as normal CMD tokens or as recovery errors. The grammar
+does not assign a special comment node.
 
 ### SET /A
 
@@ -444,8 +444,8 @@ full list):
   `percent_literal`. The `:~off,len` substring and `:search=replace`
   substitution syntax stays inside the `variable` token, not separate nodes.
 - **Words and literals**: `argument`, `text`, `string`, `escape_sequence`.
-- **Comments**: `rem_comment`, `colon_comment`, `powershell_comment`,
-  `comment_text`; keywords surface as the aliased `keyword` node.
+- **Comments**: `rem_comment`, `colon_comment`, `comment_text`; keywords
+  surface as the aliased `keyword` node.
 
 The unary `@` operator binds more loosely than the binary command operators.
 Those operators use conventional left-associative tree-sitter precedence (cmd

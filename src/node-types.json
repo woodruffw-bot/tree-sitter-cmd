@@ -96,10 +96,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -159,10 +155,6 @@
           },
           {
             "type": "pipeline",
-            "named": true
-          },
-          {
-            "type": "powershell_comment",
             "named": true
           },
           {
@@ -289,10 +281,6 @@
         },
         {
           "type": "pipeline",
-          "named": true
-        },
-        {
-          "type": "powershell_comment",
           "named": true
         },
         {
@@ -586,10 +574,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -738,10 +722,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -819,10 +799,6 @@
           },
           {
             "type": "pipeline",
-            "named": true
-          },
-          {
-            "type": "powershell_comment",
             "named": true
           },
           {
@@ -998,10 +974,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -1061,10 +1033,6 @@
           },
           {
             "type": "pipeline",
-            "named": true
-          },
-          {
-            "type": "powershell_comment",
             "named": true
           },
           {
@@ -1136,10 +1104,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -1202,10 +1166,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -1223,21 +1183,6 @@
           }
         ]
       }
-    }
-  },
-  {
-    "type": "powershell_comment",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "comment_text",
-          "named": true
-        }
-      ]
     }
   },
   {
@@ -1291,10 +1236,6 @@
         },
         {
           "type": "pipeline",
-          "named": true
-        },
-        {
-          "type": "powershell_comment",
           "named": true
         },
         {
@@ -1366,10 +1307,6 @@
           },
           {
             "type": "pipeline",
-            "named": true
-          },
-          {
-            "type": "powershell_comment",
             "named": true
           },
           {
@@ -1581,10 +1518,6 @@
             "named": true
           },
           {
-            "type": "powershell_comment",
-            "named": true
-          },
-          {
             "type": "quiet_statement",
             "named": true
           },
@@ -1644,10 +1577,6 @@
           },
           {
             "type": "pipeline",
-            "named": true
-          },
-          {
-            "type": "powershell_comment",
             "named": true
           },
           {
