@@ -242,6 +242,25 @@ blank-line echo idiom inside a block
       argument: (argument
         (text)))))
 
+============================================
+open paren joins an argument inside a block
+============================================
+
+(
+  echo prefix(suffix
+)
+
+---
+
+(program
+  (block
+    (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (text)
+        (text)))))
+
 ======================
 stacked quiet prefixes
 ======================

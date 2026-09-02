@@ -188,6 +188,10 @@ parentheses with a stack of kinds; it tracks a single block-nesting depth.
   `LPAREN` that does not increase the depth.
 - While a block is open (`depth > 0`), the first unescaped `)` is `BLOCK_CLOSE`
   and ends the block. A literal `(` in an argument never protects a later `)`.
+- An unescaped `(` adjacent to an existing argument fragment stays in that
+  same argument, including inside a block. This joining is deliberately scoped
+  to arguments: a command-position `(` still begins a block, and `(echo()`
+  remains the blank-line ECHO idiom rather than a command named `echo(`.
 
 This mirrors ReactOS `parser.c`, where `(` only begins a block at a token start
 and an in-block `)` always ends the token. It is why cmd needs `^)` to echo a

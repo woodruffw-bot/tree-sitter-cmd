@@ -118,11 +118,54 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
+        (
+            "(\n  echo prefix suffix\n)\necho tail\n",
+            "prefix suffix",
+            "prefix(suffix",
+        ),
     ];
 
     for (before, needle, replacement) in cases {
         assert_incremental_matches_fresh(before, needle, replacement);
     }
+}
+
+#[test]
+fn open_paren_stays_in_the_current_block_argument() {
+    let source = b"(\n  echo prefix(suffix\n)\n";
+    let tree = parser().parse(source, None).expect("block parse");
+    let root = tree.root_node();
+    assert!(!root.has_error());
+
+    let block = root.named_child(0).expect("block");
+    let command = block.named_child(0).expect("command");
+    let arguments: Vec<_> = {
+        let mut cursor = command.walk();
+        command
+            .children_by_field_name("argument", &mut cursor)
+            .collect()
+    };
+    assert_eq!(arguments.len(), 1);
+    assert_eq!(&source[arguments[0].byte_range()], b"prefix(suffix");
+
+    let echo_source = b"(echo()";
+    let echo_tree = parser()
+        .parse(echo_source, None)
+        .expect("blank-line echo parse");
+    assert!(!echo_tree.root_node().has_error());
+    let echo_block = echo_tree.root_node().named_child(0).expect("echo block");
+    let echo = echo_block.named_child(0).expect("echo command");
+    assert_eq!(
+        &echo_source[echo.child_by_field_name("name").expect("name").byte_range()],
+        b"echo",
+    );
+    assert_eq!(
+        &echo_source[echo
+            .child_by_field_name("argument")
+            .expect("literal paren argument")
+            .byte_range()],
+        b"(",
+    );
 }
 
 #[test]

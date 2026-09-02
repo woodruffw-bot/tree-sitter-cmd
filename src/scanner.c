@@ -155,6 +155,14 @@ static bool is_word_boundary(const Scanner *s, int32_t c) {
   }
 }
 
+// An opening parenthesis immediately following an argument fragment remains
+// part of that argument even while a structural block is open. Command names
+// use STANDARD_CONCAT instead, so keeping this specific to CONCAT preserves
+// command-position idioms such as `(echo()`.
+static bool is_argument_concat_boundary(const Scanner *s, int32_t c) {
+  return c != '(' && is_word_boundary(s, c);
+}
+
 // A boundary for quoted SET parameters. A close parenthesis only ends the
 // parameter while a structural block is open; at depth zero it is ordinary
 // command text, like it is for generic arguments.
@@ -385,7 +393,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
     if (!skipped_space && valid_symbols[CONCAT] &&
-        !is_word_boundary(s, lexer->lookahead)) {
+        !is_argument_concat_boundary(s, lexer->lookahead)) {
       lexer->result_symbol = CONCAT;
       return true;
     }
@@ -480,7 +488,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
 
   // CONCAT: adjacency only, no whitespace skipping.
   if (valid_symbols[CONCAT] && !lexer->eof(lexer) &&
-      !is_word_boundary(s, lexer->lookahead)) {
+      !is_argument_concat_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;
   }
