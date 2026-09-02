@@ -2453,17 +2453,8 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_set_binding_name"
-            },
-            "named": true,
-            "value": "variable_name"
-          }
+          "type": "SYMBOL",
+          "name": "_set_binding"
         },
         {
           "type": "STRING",
@@ -2561,17 +2552,8 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "FIELD",
-                  "name": "name",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "_set_binding_name"
-                    },
-                    "named": true,
-                    "value": "variable_name"
-                  }
+                  "type": "SYMBOL",
+                  "name": "_set_binding"
                 },
                 {
                   "type": "BLANK"
@@ -3068,12 +3050,21 @@
         }
       ]
     },
-    "_set_binding_name": {
+    "_set_binding": {
       "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "_set_name"
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_set_name"
+            },
+            "named": true,
+            "value": "variable_name"
+          }
         },
         {
           "type": "REPEAT",
@@ -3095,8 +3086,17 @@
                 "type": "CHOICE",
                 "members": [
                   {
-                    "type": "SYMBOL",
-                    "name": "_set_name"
+                    "type": "FIELD",
+                    "name": "name",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_set_name"
+                      },
+                      "named": true,
+                      "value": "variable_name"
+                    }
                   },
                   {
                     "type": "SYMBOL",
@@ -4375,7 +4375,7 @@
     ],
     [
       "set_display",
-      "_set_binding_name"
+      "_set_binding"
     ]
   ],
   "precedences": [],

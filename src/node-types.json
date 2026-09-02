@@ -1595,7 +1595,7 @@
     "named": true,
     "fields": {
       "name": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
@@ -1677,7 +1677,7 @@
         ]
       },
       "name": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -1906,18 +1906,7 @@
   {
     "type": "variable_name",
     "named": true,
-    "fields": {
-      "redirect": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "_redirection",
-            "named": true
-          }
-        ]
-      }
-    },
+    "fields": {},
     "children": {
       "multiple": true,
       "required": false,

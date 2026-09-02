@@ -28,6 +28,7 @@ const FINGERPRINT_KINDS: &[&str] = &[
     "redirect_dup_operator",
     "redirect_file",
     "redirect_operator",
+    "set_assignment",
     "set_prompt",
     "set_quoted",
     "set_statement",
@@ -148,6 +149,52 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
     set_prompt @4..24 "/p \"answer=Prompt: \""
       name: variable_name @8..14 "answer"
       prompt: argument @15..23 "Prompt: "
+"#,
+    );
+
+    assert_fingerprint(
+        "redirected SET name segments",
+        "set PA>out TH=value\n",
+        false,
+        r#"program @0..20 "set PA>out TH=value\n"
+  set_statement @0..19 "set PA>out TH=value"
+    set_assignment @4..19 "PA>out TH=value"
+      name: variable_name @4..6 "PA"
+      redirect: redirect_file @6..10 ">out"
+        operator: redirect_operator @6..7 ">"
+        target: argument @7..10 "out"
+      name: variable_name @11..13 "TH"
+      value: argument @14..19 "value"
+"#,
+    );
+
+    assert_fingerprint(
+        "redirected SET /P name segments",
+        "set /p na>out me=prompt\n",
+        false,
+        r#"program @0..24 "set /p na>out me=prompt\n"
+  set_statement @0..23 "set /p na>out me=prompt"
+    set_prompt @4..23 "/p na>out me=prompt"
+      name: variable_name @7..9 "na"
+      redirect: redirect_file @9..13 ">out"
+        operator: redirect_operator @9..10 ">"
+        target: argument @10..13 "out"
+      name: variable_name @14..16 "me"
+      prompt: argument @17..23 "prompt"
+"#,
+    );
+
+    assert_fingerprint(
+        "incomplete redirected SET /P",
+        "set /p na>out\n",
+        true,
+        r#"program @0..14 "set /p na>out\n"
+  set_statement @0..3 "set"
+  ERROR [error] @4..13 "/p na>out"
+    variable_name @7..9 "na"
+    redirect: redirect_file @9..13 ">out"
+      operator: redirect_operator @9..10 ">"
+      target: argument @10..13 "out"
 "#,
     );
 
