@@ -411,6 +411,10 @@ fn real_world_fixtures_parse_without_recovery() {
                 continue;
             }
         };
+        if let Err(error) = std::str::from_utf8(&source) {
+            failures.push(format!("{name}: fixture is not UTF-8: {error}"));
+            continue;
+        }
         let Some(tree) = parser().parse(source.as_slice(), None) else {
             failures.push(format!("{name}: Parser::parse returned None"));
             continue;
