@@ -175,6 +175,7 @@ module.exports = grammar({
     $._set_binding_end,
     $.body_boundary,
     $.body_boundary_again,
+    $._block_body_boundary,
     $._command_start,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
@@ -311,7 +312,8 @@ module.exports = grammar({
             seq(
               alias($._empty_block_open, '('),
               repeat($._newline),
-              alias($._empty_block_command, $.command),
+              alias($._block_body_boundary, '_body_boundary'),
+              $._empty_block_missing_name,
               alias($._block_close, ')'),
             ),
             seq(
@@ -330,9 +332,9 @@ module.exports = grammar({
         repeat(seq(repeat1($._newline), $._line_content)),
         repeat($._newline),
       ),
-    _empty_block_command: ($) =>
-      field('name', alias($._cmd_text, $.command_name)),
-
+    // Keep the invalid block visible without synthesizing a normal `command`.
+    // The preceding boundary makes the missing name local to this block.
+    _empty_block_missing_name: ($) => alias($._cmd_text, $.command_name),
     command: ($) =>
       prec.right(
         PREC.COMMAND,

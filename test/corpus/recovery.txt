@@ -73,18 +73,14 @@ echo after
 
 (program
   (block
-    (command
-      name: (MISSING command_name)))
+    (MISSING command_name))
   (block
-    (command
-      name: (MISSING command_name)))
+    (MISSING command_name))
   (block
-    (command
-      name: (MISSING command_name)))
+    (MISSING command_name))
   (block
     (block
-      (command
-        name: (MISSING command_name))))
+      (MISSING command_name)))
   (command
     name: (command_name)
     argument: (argument
@@ -109,8 +105,7 @@ echo after
       argument: (argument
         (text)))
     consequence: (block
-      (command
-        name: (MISSING command_name))))
+      (MISSING command_name)))
   (for_statement
     (keyword)
     variable: (loop_variable_declaration)
@@ -120,17 +115,33 @@ echo after
         (text)))
     (keyword)
     body: (block
-      (command
-        name: (MISSING command_name))))
+      (MISSING command_name)))
   (quiet_statement
     quiet: (quiet)
     body: (block
-      (command
-        name: (MISSING command_name))))
+      (MISSING command_name)))
   (command
     name: (command_name)
     argument: (argument
       (text))))
+
+================================================
+empty nested block keeps enclosing operator scope
+================================================
+
+(() & echo x)
+
+---
+
+(program
+  (block
+    (seq_list
+      left: (block
+        (MISSING command_name))
+      right: (command
+        name: (command_name)
+        argument: (argument
+          (text))))))
 
 ============================================================
 malformed IF stays on its line beside concatenated fragments

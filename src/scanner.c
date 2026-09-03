@@ -56,6 +56,8 @@
 //                  the required MISSING command.
 //   BODY_BOUNDARY_AGAIN
 //                - the second hidden marker at the same physical boundary.
+//   BLOCK_BODY_BOUNDARY
+//                - a zero-width marker immediately before a block close.
 //   COMMAND_START
 //                - deliberately declined after BODY_BOUNDARY, so Tree-sitter
 //                  records a genuine anonymous MISSING command for the body.
@@ -98,6 +100,7 @@ enum TokenType {
   SET_BINDING_END,
   BODY_BOUNDARY,
   BODY_BOUNDARY_AGAIN,
+  BLOCK_BODY_BOUNDARY,
   COMMAND_START,
   ERROR_SENTINEL,
 };
@@ -384,6 +387,17 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return true;
     }
     return false;
+  }
+
+  if (valid_symbols[BLOCK_BODY_BOUNDARY]) {
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, true);
+    }
+    if (s->depth > 0 && lexer->lookahead == ')') {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = BLOCK_BODY_BOUNDARY;
+      return true;
+    }
   }
 
   if ((valid_symbols[BODY_BOUNDARY] || valid_symbols[BODY_BOUNDARY_AGAIN]) &&
