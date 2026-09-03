@@ -242,6 +242,31 @@ blank-line echo idiom inside a block
       argument: (argument
         (text)))))
 
+===========================================
+empty parens outside command-block position
+===========================================
+
+echo ()
+for %%i in () do echo %%i
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (text)
+      (text)))
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    (keyword)
+    body: (command
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))
+
 ============================================
 open paren joins an argument inside a block
 ============================================

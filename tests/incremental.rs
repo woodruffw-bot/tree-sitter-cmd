@@ -131,6 +131,29 @@ fn scanner_sensitive_edits_match_fresh_parses() {
 }
 
 #[test]
+fn edit_to_empty_block_matches_a_fresh_error_tree() {
+    let before = "(echo body)\necho tail\n";
+    let start = before.find("echo body").expect("block body");
+    let (incremental, edited) = edited_tree(
+        before.as_bytes(),
+        start..start + "echo body".len(),
+        b"",
+    );
+    let fresh = parser()
+        .parse(edited.as_slice(), None)
+        .expect("fresh empty-block parse");
+
+    assert!(fresh.root_node().has_error());
+    assert_eq!(incremental.root_node().to_sexp(), fresh.root_node().to_sexp());
+    assert_eq!(incremental.root_node().named_child_count(), 2);
+    assert!(!incremental
+        .root_node()
+        .named_child(1)
+        .expect("tail command")
+        .has_error());
+}
+
+#[test]
 fn open_paren_stays_in_the_current_block_argument() {
     let source = b"(\n  echo prefix(suffix\n)\n";
     let tree = parser().parse(source, None).expect("block parse");

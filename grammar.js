@@ -161,6 +161,7 @@ module.exports = grammar({
     $._rem,
     $._rem_text,
     $._redirect_source,
+    $._empty_block_open,
     $._block_open,
     $._block_close,
     $._lparen,
@@ -174,6 +175,7 @@ module.exports = grammar({
     $._set_binding_end,
     $.body_boundary,
     $.body_boundary_again,
+    $.block_body_boundary,
     $._command_start,
     // Tree-sitter marks every external token valid during error recovery. Keep
     // this unused token last so the scanner can detect that state and decline
@@ -306,9 +308,20 @@ module.exports = grammar({
       prec.right(
         seq(
           repeat(redirected($)),
-          alias($._block_open, '('),
-          optional($._block_body),
-          alias($._block_close, ')'),
+          choice(
+            seq(
+              alias($._empty_block_open, '('),
+              repeat($._newline),
+              alias($.block_body_boundary, '_body_boundary'),
+              $.command,
+              alias($._block_close, ')'),
+            ),
+            seq(
+              alias($._block_open, '('),
+              optional($._block_body),
+              alias($._block_close, ')'),
+            ),
+          ),
           repeat(redirected($)),
         ),
       ),

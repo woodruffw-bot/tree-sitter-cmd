@@ -240,6 +240,7 @@ fn recovery_node_diagnostics_include_locations() {
             "1:14 (bytes 13..13): MISSING text",
         ),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
+        (b"()\necho after\n", "1:2 (bytes 1..1): MISSING _cmd_text"),
         (
             b"if exist marker\n",
             "1:16 (bytes 15..15): MISSING command",
