@@ -391,14 +391,10 @@
                     "type": "ALIAS",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "block_body_boundary"
+                      "name": "_empty_block_command"
                     },
-                    "named": false,
-                    "value": "_body_boundary"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "command"
+                    "named": true,
+                    "value": "command"
                   },
                   {
                     "type": "ALIAS",
@@ -520,6 +516,19 @@
           }
         }
       ]
+    },
+    "_empty_block_command": {
+      "type": "FIELD",
+      "name": "name",
+      "content": {
+        "type": "ALIAS",
+        "content": {
+          "type": "SYMBOL",
+          "name": "_cmd_text"
+        },
+        "named": true,
+        "value": "command_name"
+      }
     },
     "command": {
       "type": "PREC_RIGHT",
@@ -4358,10 +4367,6 @@
     {
       "type": "SYMBOL",
       "name": "body_boundary_again"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "block_body_boundary"
     },
     {
       "type": "SYMBOL",
