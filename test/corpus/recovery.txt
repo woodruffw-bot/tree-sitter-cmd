@@ -74,21 +74,17 @@ echo after
 (program
   (block
     (command
-      name: (command_name
-        (MISSING _cmd_text))))
+      name: (MISSING command_name)))
   (block
     (command
-      name: (command_name
-        (MISSING _cmd_text))))
+      name: (MISSING command_name)))
   (block
     (command
-      name: (command_name
-        (MISSING _cmd_text))))
+      name: (MISSING command_name)))
   (block
     (block
       (command
-        name: (command_name
-          (MISSING _cmd_text)))))
+        name: (MISSING command_name))))
   (command
     name: (command_name)
     argument: (argument
@@ -114,8 +110,7 @@ echo after
         (text)))
     consequence: (block
       (command
-        name: (command_name
-          (MISSING _cmd_text)))))
+        name: (MISSING command_name))))
   (for_statement
     (keyword)
     variable: (loop_variable_declaration)
@@ -126,14 +121,12 @@ echo after
     (keyword)
     body: (block
       (command
-        name: (command_name
-          (MISSING _cmd_text)))))
+        name: (MISSING command_name))))
   (quiet_statement
     quiet: (quiet)
     body: (block
       (command
-        name: (command_name
-          (MISSING _cmd_text)))))
+        name: (MISSING command_name))))
   (command
     name: (command_name)
     argument: (argument
