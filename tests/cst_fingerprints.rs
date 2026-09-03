@@ -259,4 +259,20 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
 "#,
     );
 
+    assert_fingerprint(
+        "IF attached equals right operand",
+        "if b===b echo wrong\n",
+        false,
+        r#"program @0..20 "if b===b echo wrong\n"
+  if_statement @0..19 "if b===b echo wrong"
+    condition: comparison @3..8 "b===b"
+      left: argument @3..4 "b"
+      operator: comparison_operator @4..6 "=="
+      right: argument @6..8 "=b"
+    consequence: command @9..19 "echo wrong"
+      name: command_name @9..13 "echo"
+      argument: argument @14..19 "wrong"
+"#,
+    );
+
 }

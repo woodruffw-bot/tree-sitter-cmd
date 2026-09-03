@@ -393,7 +393,16 @@ module.exports = grammar({
               'operator',
               alias('==', $.comparison_operator),
             ),
-            optional($._standard_separator),
+            choice(
+              field(
+                'right',
+                alias($._if_attached_equals_word, $.argument),
+              ),
+              seq(
+                optional($._standard_separator),
+                field('right', $._if_operand),
+              ),
+            ),
           ),
           seq(
             field(
@@ -411,9 +420,9 @@ module.exports = grammar({
               ),
             ),
             $._required_if_operator_separator,
+            field('right', $._if_operand),
           ),
         ),
-        field('right', $._if_operand),
       ),
 
     unary_condition: ($) =>
@@ -440,6 +449,14 @@ module.exports = grammar({
     _parenthesized_if_operand: ($) =>
       prec(1, seq($._lparen, optional($._if_word), $._rparen)),
     _if_word: ($) => standardWordOf($, $._if_fragment),
+    // ParseIf keeps bytes after an attached `==` in the same token. Preserve
+    // one or more extra equals signs as the start of the right operand. The
+    // immediate token keeps a spaced `== =right` on the separator path.
+    _if_attached_equals_word: ($) =>
+      seq(
+        alias(token.immediate(prec(3, /=+/)), $.text),
+        optional(seq($._concat, $._if_word)),
+      ),
     _if_fragment: ($) =>
       choice(
         alias($._if_text, $.text),
