@@ -146,11 +146,44 @@ fn edit_to_empty_block_matches_a_fresh_error_tree() {
     assert!(fresh.root_node().has_error());
     assert_eq!(incremental.root_node().to_sexp(), fresh.root_node().to_sexp());
     assert_eq!(incremental.root_node().named_child_count(), 2);
+    let empty_block = incremental
+        .root_node()
+        .named_child(0)
+        .expect("empty block");
+    assert_eq!(empty_block.kind(), "block");
+    assert_eq!(empty_block.named_child_count(), 1);
+    let missing_name = empty_block.named_child(0).expect("missing command name");
+    assert_eq!(missing_name.kind(), "command_name");
+    assert!(missing_name.is_missing());
     assert!(!incremental
         .root_node()
         .named_child(1)
         .expect("tail command")
         .has_error());
+}
+
+#[test]
+fn nested_empty_block_keeps_enclosing_operator_scope() {
+    let source = b"(() & echo x)\n";
+    let tree = parser().parse(source, None).expect("nested block parse");
+    let root = tree.root_node();
+    assert!(root.has_error());
+    assert_eq!(root.named_child_count(), 1);
+
+    let outer = root.named_child(0).expect("outer block");
+    assert_eq!(outer.kind(), "block");
+    assert_eq!(outer.end_byte(), source.len() - 1);
+
+    let sequence = outer.named_child(0).expect("operator sequence");
+    assert_eq!(sequence.kind(), "seq_list");
+    let inner = sequence.child_by_field_name("left").expect("inner block");
+    let missing_name = inner.named_child(0).expect("missing command name");
+    assert_eq!(missing_name.kind(), "command_name");
+    assert!(missing_name.is_missing());
+
+    let command = sequence.child_by_field_name("right").expect("right command");
+    assert_eq!(source_slice(command, source), b"echo x");
+    assert!(!command.has_error());
 }
 
 #[test]

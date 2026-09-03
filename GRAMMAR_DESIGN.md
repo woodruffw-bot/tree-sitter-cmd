@@ -161,12 +161,14 @@ counter:
 | `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
 | `REM_TEXT` | the opaque body of a `REM` comment through end of line |
 | `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
+| `EMPTY_BLOCK_OPEN` | a command-position `(` whose next non-whitespace byte is `)` |
 | `BLOCK_OPEN` / `BLOCK_CLOSE` | `(`/`)` that open and close a structural block |
 | `LPAREN` / `RPAREN` | a literal `(`/`)` that does not affect block nesting |
 | `CARET_ESCAPE` | `^` or `^\n` before a `%`/`!` expansion; the sigil stays in the following expansion node |
 | `STRING_END` | the terminator of a double-quoted string: a closing `"`, or zero-width at end of line / input |
 | `SET_BINDING_END` | zero-width confirmation that a redirected unquoted SET name is followed by its real `=` delimiter |
 | `BODY_BOUNDARY` / `BODY_BOUNDARY_AGAIN` | two zero-width line-boundary markers used only when an IF/ELSE/FOR body is absent |
+| `BLOCK_BODY_BOUNDARY` | a zero-width internal marker before an empty block's close, used to keep recovery inside nested blocks |
 | `COMMAND_START` | deliberately unavailable after those markers, producing a genuine anonymous MISSING `"command"` error |
 | `ERROR_SENTINEL` | an unused final token that detects Tree-sitter's all-symbol error-recovery state |
 
@@ -205,6 +207,12 @@ and an in-block `)` always ends the token. It is why cmd needs `^)` to echo a
 close-paren inside a block, and why `(echo()` is a block whose body is the
 command `echo(`. Concretely, this makes `echo (text)`, `echo.version(s)`, and
 the `(echo()` blank-line idiom all parse the way cmd runs them.
+
+A whitespace-only command block is invalid. `EMPTY_BLOCK_OPEN` selects that
+case, and `BLOCK_BODY_BOUNDARY` keeps recovery inside the block when an outer
+operator follows. The named CST contains a direct `MISSING command_name`, not
+a source-empty `command` node. The boundary is an anonymous implementation
+terminal and does not represent CMD syntax.
 
 ## 5. Tricky areas
 
