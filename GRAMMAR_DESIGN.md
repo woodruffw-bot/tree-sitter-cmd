@@ -323,8 +323,9 @@ operator token, standard separators, including `=`, are skipped before the
 right operand. Thus `IF left equright ...` and `IF left equ=right ...` do not
 become `EQU` comparisons. Compact `==` comparisons remain a separate path. Any
 extra attached `=` starts the right operand, so `IF b===b ...` has `=b` as its
-source-backed right argument. A spaced `IF b== =b ...` still skips the third
-equals sign as a standard separator.
+source-backed right argument. The remainder stays one operand even when it has
+another equals sign, as in `IF a===b=c ...`. A spaced `IF b== =b ...` still
+skips the third equals sign as a standard separator.
 
 ### FOR
 

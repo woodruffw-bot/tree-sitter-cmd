@@ -161,6 +161,7 @@ module.exports = grammar({
     $._rem,
     $._rem_text,
     $._redirect_source,
+    $._empty_block_open,
     $._block_open,
     $._block_close,
     $._lparen,
@@ -306,9 +307,19 @@ module.exports = grammar({
       prec.right(
         seq(
           repeat(redirected($)),
-          alias($._block_open, '('),
-          optional($._block_body),
-          alias($._block_close, ')'),
+          choice(
+            seq(
+              alias($._empty_block_open, '('),
+              repeat($._newline),
+              alias($._empty_block_command, $.command),
+              alias($._block_close, ')'),
+            ),
+            seq(
+              alias($._block_open, '('),
+              optional($._block_body),
+              alias($._block_close, ')'),
+            ),
+          ),
           repeat(redirected($)),
         ),
       ),
@@ -319,6 +330,8 @@ module.exports = grammar({
         repeat(seq(repeat1($._newline), $._line_content)),
         repeat($._newline),
       ),
+    _empty_block_command: ($) =>
+      field('name', alias($._cmd_text, $.command_name)),
 
     command: ($) =>
       prec.right(
@@ -449,13 +462,24 @@ module.exports = grammar({
     _parenthesized_if_operand: ($) =>
       prec(1, seq($._lparen, optional($._if_word), $._rparen)),
     _if_word: ($) => standardWordOf($, $._if_fragment),
-    // ParseIf keeps bytes after an attached `==` in the same token. Preserve
-    // one or more extra equals signs as the start of the right operand. The
-    // immediate token keeps a spaced `== =right` on the separator path.
+    // ParseIf keeps every byte after an attached `==` in the same token.
+    // Preserve the leading extra equals signs and any later equals signs in
+    // that token. The immediate token keeps a spaced `== =right` on the
+    // separator path.
     _if_attached_equals_word: ($) =>
       seq(
         alias(token.immediate(prec(3, /=+/)), $.text),
-        optional(seq($._concat, $._if_word)),
+        repeat(
+          choice(
+            seq($._concat, $._if_fragment),
+            alias(
+              token.immediate(
+                prec(3, /=[^ \t\r\n&|<>()^"%!,;]*/),
+              ),
+              $.text,
+            ),
+          ),
+        ),
       ),
     _if_fragment: ($) =>
       choice(

@@ -362,6 +362,7 @@ attached equals signs start the IF right operand
 
 if b===b echo attached
 if b====%value% echo expanded
+if a===b=c echo retained
 if b== =b echo separated
 
 ---
@@ -389,6 +390,20 @@ if b== =b echo separated
       right: (argument
         (text)
         (variable)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)
+        (text)
+        (text)))
     consequence: (command
       name: (command_name)
       argument: (argument

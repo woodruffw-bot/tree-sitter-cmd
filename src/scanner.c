@@ -20,7 +20,10 @@
 //   REDIRECT_SOURCE
 //                - a source file descriptor digit immediately followed by a
 //                  redirection operator.
-//   BLOCK_OPEN   - `(` that opens a command block or FOR set (structural).
+//   EMPTY_BLOCK_OPEN
+//                - `(` that opens a command block whose next non-whitespace
+//                  byte is its closing `)`.
+//   BLOCK_OPEN   - any other `(` that opens a command block or FOR set.
 //   BLOCK_CLOSE  - `)` that closes a structural block / FOR set.
 //   LPAREN/RPAREN- a literal `(` / `)` appearing in an argument or IF operand.
 //   CARET_ESCAPE - the source caret that escapes a following `%`/`!`
@@ -81,6 +84,7 @@ enum TokenType {
   REM,
   REM_TEXT,
   REDIRECT_SOURCE,
+  EMPTY_BLOCK_OPEN,
   BLOCK_OPEN,
   BLOCK_CLOSE,
   LPAREN,
@@ -327,6 +331,38 @@ static bool scan_rem(TSLexer *lexer) {
   return false;
 }
 
+// Classify a command-position `(` before returning its source-width token.
+// EMPTY_BLOCK_OPEN is selected only when whitespace leads directly to `)`;
+// otherwise the same byte remains an ordinary BLOCK_OPEN.
+static bool scan_empty_or_block_open(Scanner *s, TSLexer *lexer,
+                                     const bool *valid_symbols) {
+  lexer->advance(lexer, false);
+  lexer->mark_end(lexer);
+  while (true) {
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+    }
+    if (lexer->lookahead == '\n') {
+      lexer->advance(lexer, false);
+      continue;
+    }
+    if (lexer->lookahead == '\r') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '\n') {
+        lexer->advance(lexer, false);
+        continue;
+      }
+    }
+    break;
+  }
+  if (lexer->lookahead != ')' && !valid_symbols[BLOCK_OPEN]) return false;
+
+  s->depth++;
+  lexer->result_symbol =
+      lexer->lookahead == ')' ? EMPTY_BLOCK_OPEN : BLOCK_OPEN;
+  return true;
+}
+
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
   Scanner *s = payload;
@@ -401,6 +437,9 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // operand from the following command. Continue only for body starts whose
     // external tokens must be considered in this same scanner call.
     int32_t c = lexer->lookahead;
+    if (c == '(' && skipped_space && valid_symbols[EMPTY_BLOCK_OPEN]) {
+      return scan_empty_or_block_open(s, lexer, valid_symbols);
+    }
     if (c == '(' && skipped_space && valid_symbols[BLOCK_OPEN]) {
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
@@ -624,7 +663,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   bool want_rem = valid_symbols[REM];
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
-  bool want_paren = valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
+  bool want_paren = valid_symbols[EMPTY_BLOCK_OPEN] ||
+                    valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
   if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
     return false;
@@ -683,6 +723,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if (c == '(') {
+    // Select the error-preserving empty-block branch before returning the
+    // opening token. Looking ahead only across whitespace keeps this decision
+    // local and leaves the token range on the source `(`.
+    if (valid_symbols[EMPTY_BLOCK_OPEN]) {
+      return scan_empty_or_block_open(s, lexer, valid_symbols);
+    }
+
     // A block-open only where the grammar expects a command/set to begin;
     // otherwise the `(` is a literal paren that does not nest.
     if (valid_symbols[BLOCK_OPEN]) {
