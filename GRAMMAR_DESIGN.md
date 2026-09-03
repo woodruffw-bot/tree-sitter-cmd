@@ -321,9 +321,11 @@ available for the two-byte `==` operator. A textual operator must also end at a
 real whitespace, comma, or semicolon delimiter. Once that delimiter ends the
 operator token, standard separators, including `=`, are skipped before the
 right operand. Thus `IF left equright ...` and `IF left equ=right ...` do not
-become `EQU` comparisons. Compact `==` comparisons remain a separate path.
-Their attached right operand does not yet preserve an additional `=` byte, so
-sources such as `IF b===b ...` are a known CST limitation.
+become `EQU` comparisons. Compact `==` comparisons remain a separate path. Any
+extra attached `=` starts the right operand, so `IF b===b ...` has `=b` as its
+source-backed right argument. The remainder stays one operand even when it has
+another equals sign, as in `IF a===b=c ...`. A spaced `IF b== =b ...` still
+skips the third equals sign as a standard separator.
 
 ### FOR
 
