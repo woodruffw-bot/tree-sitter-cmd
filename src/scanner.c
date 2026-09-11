@@ -87,6 +87,7 @@ enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
   IF_ATTACHED_OPERAND,
+  ELSE_BOUNDARY,
   REDIRECT_CONCAT,
   REM,
   REM_TEXT,
@@ -391,6 +392,18 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         c != '\n' && c != ',' && c != ';' && c != '&' && c != '|' &&
         c != '<' && c != '>') {
       lexer->result_symbol = IF_ATTACHED_OPERAND;
+      return true;
+    }
+    return false;
+  }
+
+  // ELSE is compared against a whole fetched token. A following quote,
+  // expansion, caret, or opening parenthesis still belongs to that token.
+  // Keep EOF/newline available so a bare ELSE retains its missing body.
+  if (valid_symbols[ELSE_BOUNDARY]) {
+    int32_t c = lexer->lookahead;
+    if (lexer->eof(lexer) || (c != '(' && is_standard_word_boundary(s, c))) {
+      lexer->result_symbol = ELSE_BOUNDARY;
       return true;
     }
     return false;

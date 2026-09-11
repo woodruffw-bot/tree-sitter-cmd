@@ -178,3 +178,23 @@ fn last_set_quote_can_leave_the_ignored_suffix_quoted() {
         assert!(node_sources(root, "redirect_file", &source).is_empty());
     }
 }
+
+#[test]
+fn else_requires_a_complete_token() {
+    for suffix in ["x echo no", "where", "\"x\" echo no", "(echo no)", "%X% echo no", "^ echo no", ""] {
+        let source = format!("if 1==1 (echo yes) else{suffix}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(tree.root_node().has_error(), "{source}");
+    }
+    for tail in [" echo no", "\techo no", ",echo no", ";echo no", "=echo no", ">out echo no"] {
+        let source = format!("if 1==0 (echo yes) else{tail}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(!tree.root_node().has_error(), "{source}: {}", tree.root_node().to_sexp());
+        let statement = tree.root_node().named_child(0).unwrap();
+        assert!(statement.child_by_field_name("alternative").is_some());
+    }
+    let source = "if 1==1 (echo yes) elsex echo no\necho tail\n";
+    let tree = parser().parse(source, None).unwrap();
+    assert!(tree.root_node().has_error());
+    assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo", "echo"]);
+}

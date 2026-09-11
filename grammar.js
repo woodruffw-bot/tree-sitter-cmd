@@ -158,6 +158,7 @@ module.exports = grammar({
     $._concat,
     $._standard_concat,
     $._if_attached_operand,
+    $._else_boundary,
     $._redirect_concat,
     $._rem,
     $._rem_text,
@@ -390,6 +391,7 @@ module.exports = grammar({
           optional(
             seq(
               kw($, 'else'),
+              $._else_boundary,
               choice(
                 field('alternative', $._statement),
                 $._missing_alternative,
