@@ -2617,8 +2617,8 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "STRING",
-              "value": "\""
+              "type": "SYMBOL",
+              "name": "_set_string_start"
             },
             {
               "type": "CHOICE",
@@ -2754,8 +2754,8 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "STRING",
-              "value": "\""
+              "type": "SYMBOL",
+              "name": "_set_string_start"
             },
             {
               "type": "CHOICE",
@@ -3017,8 +3017,8 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "STRING",
-              "value": "\""
+              "type": "SYMBOL",
+              "name": "_set_string_start"
             },
             {
               "type": "CHOICE",
@@ -4431,6 +4431,10 @@
     {
       "type": "SYMBOL",
       "name": "_string_end"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_set_string_start"
     },
     {
       "type": "SYMBOL",

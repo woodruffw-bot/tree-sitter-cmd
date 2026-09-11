@@ -111,6 +111,14 @@ mod windows {
     }
 
     #[test]
+    fn internal_set_quotes_protect_metacharacters() {
+        let output = run_script("set-quotes", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b\"c&d\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b\"c|d\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b\"c>d\"\r\necho !TS_CMD_QUOTE!\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b\"c&d", "a\"b\"c|d", "a\"b\"c>d"]);
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [

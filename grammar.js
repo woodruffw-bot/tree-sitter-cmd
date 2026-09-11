@@ -170,6 +170,7 @@ module.exports = grammar({
     $._caret_escape,
     $.delayed_variable,
     $._string_end,
+    $._set_string_start,
     $._set_inner_quote,
     $._set_string_end,
     $._set_ignored_suffix,
@@ -800,7 +801,7 @@ module.exports = grammar({
           ),
         ),
         seq(
-          '"',
+          $._set_string_start,
           optional(
             field('name', alias($._set_name, $.variable_name)),
           ),
@@ -840,7 +841,7 @@ module.exports = grammar({
     set_quoted: ($) =>
       choice(
         seq(
-          '"',
+          $._set_string_start,
           optional(field('name', alias($._set_name, $.variable_name))),
           '=',
           optional(
@@ -910,7 +911,7 @@ module.exports = grammar({
           ),
         ),
         seq(
-          '"',
+          $._set_string_start,
           optional(alias($._set_name, $.variable_name)),
           $._set_string_end,
           optional($._set_ignored_tail),
