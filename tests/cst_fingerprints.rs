@@ -192,7 +192,7 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
   set_statement @0..3 "set"
   ERROR [error] @4..13 "/p na>out"
     variable_name @7..9 "na"
-    redirect: redirect_file @9..13 ">out"
+    redirect_file @9..13 ">out"
       operator: redirect_operator @9..10 ">"
       target: argument @10..13 "out"
 "#,
