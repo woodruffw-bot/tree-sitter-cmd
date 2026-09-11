@@ -52,3 +52,27 @@ goto 1
     (keyword)
     target: (label_reference
       name: (label_name))))
+
+============================================================
+GOTO target is segmented around redirections
+============================================================
+
+goto foo>nul bar
+goto foo 2>nul bar
+goto foo>nul bar>err baz
+
+---
+
+(program (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file source: (file_descriptor) operator: (redirect_operator) target: (argument (text))) name: (label_name))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name))))
+
+============================================================
+GOTO ignored text continues around redirections
+============================================================
+
+goto foo;ignored>nul more
+goto foo>nul ;ignored>err more
+goto ::skip>nul later
+
+---
+
+(program (goto_statement (keyword) target: (label_reference name: (label_name) (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))) (goto_statement (keyword) target: (label_reference (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))))

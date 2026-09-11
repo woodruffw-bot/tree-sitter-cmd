@@ -213,3 +213,33 @@ fn for_binder_requires_a_source_separator_before_in() {
         assert!(tree.root_node().has_error(), "{source}");
     }
 }
+
+#[test]
+fn goto_target_segments_do_not_include_removed_redirections() {
+    for (source, names, redirects) in [
+        ("goto foo>nul bar\n", vec!["foo", "bar"], vec![">nul"]),
+        ("goto foo 2>nul bar\n", vec!["foo", "bar"], vec!["2>nul"]),
+        ("goto foo>nul bar>err baz\n", vec!["foo", "bar", "baz"], vec![">nul", ">err"]),
+        ("goto foo;ignored>nul more\n", vec!["foo"], vec![">nul"]),
+        ("goto foo;ignored 2>nul more\n", vec!["foo"], vec!["2>nul"]),
+        ("goto foo;ignored>nul more 2>err end\n", vec!["foo"], vec![">nul", "2>err"]),
+        ("goto foo>nul ;ignored>err more\n", vec!["foo"], vec![">nul", ">err"]),
+        ("goto ::skip>nul later\n", vec![], vec![">nul"]),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "label_name", source), names);
+        assert_eq!(node_sources(root, "redirect_file", source), redirects);
+        assert_eq!(node_sources(root, "label_reference", source).len(), 1);
+    }
+    let source = "goto foo;ignored>nul more\n";
+    let tree = parser().parse(source, None).unwrap();
+    assert_eq!(node_sources(tree.root_node(), "label_text", source), [";ignored", "more"]);
+    let source = "goto foo>nul\n";
+    let tree = parser().parse(source, None).unwrap();
+    let statement = tree.root_node().named_child(0).unwrap();
+    assert!(!statement.has_error());
+    assert!(statement.child_by_field_name("redirect").is_some());
+    assert_eq!(node_sources(statement, "label_reference", source), ["foo"]);
+}
