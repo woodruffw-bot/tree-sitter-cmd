@@ -197,21 +197,27 @@ static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
 }
 
 // Delayed expansion happens after outer CMD tokenization. A pair of bangs
-// cannot hide an active operator, quote boundary, or structural block close.
-// Quoted metacharacters and caret-protected bytes stay inside the reference.
+// cannot hide an active operator or structural block close. Quotes can occur
+// in substitution payloads, but still toggle protection of outer operators.
 static bool scan_delayed_variable(const Scanner *s, TSLexer *lexer,
                                   bool quoted) {
   lexer->advance(lexer, false);
   bool has_content = false;
   while (!lexer->eof(lexer)) {
     int32_t c = lexer->lookahead;
-    if (c == '\r' || c == '\n' || c == '"') return false;
+    if (c == '\r' || c == '\n') return false;
     if (c == '!') {
       if (!has_content) return false;
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
       lexer->result_symbol = DELAYED_VARIABLE;
       return true;
+    }
+    if (c == '"') {
+      quoted = !quoted;
+      has_content = true;
+      lexer->advance(lexer, false);
+      continue;
     }
     if (!quoted) {
       if (c == '&' || c == '|' || c == '<' || c == '>' ||

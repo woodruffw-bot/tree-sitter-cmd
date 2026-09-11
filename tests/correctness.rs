@@ -42,6 +42,8 @@ fn protected_metacharacters_remain_in_delayed_references() {
         ("echo !ProgramFiles(x86)!\n", "!ProgramFiles(x86)!"),
         ("(echo \"!ProgramFiles(x86)!\")\n", "!ProgramFiles(x86)!"),
         ("set \"x=!a&b!\"\n", "!a&b!"),
+        ("set \"_path=!_path:\"Q=!\"\n", "!_path:\"Q=!"),
+        ("echo !x\"&y\"!\n", "!x\"&y\"!"),
     ] {
         let tree = parser().parse(source, None).unwrap();
         assert!(!tree.root_node().has_error());
