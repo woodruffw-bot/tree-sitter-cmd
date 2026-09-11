@@ -502,6 +502,9 @@ scripts.
   quotes is invisible.
 - **`!VAR!` over-acceptance**: delayed references are always parsed, even where
   delayed expansion is not enabled and `!` is literal at runtime.
+  The scanner tracks outer quoting and preserves active operator and block
+  boundaries before recognizing a reference. Quotes in substitution payloads
+  remain in the reference, as do protected metacharacters.
 - **`%~dpnxg` greediness**: the modifier-vs-literal split depends on in-scope FOR
   variables, which is statically unknowable, so one fixed parse is chosen.
 - **`SET /A` expressions** are a generic argument tail, not an arithmetic

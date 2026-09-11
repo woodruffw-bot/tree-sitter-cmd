@@ -3463,16 +3463,8 @@
               "value": "variable"
             },
             {
-              "type": "ALIAS",
-              "content": {
-                "type": "IMMEDIATE_TOKEN",
-                "content": {
-                  "type": "PATTERN",
-                  "value": "![^!\\r\\n]+!"
-                }
-              },
-              "named": true,
-              "value": "delayed_variable"
+              "type": "SYMBOL",
+              "name": "delayed_variable"
             },
             {
               "type": "ALIAS",
@@ -4032,13 +4024,6 @@
         "value": "%[^%0-9~*\\r\\n][^%\\r\\n]*%"
       }
     },
-    "delayed_variable": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "![^!\\r\\n]+!"
-      }
-    },
     "parameter": {
       "type": "TOKEN",
       "content": {
@@ -4424,6 +4409,10 @@
     {
       "type": "SYMBOL",
       "name": "_caret_escape"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "delayed_variable"
     },
     {
       "type": "SYMBOL",

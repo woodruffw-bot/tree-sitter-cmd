@@ -122,7 +122,7 @@ function immediateExpansion($) {
       token.immediate(/%[^%0-9~*\r\n][^%\r\n]*%/),
       $.variable,
     ),
-    alias(token.immediate(/![^!\r\n]+!/), $.delayed_variable),
+    $.delayed_variable,
     alias(token.immediate(/%[0-9]/), $.parameter),
     alias(token.immediate(/%\*/), $.all_arguments),
     alias(
@@ -167,6 +167,7 @@ module.exports = grammar({
     $._lparen,
     $._rparen,
     $._caret_escape,
+    $.delayed_variable,
     $._string_end,
     $._set_inner_quote,
     $._set_string_end,
@@ -1221,9 +1222,8 @@ module.exports = grammar({
     // %NAME% and %NAME:...% (substring / substitution). The leading character
     // is not a digit/`~`/`*` so positional, tilde and `%*` forms win instead.
     variable: ($) => token(/%[^%0-9~*\r\n][^%\r\n]*%/),
-    // !NAME! delayed expansion (always recognised; literal unless delayed
-    // expansion is enabled at runtime).
-    delayed_variable: ($) => token(/![^!\r\n]+!/),
+    // !NAME! is external so active outer operators cannot be swallowed by a
+    // delayed reference. Recognition remains independent of runtime enablement.
 
     // %0..%9 positional parameters.
     parameter: ($) => token(/%[0-9]/),
