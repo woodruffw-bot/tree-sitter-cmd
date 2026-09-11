@@ -146,6 +146,17 @@ mod windows {
     }
 
     #[test]
+    fn else_does_not_match_a_longer_word() {
+        let invalid = run_script("else-prefix", b"@echo off\r\nif 1==1 (echo yes) elsex echo no\r\n");
+        assert!(!invalid.status.success());
+        assert!(!invalid.stderr.is_empty());
+        let valid = run_script("else-token", b"@echo off\r\nif 1==0 (echo yes) else echo no\r\n");
+        assert!(valid.status.success(), "{}", escaped(&valid.stderr));
+        assert!(valid.stderr.is_empty());
+        assert_eq!(String::from_utf8(valid.stdout).unwrap().trim_end(), "no");
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [

@@ -251,3 +251,25 @@ echo left | ::note
     (ERROR)
     right: (command
       name: (command_name))))
+
+============================================================
+ELSE does not split a longer token
+============================================================
+
+if 1==1 (echo yes) elsex echo no
+echo tail
+
+---
+
+(program (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text))) consequence: (block (command name: (command_name) argument: (argument (text))))) (ERROR) (command name: (command_name) argument: (argument (text))))
+
+============================================================
+ELSE accepts token separators and an adjacent redirect
+============================================================
+
+if 1==0 (echo yes) else,echo no
+if 1==0 (echo yes) else>out echo no
+
+---
+
+(program (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text))) consequence: (block (command name: (command_name) argument: (argument (text)))) (keyword) alternative: (command name: (command_name) argument: (argument (text)))) (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text))) consequence: (block (command name: (command_name) argument: (argument (text)))) (keyword) alternative: (command redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (command_name) argument: (argument (text)))))

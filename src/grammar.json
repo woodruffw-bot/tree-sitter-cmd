@@ -752,6 +752,10 @@
                     "value": "keyword"
                   },
                   {
+                    "type": "SYMBOL",
+                    "name": "_else_boundary"
+                  },
+                  {
                     "type": "CHOICE",
                     "members": [
                       {
@@ -4381,6 +4385,10 @@
     {
       "type": "SYMBOL",
       "name": "_if_attached_operand"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_else_boundary"
     },
     {
       "type": "SYMBOL",
