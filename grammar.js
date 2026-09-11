@@ -158,7 +158,7 @@ module.exports = grammar({
     $._concat,
     $._standard_concat,
     $._if_attached_operand,
-    $._redirect_target_separator_ahead,
+    $._redirect_concat,
     $._rem,
     $._rem_text,
     $._redirect_source,
@@ -1006,16 +1006,14 @@ module.exports = grammar({
       ),
     redirect_operator: ($) => token(/>>|>|</),
     _redirect_file_target: ($) =>
-      choice(
-        field('target', $.argument),
-        seq(
-          $._redirect_target_separator_ahead,
-          field('target', alias($._standard_argument, $.argument)),
-        ),
-        seq(
-          $._standard_separator,
-          field('target', alias($._standard_argument, $.argument)),
-        ),
+      seq(
+        optional($._standard_separator),
+        field('target', alias($._redirect_argument, $.argument)),
+      ),
+    _redirect_argument: ($) =>
+      seq(
+        $._standard_fragment,
+        repeat(seq($._redirect_concat, $._standard_fragment)),
       ),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`. cmd skips its standard

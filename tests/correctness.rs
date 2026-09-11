@@ -112,3 +112,27 @@ fn internal_set_quotes_preserve_outer_operator_protection() {
     assert!(!tree.root_node().has_error());
     assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo"]);
 }
+
+#[test]
+fn redirect_filenames_stop_at_unprotected_separators() {
+    for (source, redirect) in [
+        ("echo hi >\"a^\",b tail\n", ">\"a^\""),
+        ("echo hi >%1foo,bar echo %X%\n", ">%1foo"),
+        ("echo hi >%*foo,bar echo %X%\n", ">%*foo"),
+        ("echo hi >%%Afoo,bar echo %X%\n", ">%%Afoo"),
+        ("echo hi >%~dp0foo,bar echo %X%\n", ">%~dp0foo"),
+        ("echo hi >a^\nb,c tail\n", ">a^\nb"),
+        ("echo hi >a^\r\nb,c tail\n", ">a^\r\nb"),
+        ("echo hi >\"a,b\" tail\n", ">\"a,b\""),
+        ("echo hi >a^,b tail\n", ">a^,b"),
+        ("(echo hi >a(b,c tail)\n", ">a(b"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        assert!(!tree.root_node().has_error(), "{source}: {}", tree.root_node().to_sexp());
+        assert_eq!(node_sources(tree.root_node(), "redirect_file", source), [redirect]);
+    }
+    let source = "echo >\"out\"2>err\n";
+    let tree = parser().parse(source, None).unwrap();
+    assert!(!tree.root_node().has_error());
+    assert_eq!(node_sources(tree.root_node(), "redirect_file", source), [">\"out\"", "2>err"]);
+}

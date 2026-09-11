@@ -13,9 +13,9 @@
 //                  token separators.
 //   IF_ATTACHED_OPERAND
 //                - zero-width selection of the RHS word attached to `==`.
-//   REDIRECT_TARGET_SEPARATOR_AHEAD
-//                - zero-width selection of a separator-aware redirection
-//                  target when standard punctuation occurs before its end.
+//   REDIRECT_CONCAT
+//                - adjacent filename fragments; standard separators end the
+//                  target, while an attached opening parenthesis is literal.
 //   REM          - the `rem` comment keyword (whole-word; tree-sitter declines
 //                  to keyword-extract it).
 //   REM_TEXT     - the opaque body of a REM comment through end of line.
@@ -67,7 +67,7 @@
 //                  records a genuine anonymous MISSING command for the body.
 //   ERROR_SENTINEL - unused final token that detects Tree-sitter's all-symbol
 //                    error-recovery state. The scanner declines in that state so
-//                    zero-width CONCAT / STANDARD_CONCAT / target-lookahead /
+//                    zero-width CONCAT / STANDARD_CONCAT / REDIRECT_CONCAT /
 //                    binding-end / STRING_END tokens cannot stall recovery.
 //
 // `cmd.exe` parentheses are context-sensitive: `(` is structural where a
@@ -87,7 +87,7 @@ enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
   IF_ATTACHED_OPERAND,
-  REDIRECT_TARGET_SEPARATOR_AHEAD,
+  REDIRECT_CONCAT,
   REM,
   REM_TEXT,
   REDIRECT_SOURCE,
@@ -243,69 +243,6 @@ static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
       }
     }
     has_content = true;
-    lexer->advance(lexer, false);
-  }
-  return false;
-}
-
-// Look ahead without consuming input. This selects the separator-aware target
-// branch only when the current redirection filename contains a real standard
-// separator. Separators inside quotes, caret escapes, and paired expansions
-// stay part of the filename.
-static bool redirect_target_has_separator(const Scanner *s, TSLexer *lexer) {
-  lexer->mark_end(lexer);
-  if (lexer->lookahead == ',' || lexer->lookahead == ';' ||
-      lexer->lookahead == '=') {
-    return false;
-  }
-  bool in_quote = false;
-
-  while (!lexer->eof(lexer)) {
-    int32_t c = lexer->lookahead;
-    if (c == '\r' || c == '\n') return false;
-
-    if (c == '^') {
-      lexer->advance(lexer, false);
-      if (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
-          lexer->lookahead != '\n') {
-        lexer->advance(lexer, false);
-      }
-      continue;
-    }
-
-    if (c == '"') {
-      in_quote = !in_quote;
-      lexer->advance(lexer, false);
-      continue;
-    }
-
-    if (!in_quote && (c == '%' || c == '!')) {
-      int32_t sigil = c;
-      bool saw_boundary = false;
-      bool saw_separator = false;
-      lexer->advance(lexer, false);
-      while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
-             lexer->lookahead != '\n') {
-        c = lexer->lookahead;
-        if (c == sigil) {
-          lexer->advance(lexer, false);
-          saw_separator = false;
-          break;
-        }
-        if (!saw_boundary && (c == ',' || c == ';' || c == '=')) {
-          saw_separator = true;
-        }
-        if (!saw_boundary && is_word_boundary(s, c)) saw_boundary = true;
-        lexer->advance(lexer, false);
-      }
-      if (saw_separator) return true;
-      continue;
-    }
-
-    if (!in_quote) {
-      if (c == ',' || c == ';' || c == '=') return true;
-      if (is_word_boundary(s, c)) return false;
-    }
     lexer->advance(lexer, false);
   }
   return false;
@@ -574,19 +511,14 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
-  if (valid_symbols[REDIRECT_TARGET_SEPARATOR_AHEAD]) {
-    if (redirect_target_has_separator(s, lexer)) {
-      lexer->result_symbol = REDIRECT_TARGET_SEPARATOR_AHEAD;
-      return true;
-    }
-    return false;
-  }
+
 
   // A descriptor after a quoted or expanded fragment competes with CONCAT.
   // Prefer the descriptor only when the digit is followed by `<` or `>`. If it
   // is not, return a zero-width CONCAT at the marked start of the token.
   if (valid_symbols[REDIRECT_SOURCE] &&
-      (valid_symbols[CONCAT] || valid_symbols[STANDARD_CONCAT]) &&
+      (valid_symbols[CONCAT] || valid_symbols[STANDARD_CONCAT] ||
+       valid_symbols[REDIRECT_CONCAT]) &&
       lexer->lookahead >= '0' && lexer->lookahead <= '9') {
     lexer->mark_end(lexer);
     lexer->advance(lexer, false);
@@ -594,10 +526,17 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->mark_end(lexer);
       lexer->result_symbol = REDIRECT_SOURCE;
     } else {
-      lexer->result_symbol = valid_symbols[STANDARD_CONCAT]
-                                 ? STANDARD_CONCAT
-                                 : CONCAT;
+      lexer->result_symbol = valid_symbols[REDIRECT_CONCAT] ? REDIRECT_CONCAT
+                           : valid_symbols[STANDARD_CONCAT] ? STANDARD_CONCAT
+                           : CONCAT;
     }
+    return true;
+  }
+
+  if (valid_symbols[REDIRECT_CONCAT] && !lexer->eof(lexer) &&
+      !is_argument_concat_boundary(s, lexer->lookahead) &&
+      lexer->lookahead != ',' && lexer->lookahead != ';') {
+    lexer->result_symbol = REDIRECT_CONCAT;
     return true;
   }
 
