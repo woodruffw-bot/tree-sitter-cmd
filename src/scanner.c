@@ -687,7 +687,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         return true;
       }
       if (!has_later_quote && valid_symbols[SET_STRING_END]) {
-        s->set_in_quote = false;
+        s->set_in_quote = quoted;
         lexer->result_symbol = SET_STRING_END;
         return true;
       }
@@ -702,12 +702,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   // or close parenthesis inside the ignored suffix.
   if (valid_symbols[SET_IGNORED_SUFFIX]) {
     bool has_content = false;
-    while (!lexer->eof(lexer) &&
-           !is_set_boundary(s, lexer->lookahead)) {
+    while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+           lexer->lookahead != '\n' &&
+           (s->set_in_quote || !is_set_boundary(s, lexer->lookahead))) {
       int32_t la = lexer->lookahead;
       if (la != ' ' && la != '\t') has_content = true;
       lexer->advance(lexer, false);
-      if (la == '^' && !lexer->eof(lexer)) {
+      if (la == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
         if (lexer->lookahead == '\r') {
           lexer->advance(lexer, false);
           if (lexer->lookahead == '\n') {
@@ -720,6 +721,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       }
     }
     if (has_content) {
+      s->set_in_quote = false;
       lexer->mark_end(lexer);
       lexer->result_symbol = SET_IGNORED_SUFFIX;
       return true;
