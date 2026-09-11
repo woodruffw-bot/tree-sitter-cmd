@@ -136,3 +136,26 @@ fn redirect_filenames_stop_at_unprotected_separators() {
     assert!(!tree.root_node().has_error());
     assert_eq!(node_sources(tree.root_node(), "redirect_file", source), [">\"out\"", "2>err"]);
 }
+
+#[test]
+fn continued_set_suffix_includes_the_forced_literal() {
+    for newline in ["\n", "\r\n"] {
+        for marker in ["&", "|", ">", "<"] {
+            let suffix = format!("junk^{newline}{marker}echo after");
+            let source = format!("set \"x=y\"{suffix}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            assert!(!tree.root_node().has_error());
+            assert_eq!(node_sources(tree.root_node(), "set_ignored_suffix", &source), [suffix.as_str()]);
+            assert!(node_sources(tree.root_node(), "command_name", &source).is_empty());
+            assert!(node_sources(tree.root_node(), "redirect_file", &source).is_empty());
+        }
+        let source = format!("(set \"x=y\"junk^{newline}))\n");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(!tree.root_node().has_error());
+        assert_eq!(node_sources(tree.root_node(), "set_ignored_suffix", &source), [format!("junk^{newline})")]);
+    }
+    let source = "set \"x=y\"junk^\n &echo after\n";
+    let tree = parser().parse(source, None).unwrap();
+    assert!(!tree.root_node().has_error());
+    assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo"]);
+}

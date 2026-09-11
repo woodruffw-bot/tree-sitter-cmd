@@ -106,6 +106,8 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         ("remote note\necho tail\n", "remote note", "rem note"),
         ("echo !x^&y!\necho tail\n", "^&", "&"),
+        ("set \"x=y\"junk^\n&echo after\necho tail\n", "\n&", "\n &"),
+        ("set \"x=y\"junk^\r\n &echo after\necho tail\n", "\n &", "\n&"),
         ("echo hi >a^,b tail\necho end\n", "^,", ","),
         ("echo hi >a,b tail\necho end\n", ",", "^,"),
         ("set \"x=ab&c\"\nset \"y=tail\"\n", "ab", "a\"b\""),

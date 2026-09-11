@@ -649,13 +649,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       if (la == '^' && !lexer->eof(lexer)) {
         if (lexer->lookahead == '\r') {
           lexer->advance(lexer, false);
-          if (lexer->lookahead == '\n') {
-            lexer->advance(lexer, false);
-            continue;
-          }
-          break;
+          if (lexer->lookahead != '\n') break;
         }
-        lexer->advance(lexer, false);
+        if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+        // The first byte after a continuation is a forced literal too.
+        if (!lexer->eof(lexer)) lexer->advance(lexer, false);
       }
     }
     if (has_content) {
