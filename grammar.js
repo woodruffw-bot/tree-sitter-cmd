@@ -157,6 +157,7 @@ module.exports = grammar({
   externals: ($) => [
     $._concat,
     $._standard_concat,
+    $._if_attached_operand,
     $._redirect_target_separator_ahead,
     $._rem,
     $._rem_text,
@@ -410,12 +411,12 @@ module.exports = grammar({
               alias('==', $.comparison_operator),
             ),
             choice(
-              field(
-                'right',
-                alias($._if_attached_equals_word, $.argument),
+              seq(
+                $._if_attached_operand,
+                field('right', alias($._if_attached_word, $.argument)),
               ),
               seq(
-                optional($._standard_separator),
+                $._required_standard_separator,
                 field('right', $._if_operand),
               ),
             ),
@@ -466,15 +467,17 @@ module.exports = grammar({
       prec(1, seq($._lparen, optional($._if_word), $._rparen)),
     _if_word: ($) => standardWordOf($, $._if_fragment),
     // ParseIf keeps every byte after an attached `==` in the same token.
-    // Preserve the leading extra equals signs and any later equals signs in
-    // that token. The immediate token keeps a spaced `== =right` on the
-    // separator path.
-    _if_attached_equals_word: ($) =>
+    // The scanner selects this path only without a source delimiter after
+    // `==`. A spaced operand retains the standard-separator word rules.
+    _if_attached_word: ($) =>
       seq(
-        alias(token.immediate(prec(3, /=+/)), $.text),
+        choice(
+          alias(token.immediate(prec(3, /=+/)), $.text),
+          $._if_fragment,
+        ),
         repeat(
           choice(
-            seq($._concat, $._if_fragment),
+            seq($._standard_concat, $._if_fragment),
             alias(
               token.immediate(
                 prec(3, /=[^ \t\r\n&|<>()^"%!,;]*/),

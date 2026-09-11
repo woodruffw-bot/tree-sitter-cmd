@@ -106,6 +106,8 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ),
         ("remote note\necho tail\n", "remote note", "rem note"),
         ("echo !x^&y!\necho tail\n", "^&", "&"),
+        ("if a==b=c echo yes\necho tail\n", "==b", "== b"),
+        ("if a== b=c echo yes\necho tail\n", "== b", "==b"),
         ("echo !x&y!\necho tail\n", "&", "^&"),
         ("echo \"!x&y!\"\necho tail\n", "!x&y!", "!x\" & echo \"y!"),
         ("echo one ^\r\n  two\r\n", "one ^", "one^"),

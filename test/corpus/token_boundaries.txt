@@ -155,16 +155,13 @@ if 1==1 ::note
 ---
 
 (program
-  (ERROR
+  (if_statement
     (keyword)
-    (comparison
-      left: (argument
-        (text))
+    condition: (comparison
+      left: (argument (text))
       operator: (comparison_operator)
-      right: (argument
-        (text))))
-  (colon_comment
-    (comment_text)))
+      right: (argument (text) (ERROR) (text)))
+    consequence: (MISSING "command")))
 
 =====================================
 colon comment is not a FOR body

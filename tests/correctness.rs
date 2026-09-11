@@ -50,3 +50,32 @@ fn protected_metacharacters_remain_in_delayed_references() {
     let tree = parser().parse("cmd 2>&!A&B!\n", None).unwrap();
     assert!(tree.root_node().has_error(), "a missing duplication target must stay invalid");
 }
+
+#[test]
+fn attached_if_operands_retain_all_equals_signs() {
+    for (operand, expected_right, expected_command) in [
+        ("b=c", "b=c", "echo yes"),
+        ("\"b\"=c", "\"b\"=c", "echo yes"),
+        ("%B%=c", "%B%=c", "echo yes"),
+        ("=b=c", "=b=c", "echo yes"),
+        ("b^=c", "b^=c", "echo yes"),
+        (" b=c", "b", "c echo yes"),
+        (",b=c", "b", "c echo yes"),
+    ] {
+        let source = format!("if a=={operand} echo yes\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let statement = tree.root_node().named_child(0).unwrap();
+        assert!(!statement.has_error(), "{source}: {}", statement.to_sexp());
+        let comparison = statement.child_by_field_name("condition").unwrap();
+        let right = comparison.child_by_field_name("right").unwrap();
+        let command = statement.child_by_field_name("consequence").unwrap();
+        assert_eq!(&source[right.byte_range()], expected_right);
+        assert_eq!(&source[command.byte_range()], expected_command);
+    }
+    for ending in ["", "\n", "\r\n"] {
+        let source = format!("if a==b=c{ending}");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(tree.root_node().has_error(), "missing command: {source}");
+        assert!(node_sources(tree.root_node(), "command_name", &source).is_empty());
+    }
+}
