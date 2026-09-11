@@ -45,7 +45,7 @@ standard separators in IF grammar
 ====================================
 
 if,/i;not=exist,file,echo found
-if;left==right=echo equal
+if;left==right;echo equal
 if,left;equ,right,echo ordered
 
 ---

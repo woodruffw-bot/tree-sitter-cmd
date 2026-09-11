@@ -11,6 +11,8 @@
 //   STANDARD_CONCAT
 //                - the same join in parser slots where `,`, `;`, and `=` are
 //                  token separators.
+//   IF_ATTACHED_OPERAND
+//                - zero-width selection of the RHS word attached to `==`.
 //   REDIRECT_TARGET_SEPARATOR_AHEAD
 //                - zero-width selection of a separator-aware redirection
 //                  target when standard punctuation occurs before its end.
@@ -82,6 +84,7 @@
 enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
+  IF_ATTACHED_OPERAND,
   REDIRECT_TARGET_SEPARATOR_AHEAD,
   REM,
   REM_TEXT,
@@ -427,6 +430,20 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->advance(lexer, false);
       s->depth--;
       lexer->result_symbol = BLOCK_CLOSE;
+      return true;
+    }
+    return false;
+  }
+
+  // ParseIf retains equals signs in the token attached to `==`, but skips
+  // standard separators when fetching a separate operand. Do not skip extras
+  // here: the source gap decides which word rule applies.
+  if (valid_symbols[IF_ATTACHED_OPERAND]) {
+    int32_t c = lexer->lookahead;
+    if (!lexer->eof(lexer) && c != ' ' && c != '\t' && c != '\r' &&
+        c != '\n' && c != ',' && c != ';' && c != '&' && c != '|' &&
+        c != '<' && c != '>') {
+      lexer->result_symbol = IF_ATTACHED_OPERAND;
       return true;
     }
     return false;
