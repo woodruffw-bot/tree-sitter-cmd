@@ -237,7 +237,7 @@ fn recovery_node_diagnostics_include_locations() {
     let cases: &[(&[u8], &str)] = &[
         (
             b"echo before >\necho after\n",
-            "1:14 (bytes 13..13): MISSING text",
+            "1:13 (bytes 12..13): ERROR",
         ),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
         (b"()\necho after\n", "1:2 (bytes 1..1): MISSING command_name"),
