@@ -36,6 +36,8 @@
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
 //                  quote still closes (cmd runs an open quote to end of line).
+//   SET_STRING_START
+//                - opening SET wrapper quote; resets its outer quote phase.
 //   SET_INNER_QUOTE / SET_STRING_END
 //                - quotes inside a quoted SET binding and its last wrapper
 //                  quote. Like STRING_END, SET_STRING_END also matches
@@ -97,6 +99,7 @@ enum TokenType {
   CARET_ESCAPE,
   DELAYED_VARIABLE,
   STRING_END,
+  SET_STRING_START,
   SET_INNER_QUOTE,
   SET_STRING_END,
   SET_IGNORED_SUFFIX,
@@ -112,6 +115,7 @@ enum TokenType {
 typedef struct {
   uint32_t depth; // number of currently-open structural blocks
   uint8_t body_boundaries;
+  bool set_in_quote;
 } Scanner;
 
 void *tree_sitter_cmd_external_scanner_create(void) {
@@ -125,7 +129,8 @@ unsigned tree_sitter_cmd_external_scanner_serialize(void *payload, char *buffer)
   Scanner *s = payload;
   memcpy(buffer, &s->depth, sizeof(s->depth));
   buffer[sizeof(s->depth)] = (char)s->body_boundaries;
-  return sizeof(s->depth) + 1;
+  buffer[sizeof(s->depth) + 1] = (char)s->set_in_quote;
+  return sizeof(s->depth) + 2;
 }
 
 void tree_sitter_cmd_external_scanner_deserialize(void *payload,
@@ -134,11 +139,15 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
   Scanner *s = payload;
   s->depth = 0;
   s->body_boundaries = 0;
+  s->set_in_quote = false;
   if (length >= sizeof(s->depth)) {
     memcpy(&s->depth, buffer, sizeof(s->depth));
   }
   if (length > sizeof(s->depth)) {
     s->body_boundaries = (uint8_t)buffer[sizeof(s->depth)];
+  }
+  if (length > sizeof(s->depth) + 1) {
+    s->set_in_quote = buffer[sizeof(s->depth) + 1] != 0;
   }
 }
 
@@ -199,8 +208,8 @@ static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
 // Delayed expansion happens after outer CMD tokenization. A pair of bangs
 // cannot hide an active operator or structural block close. Quotes can occur
 // in substitution payloads, but still toggle protection of outer operators.
-static bool scan_delayed_variable(const Scanner *s, TSLexer *lexer,
-                                  bool quoted) {
+static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
+                                  bool quoted, bool set_context) {
   lexer->advance(lexer, false);
   bool has_content = false;
   while (!lexer->eof(lexer)) {
@@ -210,6 +219,7 @@ static bool scan_delayed_variable(const Scanner *s, TSLexer *lexer,
       if (!has_content) return false;
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
+      if (set_context) s->set_in_quote = quoted;
       lexer->result_symbol = DELAYED_VARIABLE;
       return true;
     }
@@ -607,16 +617,29 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
 
   if (valid_symbols[DELAYED_VARIABLE] && lexer->lookahead == '!') {
     return scan_delayed_variable(s, lexer,
-        valid_symbols[STRING_END] || valid_symbols[SET_STRING_END]);
+        valid_symbols[STRING_END] ||
+        (valid_symbols[SET_STRING_END] && s->set_in_quote),
+        valid_symbols[SET_STRING_END]);
+  }
+
+  if (valid_symbols[SET_STRING_START]) {
+    skip_ws(lexer);
+    if (lexer->lookahead == '"') {
+      lexer->advance(lexer, false);
+      s->set_in_quote = true;
+      lexer->result_symbol = SET_STRING_START;
+      return true;
+    }
   }
 
   // SET_INNER_QUOTE / SET_STRING_END: cmd uses the last quote in a quoted SET
   // binding as the wrapper close. Earlier quotes are literal value fragments.
-  // Stop lookahead at command operators so quotes in a later command do not
-  // extend the SET binding.
+  // Track the outer tokenizer's quote phase: operators are boundaries only
+  // outside quotes, even though SET later treats earlier quotes as value text.
   if (valid_symbols[SET_INNER_QUOTE] || valid_symbols[SET_STRING_END]) {
     if (lexer->eof(lexer)) {
       if (valid_symbols[SET_STRING_END]) {
+        s->set_in_quote = false;
         lexer->result_symbol = SET_STRING_END;
         return true;
       }
@@ -625,6 +648,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     int32_t la = lexer->lookahead;
     if (la == '\r' || la == '\n') {
       if (valid_symbols[SET_STRING_END]) {
+        s->set_in_quote = false;
         lexer->result_symbol = SET_STRING_END;
         return true;
       }
@@ -635,12 +659,14 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->mark_end(lexer);
 
       bool has_later_quote = false;
+      bool quoted = !s->set_in_quote;
       while (!lexer->eof(lexer)) {
         la = lexer->lookahead;
-        if (is_set_boundary(s, la)) {
+        if (la == '\r' || la == '\n' ||
+            (!quoted && is_set_boundary(s, la))) {
           break;
         }
-        if (la == '^') {
+        if (la == '^' && !quoted) {
           lexer->advance(lexer, false);
           if (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
               lexer->lookahead != '\n') {
@@ -656,10 +682,12 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       }
 
       if (has_later_quote && valid_symbols[SET_INNER_QUOTE]) {
+        s->set_in_quote = quoted;
         lexer->result_symbol = SET_INNER_QUOTE;
         return true;
       }
       if (!has_later_quote && valid_symbols[SET_STRING_END]) {
+        s->set_in_quote = quoted;
         lexer->result_symbol = SET_STRING_END;
         return true;
       }
@@ -674,12 +702,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   // or close parenthesis inside the ignored suffix.
   if (valid_symbols[SET_IGNORED_SUFFIX]) {
     bool has_content = false;
-    while (!lexer->eof(lexer) &&
-           !is_set_boundary(s, lexer->lookahead)) {
+    while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+           lexer->lookahead != '\n' &&
+           (s->set_in_quote || !is_set_boundary(s, lexer->lookahead))) {
       int32_t la = lexer->lookahead;
       if (la != ' ' && la != '\t') has_content = true;
       lexer->advance(lexer, false);
-      if (la == '^' && !lexer->eof(lexer)) {
+      if (la == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
         if (lexer->lookahead == '\r') {
           lexer->advance(lexer, false);
           if (lexer->lookahead == '\n') {
@@ -692,6 +721,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       }
     }
     if (has_content) {
+      s->set_in_quote = false;
       lexer->mark_end(lexer);
       lexer->result_symbol = SET_IGNORED_SUFFIX;
       return true;
@@ -758,7 +788,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   int32_t c = lexer->lookahead;
 
   if (want_delayed && c == '!') {
-    return scan_delayed_variable(s, lexer, false);
+    return scan_delayed_variable(s, lexer, false, false);
   }
 
   // A source file descriptor is one digit directly adjacent to `<` or `>`.

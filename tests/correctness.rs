@@ -81,3 +81,47 @@ fn attached_if_operands_retain_all_equals_signs() {
         assert!(node_sources(tree.root_node(), "command_name", &source).is_empty());
     }
 }
+
+#[test]
+fn internal_set_quotes_preserve_outer_operator_protection() {
+    for (source, field, value) in [
+        ("set \"x=a\"b\"c&d\"\n", "value", "a\"b\"c&d"),
+        ("set \"x=a\"b\"c|d\"\n", "value", "a\"b\"c|d"),
+        ("set \"x=a\"b\"c>d\"\n", "value", "a\"b\"c>d"),
+        ("(set \"x=a\"b\"c)d\")\n", "value", "a\"b\"c)d"),
+        ("set /p \"x=a\"b\"c&d\"\n", "prompt", "a\"b\"c&d"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        let mut cursor = root;
+        while cursor.kind() != "set_quoted" && cursor.kind() != "set_prompt" {
+            cursor = if cursor.kind() == "set_statement" {
+                cursor.named_child(1).unwrap()
+            } else {
+                cursor.named_child(0).unwrap()
+            };
+        }
+        assert_eq!(&source[cursor.child_by_field_name(field).unwrap().byte_range()], value);
+        for kind in ["command_name", "seq_list", "pipeline", "redirect_file"] {
+            assert!(node_sources(root, kind, source).is_empty(), "{source}: {kind}");
+        }
+    }
+    let source = "set \"x=a\"b&echo \"after\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    assert!(!tree.root_node().has_error());
+    assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo"]);
+}
+
+#[test]
+fn last_set_quote_can_leave_the_ignored_suffix_quoted() {
+    for suffix in ["c&d", "c|d", "c>d", "c)d", "c^&d"] {
+        let source = format!("set \"x=a\"b\"{suffix}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "set_ignored_suffix", &source), [suffix]);
+        assert!(node_sources(root, "command_name", &source).is_empty());
+        assert!(node_sources(root, "redirect_file", &source).is_empty());
+    }
+}

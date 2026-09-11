@@ -796,3 +796,15 @@ set PATH >value.txt EXTRA >post.txt
       operator: (redirect_operator)
       target: (argument
         (text)))))
+
+===============================================
+internal SET quotes protect later metacharacters
+===============================================
+
+set "x=a"b"c&d"
+set "x=a"b"c|d"
+set "x=a"b"c>d"
+
+---
+
+(program (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))) (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))) (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))))
