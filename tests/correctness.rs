@@ -198,3 +198,18 @@ fn else_requires_a_complete_token() {
     assert!(tree.root_node().has_error());
     assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo", "echo"]);
 }
+
+#[test]
+fn for_binder_requires_a_source_separator_before_in() {
+    for separator in [" ", "\t", ",", ";", "=", " ,;= "] {
+        let source = format!("for %%a{separator}in (x) do echo %%a\n");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(!tree.root_node().has_error(), "{source}");
+        assert_eq!(node_sources(tree.root_node(), "loop_variable_declaration", &source), ["%%a"]);
+    }
+    for spelling in ["%%ain", "%%aIN", "%%a^ in", "%%a\"in\""] {
+        let source = format!("for {spelling} (x) do echo %%a\n");
+        let tree = parser().parse(&source, None).unwrap();
+        assert!(tree.root_node().has_error(), "{source}");
+    }
+}

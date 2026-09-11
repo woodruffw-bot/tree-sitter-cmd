@@ -520,7 +520,7 @@ module.exports = grammar({
             ),
           ),
           field('variable', $._loop_variable_declaration),
-          optional($._standard_separator),
+          $._required_standard_separator,
           kw($, 'in'),
           optional($._standard_separator),
           alias($._block_open, '('),

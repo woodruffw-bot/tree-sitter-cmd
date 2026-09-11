@@ -273,3 +273,24 @@ if 1==0 (echo yes) else>out echo no
 ---
 
 (program (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text))) consequence: (block (command name: (command_name) argument: (argument (text)))) (keyword) alternative: (command name: (command_name) argument: (argument (text)))) (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text))) consequence: (block (command name: (command_name) argument: (argument (text)))) (keyword) alternative: (command redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (command_name) argument: (argument (text)))))
+
+============================================================
+FOR binder cannot join IN
+============================================================
+
+for %%ain (x) do echo %%a
+
+---
+
+(program (ERROR (keyword) (loop_variable_declaration)) (command name: (command_name) argument: (argument (text) (text) (text)) argument: (argument (text)) argument: (argument (text)) argument: (argument (loop_variable))))
+
+============================================================
+FOR binder accepts standard separators
+============================================================
+
+for %%a,in (x) do echo %%a
+for %%a=in (x) do echo %%a
+
+---
+
+(program (for_statement (keyword) variable: (loop_variable_declaration) (keyword) set: (for_set (argument (text))) (keyword) body: (command name: (command_name) argument: (argument (loop_variable)))) (for_statement (keyword) variable: (loop_variable_declaration) (keyword) set: (for_set (argument (text))) (keyword) body: (command name: (command_name) argument: (argument (loop_variable)))))
