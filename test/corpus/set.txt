@@ -808,3 +808,16 @@ set "x=a"b"c>d"
 ---
 
 (program (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))) (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))) (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text) (text) (text) (text) (text)))))
+
+============================================================
+continued ignored SET suffix keeps the forced literal
+============================================================
+
+set "x=y"junk^
+&echo after
+(set "x=y"junk^
+))
+
+---
+
+(program (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix))) (block (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix)))))

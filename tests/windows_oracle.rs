@@ -127,6 +127,17 @@ mod windows {
     }
 
     #[test]
+    fn continued_set_suffix_does_not_start_a_command() {
+        for marker in ["&", "|", ">", "\r\n"] {
+            let source = format!("@echo off\r\nset \"TS_CMD_SUFFIX=y\"junk^\r\n{marker}echo unexpected\r\necho done\r\n");
+            let output = run_script("set-suffix", source.as_bytes());
+            assert!(output.status.success(), "{}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "done");
+        }
+    }
+
+    #[test]
     fn last_set_quote_can_open_the_ignored_suffix() {
         let output = run_script("set-open-suffix", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b\"c&d\r\necho !TS_CMD_QUOTE!\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
