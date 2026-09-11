@@ -1,0 +1,48 @@
+=====================================
+bangs do not protect command operators
+=====================================
+
+echo !x & echo y!
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument (text) (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument (text) (text)))))
+
+=====================================
+bangs do not cross outer quote boundaries
+=====================================
+
+echo "!x" & echo "y!"
+
+---
+
+(program
+  (seq_list
+    left: (command
+      name: (command_name)
+      argument: (argument (string)))
+    right: (command
+      name: (command_name)
+      argument: (argument (string)))))
+
+=====================================
+quoted and escaped reference characters
+=====================================
+
+echo "!a&b!" !a^&b! !ProgramFiles(x86)!
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument (string (delayed_variable)))
+    argument: (argument (delayed_variable))
+    argument: (argument (delayed_variable))))

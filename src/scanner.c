@@ -92,6 +92,7 @@ enum TokenType {
   LPAREN,
   RPAREN,
   CARET_ESCAPE,
+  DELAYED_VARIABLE,
   STRING_END,
   SET_INNER_QUOTE,
   SET_STRING_END,
@@ -190,6 +191,42 @@ static bool is_set_boundary(const Scanner *s, int32_t c) {
 
 static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
   return is_word_boundary(s, c) || c == ',' || c == ';';
+}
+
+// Delayed expansion happens after outer CMD tokenization. A pair of bangs
+// cannot hide an active operator, quote boundary, or structural block close.
+// Quoted metacharacters and caret-protected bytes stay inside the reference.
+static bool scan_delayed_variable(const Scanner *s, TSLexer *lexer,
+                                  bool quoted) {
+  lexer->advance(lexer, false);
+  bool has_content = false;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '\r' || c == '\n' || c == '"') return false;
+    if (c == '!') {
+      if (!has_content) return false;
+      lexer->advance(lexer, false);
+      lexer->mark_end(lexer);
+      lexer->result_symbol = DELAYED_VARIABLE;
+      return true;
+    }
+    if (!quoted) {
+      if (c == '&' || c == '|' || c == '<' || c == '>' ||
+          (c == ')' && s->depth > 0)) return false;
+      if (c == '^') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead == '\r') {
+          lexer->advance(lexer, false);
+          if (lexer->lookahead != '\n') return false;
+        }
+        if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+        if (lexer->eof(lexer)) return false;
+      }
+    }
+    has_content = true;
+    lexer->advance(lexer, false);
+  }
+  return false;
 }
 
 // Look ahead without consuming input. This selects the separator-aware target
@@ -465,7 +502,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->result_symbol = BLOCK_OPEN;
       return true;
     }
-    if (c != '(' && c != ')' && c != '^' && c != 'r' && c != 'R' &&
+    if (c != '(' && c != ')' && c != '^' && c != '!' && c != 'r' && c != 'R' &&
         (c < '0' || c > '9')) {
       return false;
     }
@@ -543,6 +580,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       !is_argument_concat_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;
+  }
+
+  if (valid_symbols[DELAYED_VARIABLE] && lexer->lookahead == '!') {
+    return scan_delayed_variable(s, lexer,
+        valid_symbols[STRING_END] || valid_symbols[SET_STRING_END]);
   }
 
   // SET_INNER_QUOTE / SET_STRING_END: cmd uses the last quote in a quoted SET
@@ -677,10 +719,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   bool want_rem = valid_symbols[REM];
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
+  bool want_delayed = valid_symbols[DELAYED_VARIABLE];
   bool want_paren = valid_symbols[EMPTY_BLOCK_OPEN] ||
                     valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_redirect_source && !want_caret && !want_paren) {
+  if (!want_rem && !want_redirect_source && !want_caret && !want_delayed && !want_paren) {
     return false;
   }
 
@@ -690,6 +733,10 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   int32_t c = lexer->lookahead;
+
+  if (want_delayed && c == '!') {
+    return scan_delayed_variable(s, lexer, false);
+  }
 
   // A source file descriptor is one digit directly adjacent to `<` or `>`.
   // Looking ahead here avoids stealing ordinary numeric arguments such as the

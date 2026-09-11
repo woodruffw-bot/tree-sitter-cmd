@@ -1,0 +1,52 @@
+use tree_sitter::{Node, Parser};
+
+fn parser() -> Parser {
+    let mut parser = Parser::new();
+    parser.set_language(&tree_sitter_cmd::LANGUAGE.into()).unwrap();
+    parser
+}
+
+fn node_sources<'a>(node: Node<'_>, kind: &str, source: &'a str) -> Vec<&'a str> {
+    let mut result = Vec::new();
+    if node.kind() == kind {
+        result.push(&source[node.byte_range()]);
+    }
+    for i in 0..node.named_child_count() {
+        result.extend(node_sources(node.named_child(i as u32).unwrap(), kind, source));
+    }
+    result
+}
+
+#[test]
+fn delayed_references_preserve_outer_command_boundaries() {
+    for (source, kind, expected) in [
+        ("echo !x & echo y!\n", "seq_list", "echo !x & echo y!"),
+        ("echo !x | echo y!\n", "pipeline", "echo !x | echo y!"),
+        ("echo !x >out!\n", "redirect_file", ">out!"),
+        ("echo \"!x\" & echo \"y!\"\n", "seq_list", "echo \"!x\" & echo \"y!\""),
+        ("(echo !x) & echo y!\n", "block", "(echo !x)"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, kind, source), [expected]);
+        assert!(node_sources(root, "delayed_variable", source).is_empty());
+    }
+}
+
+#[test]
+fn protected_metacharacters_remain_in_delayed_references() {
+    for (source, expected) in [
+        ("echo \"!a&b!\"\n", "!a&b!"),
+        ("echo !a^&b!\n", "!a^&b!"),
+        ("echo !ProgramFiles(x86)!\n", "!ProgramFiles(x86)!"),
+        ("(echo \"!ProgramFiles(x86)!\")\n", "!ProgramFiles(x86)!"),
+        ("set \"x=!a&b!\"\n", "!a&b!"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        assert!(!tree.root_node().has_error());
+        assert_eq!(node_sources(tree.root_node(), "delayed_variable", source), [expected]);
+    }
+    let tree = parser().parse("cmd 2>&!A&B!\n", None).unwrap();
+    assert!(tree.root_node().has_error(), "a missing duplication target must stay invalid");
+}

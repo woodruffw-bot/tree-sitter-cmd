@@ -206,7 +206,7 @@ cmd 2>&%1
 cmd >&%FD%
 cmd 2>&!FD!
 cmd 2>&%A&B%
-cmd 2>&!A&B!
+cmd 2>&!A^&B!
 cmd 2>&%*
 cmd 2>&%~dp0
 cmd 2>&%~$PATH:1

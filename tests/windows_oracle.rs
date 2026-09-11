@@ -71,6 +71,37 @@ mod windows {
             .unwrap_or_else(|error| panic!("running {}: {error}", path.display()))
     }
 
+    fn run_script(name: &str, source: &[u8]) -> std::process::Output {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "tree-sitter-cmd-{name}-{}-{nonce}", std::process::id(),
+        ));
+        fs::create_dir(&directory).unwrap();
+        let path = directory.join("case.cmd");
+        fs::write(&path, source).unwrap();
+        let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
+        let output = run_cmd(&comspec, &path);
+        fs::remove_dir_all(&directory).unwrap();
+        output
+    }
+
+    #[test]
+    fn delayed_bangs_do_not_protect_outer_operators() {
+        for (mode, expected) in [
+            ("EnableDelayedExpansion", vec!["left", "right", "\"left\"", "\"right\""]),
+            ("DisableDelayedExpansion", vec!["left!", "right!", "\"!left\"", "\"right!\""]),
+        ] {
+            let source = format!(
+                "@echo off\r\nsetlocal {mode}\r\necho left! & echo right!\r\necho \"!left\" & echo \"right!\"\r\n",
+            );
+            let output = run_script("delayed-boundaries", source.as_bytes());
+            assert!(output.status.success(), "{}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            assert_eq!(stdout.lines().map(str::trim_end).collect::<Vec<_>>(), expected);
+        }
+    }
+
     #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
