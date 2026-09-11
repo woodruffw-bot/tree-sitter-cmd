@@ -157,6 +157,17 @@ mod windows {
     }
 
     #[test]
+    fn for_requires_a_delimiter_after_its_binder() {
+        let invalid = run_script("for-binder-prefix", b"@echo off\r\nfor %%ain (x) do echo %%a\r\n");
+        assert!(!invalid.status.success());
+        assert!(!invalid.stderr.is_empty());
+        let valid = run_script("for-binder-token", b"@echo off\r\nfor %%a in (x) do echo %%a\r\n");
+        assert!(valid.status.success(), "{}", escaped(&valid.stderr));
+        assert!(valid.stderr.is_empty());
+        assert_eq!(String::from_utf8(valid.stdout).unwrap().trim_end(), "x");
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [
