@@ -7,19 +7,7 @@ echo after
 
 ---
 
-(program
-  (command
-    name: (command_name)
-    argument: (argument
-      (text))
-    redirect: (redirect_file
-      operator: (redirect_operator)
-      target: (argument
-        (MISSING text))))
-  (command
-    name: (command_name)
-    argument: (argument
-      (text))))
+(program (command name: (command_name) argument: (argument (text))) (ERROR (redirect_operator)) (command name: (command_name) argument: (argument (text))))
 
 ====================================================
 invalid duplication target remains parser recovery
@@ -387,13 +375,4 @@ set /p na>out
 
 ---
 
-(program
-  (set_statement
-    (keyword))
-  (ERROR
-    (set_flag)
-    (variable_name)
-    redirect: (redirect_file
-      operator: (redirect_operator)
-      target: (argument
-        (text)))))
+(program (set_statement (keyword)) (ERROR (set_flag) (variable_name) (redirect_file operator: (redirect_operator) target: (argument (text)))))

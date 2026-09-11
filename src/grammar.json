@@ -3301,59 +3301,57 @@
       }
     },
     "_redirect_file_target": {
-      "type": "CHOICE",
+      "type": "SEQ",
       "members": [
         {
-          "type": "FIELD",
-          "name": "target",
-          "content": {
-            "type": "SYMBOL",
-            "name": "argument"
-          }
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "_redirect_target_separator_ahead"
-            },
-            {
-              "type": "FIELD",
-              "name": "target",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "_standard_argument"
-                },
-                "named": true,
-                "value": "argument"
-              }
-            }
-          ]
-        },
-        {
-          "type": "SEQ",
+          "type": "CHOICE",
           "members": [
             {
               "type": "SYMBOL",
               "name": "_standard_separator"
             },
             {
-              "type": "FIELD",
-              "name": "target",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "_standard_argument"
-                },
-                "named": true,
-                "value": "argument"
-              }
+              "type": "BLANK"
             }
           ]
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_redirect_argument"
+            },
+            "named": true,
+            "value": "argument"
+          }
+        }
+      ]
+    },
+    "_redirect_argument": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_standard_fragment"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_redirect_concat"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_standard_fragment"
+              }
+            ]
+          }
         }
       ]
     },
@@ -4386,7 +4384,7 @@
     },
     {
       "type": "SYMBOL",
-      "name": "_redirect_target_separator_ahead"
+      "name": "_redirect_concat"
     },
     {
       "type": "SYMBOL",

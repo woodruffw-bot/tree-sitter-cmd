@@ -119,6 +119,14 @@ mod windows {
     }
 
     #[test]
+    fn redirect_filename_separators_follow_quotes_and_continuations() {
+        let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["quoted", "continued"]);
+    }
+
+    #[test]
     fn last_set_quote_can_open_the_ignored_suffix() {
         let output = run_script("set-open-suffix", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b\"c&d\r\necho !TS_CMD_QUOTE!\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

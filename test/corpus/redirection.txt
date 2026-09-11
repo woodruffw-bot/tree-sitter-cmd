@@ -386,3 +386,36 @@ cmd >& ; %FD%
     redirect: (redirect_dup
       operator: (redirect_dup_operator)
       target: (variable))))
+
+============================================================
+filename boundaries follow quote and continuation syntax
+============================================================
+
+echo hi >"a^",b tail
+echo hi >a^
+b,c tail
+
+---
+
+(program (command name: (command_name) argument: (argument (text)) redirect: (redirect_file operator: (redirect_operator) target: (argument (string))) argument: (argument (text)) argument: (argument (text))) (command name: (command_name) argument: (argument (text)) redirect: (redirect_file operator: (redirect_operator) target: (argument (text) (escape_sequence))) argument: (argument (text)) argument: (argument (text))))
+
+============================================================
+positional expansion does not pair with a later percent
+============================================================
+
+echo hi >%1foo,bar echo %X%
+
+---
+
+(program (command name: (command_name) argument: (argument (text)) redirect: (redirect_file operator: (redirect_operator) target: (argument (parameter) (text))) argument: (argument (text)) argument: (argument (text)) argument: (argument (variable))))
+
+============================================================
+filename literal paren and following descriptor
+============================================================
+
+(echo hi >a(b,c tail)
+echo >"out"2>err
+
+---
+
+(program (block (command name: (command_name) argument: (argument (text)) redirect: (redirect_file operator: (redirect_operator) target: (argument (text) (text) (text))) argument: (argument (text)) argument: (argument (text)))) (command name: (command_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (string))) redirect: (redirect_file source: (file_descriptor) operator: (redirect_operator) target: (argument (text)))))

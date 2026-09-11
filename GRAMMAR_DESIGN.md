@@ -157,7 +157,7 @@ counter:
 |-------|------|
 | `CONCAT` | zero-width join of adjacent word fragments into one argument |
 | `STANDARD_CONCAT` | the same join, but stops at cmd's `,`, `;`, and `=` separators |
-| `REDIRECT_TARGET_SEPARATOR_AHEAD` | selects a separator-aware filename without consuming source bytes |
+| `REDIRECT_CONCAT` | joins filename fragments until a standard separator, preserving attached literal parentheses |
 | `REM` | the `rem` keyword as a whole word (tree-sitter keyword extraction declines `rem`) |
 | `REM_TEXT` | the opaque body of a `REM` comment through end of line |
 | `REDIRECT_SOURCE` | a file descriptor digit immediately followed by `<` or `>` |
