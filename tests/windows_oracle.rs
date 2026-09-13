@@ -168,12 +168,15 @@ mod windows {
     }
 
     #[test]
-    fn goto_attached_tail_digits_do_not_redirect_stderr() {
+    fn goto_tail_descriptors_follow_cmd_token_separators() {
         for (suffix, redirects_stderr) in [
             ("+2>nul", false),
             ("+ 2>nul", true),
-            (";2>nul", false),
-            ("=2>nul", false),
+            (";2>nul", true),
+            ("=2>nul", true),
+            (",2>nul", true),
+            (":2>nul", false),
+            ("+ignored;2>nul", true),
         ] {
             let source = format!("@echo off\r\ngoto TS_CMD_MISSING{suffix}\r\n");
             let output = run_script("goto-tail-descriptor", source.as_bytes());

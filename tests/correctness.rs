@@ -236,8 +236,11 @@ fn goto_target_segments_do_not_include_removed_redirections() {
     for (suffix, text, redirect) in [
         ("+2>err", "+2", ">err"),
         ("+ 2>err", "+", "2>err"),
-        (";2>err", ";2", ">err"),
-        ("=2>err", "=2", ">err"),
+        (";2>err", ";", "2>err"),
+        ("=2>err", "=", "2>err"),
+        (",2>err", ",", "2>err"),
+        (":2>err", ":2", ">err"),
+        ("+ignored;2>err", "+ignored;", "2>err"),
     ] {
         let source = format!("goto foo{suffix}\n");
         let tree = parser().parse(&source, None).unwrap();

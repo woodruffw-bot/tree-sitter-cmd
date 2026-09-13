@@ -190,15 +190,69 @@ goto foo;ignored>nul ^
         (escape_sequence)))))
 
 ============================================================
-GOTO attached ignored digits stay outside redirect sources
+GOTO tail descriptors follow CMD token separators
 ============================================================
 
 goto foo+2>err
 goto foo+ 2>err
+goto foo;2>err
+goto foo=2>err
+goto foo,2>err
+goto foo:2>err
+goto foo+ignored;2>err
 
 ---
 
 (program
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (redirect_operator)
+      (argument
+        (text))))
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (file_descriptor)
+      (redirect_operator)
+      (argument
+        (text))))
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (file_descriptor)
+      (redirect_operator)
+      (argument
+        (text))))
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (file_descriptor)
+      (redirect_operator)
+      (argument
+        (text))))
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (file_descriptor)
+      (redirect_operator)
+      (argument
+        (text))))
   (goto_statement
     (keyword)
     (label_reference

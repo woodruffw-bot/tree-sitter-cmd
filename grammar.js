@@ -713,7 +713,10 @@ module.exports = grammar({
       token(/[^ \t\r\n:^+;,=&|<>()%!]+/),
     _label_reference_tail: ($) =>
       seq(
-        token(/[:+;,=][^ \t\r\n&|<>)^"]*/),
+        choice(
+          token(/[:+][^ \t\r\n,;=&|<>)^"]*/),
+          token(/[,;=]/),
+        ),
         repeat($._label_reference_ignored_word),
       ),
     // Redirections are siblings of the surviving name/text segments. A name
@@ -734,7 +737,8 @@ module.exports = grammar({
       repeat1($._label_reference_ignored_word),
     _label_reference_ignored_word: ($) =>
       choice(
-        token(/[^ \t\r\n&|<>)^"]+/),
+        token(/[^ \t\r\n,;=&|<>)^"]+/),
+        token(/[,;=]/),
         $.string,
         $.escape_sequence,
         alias($._caret_escape, $.escape_sequence),
