@@ -2226,7 +2226,7 @@
           "type": "TOKEN",
           "content": {
             "type": "PATTERN",
-            "value": "[:+;,=]"
+            "value": "[:+;,=][^ \\t\\r\\n&|<>)^\"]*"
           }
         },
         {
@@ -2299,11 +2299,33 @@
       }
     },
     "_label_reference_ignored_word": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "[^ \\t\\r\\n&|<>)]+"
-      }
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "PATTERN",
+            "value": "[^ \\t\\r\\n&|<>)^\"]+"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "escape_sequence"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
+        }
+      ]
     },
     "call_statement": {
       "type": "PREC_RIGHT",

@@ -233,6 +233,19 @@ fn goto_target_segments_do_not_include_removed_redirections() {
         assert_eq!(node_sources(root, "redirect_file", source), redirects);
         assert_eq!(node_sources(root, "label_reference", source).len(), 1);
     }
+    for (suffix, text, redirect) in [
+        ("+2>err", "+2", ">err"),
+        ("+ 2>err", "+", "2>err"),
+        (";2>err", ";2", ">err"),
+        ("=2>err", "=2", ">err"),
+    ] {
+        let source = format!("goto foo{suffix}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error());
+        assert_eq!(node_sources(root, "label_text", &source), [text]);
+        assert_eq!(node_sources(root, "redirect_file", &source), [redirect]);
+    }
     let source = "goto foo;ignored>nul more\n";
     let tree = parser().parse(source, None).unwrap();
     assert_eq!(node_sources(tree.root_node(), "label_text", source), [";ignored", "more"]);
@@ -242,4 +255,12 @@ fn goto_target_segments_do_not_include_removed_redirections() {
     assert!(!statement.has_error());
     assert!(statement.child_by_field_name("redirect").is_some());
     assert_eq!(node_sources(statement, "label_reference", source), ["foo"]);
+    for suffix in ["^&echo after", "\"a&b\"", "^\n&echo after"] {
+        let source = format!("goto foo;ignored>nul {suffix}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error());
+        assert_eq!(node_sources(root, "label_text", &source), [";ignored", suffix]);
+        assert!(node_sources(root, "command_name", &source).is_empty());
+    }
 }

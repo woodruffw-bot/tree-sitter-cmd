@@ -63,7 +63,40 @@ goto foo>nul bar>err baz
 
 ---
 
-(program (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file source: (file_descriptor) operator: (redirect_operator) target: (argument (text))) name: (label_name))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) name: (label_name))))
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      redirect: (redirect_file
+        source: (file_descriptor)
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name))))
 
 ============================================================
 GOTO ignored text continues around redirections
@@ -75,4 +108,113 @@ goto ::skip>nul later
 
 ---
 
-(program (goto_statement (keyword) target: (label_reference name: (label_name) (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))) (goto_statement (keyword) target: (label_reference name: (label_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))) (goto_statement (keyword) target: (label_reference (label_text) redirect: (redirect_file operator: (redirect_operator) target: (argument (text))) (label_text))))
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text))))
+
+============================================================
+GOTO ignored suffix keeps quotes and escapes
+============================================================
+
+goto foo;ignored>nul ^&echo after
+goto foo;ignored>nul "a&b"
+goto foo;ignored>nul ^
+&echo after
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text
+        (escape_sequence))))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text
+        (string))))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text
+        (escape_sequence)))))
+
+============================================================
+GOTO attached ignored digits stay outside redirect sources
+============================================================
+
+goto foo+2>err
+goto foo+ 2>err
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (redirect_operator)
+      (argument
+        (text))))
+  (goto_statement
+    (keyword)
+    (label_reference
+      (label_name)
+      (label_text))
+    (redirect_file
+      (file_descriptor)
+      (redirect_operator)
+      (argument
+        (text)))))

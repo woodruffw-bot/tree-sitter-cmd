@@ -168,6 +168,21 @@ mod windows {
     }
 
     #[test]
+    fn goto_attached_tail_digits_do_not_redirect_stderr() {
+        for (suffix, redirects_stderr) in [
+            ("+2>nul", false),
+            ("+ 2>nul", true),
+            (";2>nul", false),
+            ("=2>nul", false),
+        ] {
+            let source = format!("@echo off\r\ngoto TS_CMD_MISSING{suffix}\r\n");
+            let output = run_script("goto-tail-descriptor", source.as_bytes());
+            assert!(!output.status.success(), "{suffix}");
+            assert_eq!(output.stderr.is_empty(), redirects_stderr, "{suffix}: {}", escaped(&output.stderr));
+        }
+    }
+
+    #[test]
     fn goto_accepts_text_after_a_redirection() {
         for target in ["destination>nul tail", "destination 2>nul tail", "destination;ignored>nul more"] {
             let source = format!("@echo off\r\ngoto {target}\r\necho unexpected\r\nexit /b 1\r\n:destination tail\r\n:destination\r\necho reached\r\n");

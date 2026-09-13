@@ -712,7 +712,10 @@ module.exports = grammar({
     _label_reference_text: ($) =>
       token(/[^ \t\r\n:^+;,=&|<>()%!]+/),
     _label_reference_tail: ($) =>
-      seq(token(/[:+;,=]/), repeat($._label_reference_ignored_word)),
+      seq(
+        token(/[:+;,=][^ \t\r\n&|<>)^"]*/),
+        repeat($._label_reference_ignored_word),
+      ),
     // Redirections are siblings of the surviving name/text segments. A name
     // segment never covers removed source, and a delimiter keeps later text
     // on the ignored-tail path even across another redirection.
@@ -729,7 +732,13 @@ module.exports = grammar({
       ),
     _label_reference_ignored_text: ($) =>
       repeat1($._label_reference_ignored_word),
-    _label_reference_ignored_word: ($) => token(/[^ \t\r\n&|<>)]+/),
+    _label_reference_ignored_word: ($) =>
+      choice(
+        token(/[^ \t\r\n&|<>)^"]+/),
+        $.string,
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
+      ),
 
     // CALL :label args  /  CALL file args  /  CALL command. Redirections may
     // precede the keyword or appear anywhere in the argument tail (e.g.
