@@ -202,6 +202,21 @@ mod windows {
     }
 
     #[test]
+    fn if_control_words_can_prefix_compound_operands() {
+        for prefix in ["/i", "not", "exist", "defined", "errorlevel", "cmdextversion"] {
+            let source = format!(
+                "@echo off\r\nif {prefix}\"x\"=={prefix}\"x\" echo quoted\r\nif {prefix}^x=={prefix}x echo escaped\r\n",
+            );
+            let tree = parser().parse(&source, None).unwrap();
+            assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+            let output = run_script("if-compound-operands", source.as_bytes());
+            assert!(output.status.success(), "{prefix}: {}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{prefix}: {}", escaped(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["quoted", "escaped"]);
+        }
+    }
+
+    #[test]
     fn for_requires_a_delimiter_after_its_binder() {
         let invalid = run_script("for-binder-prefix", b"@echo off\r\nfor %%ain (x) do echo %%a\r\n");
         assert!(!invalid.status.success());

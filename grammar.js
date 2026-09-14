@@ -158,6 +158,9 @@ module.exports = grammar({
     $._concat,
     $._standard_concat,
     $._if_attached_operand,
+    $._if_flag,
+    $._if_not,
+    $._if_condition_keyword,
     $._keyword_boundary,
     $._redirect_concat,
     $._rem,
@@ -372,16 +375,13 @@ module.exports = grammar({
           optional($._standard_separator),
           optional(
             seq(
-              // Unlike SET/FOR options, `/I` competes with a valid comparison
-              // operand in this slot. Keep it at ordinary lexical precedence
-              // so a longer operand such as `/ileft` wins as one word.
-              alias(ci('/i'), $.if_flag),
+              alias($._if_flag, $.if_flag),
               $._required_standard_separator,
             ),
           ),
           optional(
             seq(
-              alias(ci('not'), $.not),
+              alias($._if_not, $.not),
               $._required_standard_separator,
             ),
           ),
@@ -455,10 +455,7 @@ module.exports = grammar({
       seq(
         field(
           'kind',
-          alias(
-            choice(ci('exist'), ci('defined'), ci('errorlevel'), ci('cmdextversion')),
-            $.condition_keyword,
-          ),
+          alias($._if_condition_keyword, $.condition_keyword),
         ),
         $._required_standard_separator,
         field('argument', $._if_operand),
