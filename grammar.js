@@ -171,11 +171,13 @@ module.exports = grammar({
     $._rparen,
     $._caret_escape,
     $.delayed_variable,
-    $._set_delayed_quote_text,
+    $._delayed_quote_text,
     $._string_end,
     $._set_string_start,
     $._set_inner_quote,
     $._set_string_end,
+    $._set_quoted_name_text,
+    $._set_quoted_name_tail_text,
     $._set_value_text,
     $._set_ignored_suffix,
     $._label_leading_space,
@@ -695,6 +697,23 @@ module.exports = grammar({
           ),
           optional($._label_reference_ignored_tail),
         ),
+        seq(
+          optional($._label_reference_prefix),
+          repeat(
+            seq(
+              field('name', alias($._label_reference_name, $.label_name)),
+              repeat1(field('redirect', $._redirection)),
+            ),
+          ),
+          field('name', alias($._label_reference_quoted_prefix, $.label_name)),
+          alias($._label_reference_quoted_tail, $.label_text),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              alias($._label_reference_ignored_text, $.label_text),
+            ),
+          ),
+        ),
         // Keep an empty or doubly-prefixed target, such as `goto ::name`, as a
         // target without inventing a resolvable label name.
         seq(
@@ -708,15 +727,32 @@ module.exports = grammar({
       repeat1(
         choice(
           $._label_reference_text,
-          $.string,
+          alias($._label_reference_quoted_name, $.string),
           $._escape_fragment,
           alias($._caret_escape, $.escape_sequence),
           $._expansion,
           $._stray_sigil,
         ),
       ),
-    // Split hidden text at spaces so a following `2>` can be recognized as a
-    // redirect source. Quotes use string grouping and remain in the name.
+    // Quotes protect outer operators, but GOTO still stops lookup at its own
+    // delimiters. A split quoted span keeps the name and ignored text separate.
+    _label_reference_quoted_name: ($) =>
+      seq('"', repeat($._label_reference_quoted_content), $._string_end),
+    _label_reference_quoted_prefix: ($) =>
+      seq(optional($._label_reference_name), '"', repeat($._label_reference_quoted_content)),
+    _label_reference_quoted_content: ($) =>
+      choice(
+        token.immediate(/[^ \t\r\n":+;,=%!]+/),
+        $._expansion,
+        $._string_sigil,
+      ),
+    _label_reference_quoted_tail: ($) =>
+      seq(
+        token.immediate(/[ \t:+;,=]/),
+        repeat($._string_part),
+        $._string_end,
+        repeat($._label_reference_ignored_word),
+      ),
     _label_reference_text: ($) =>
       token(/[^ \t\r\n:^+;,=&|<>()%!"]+/),
     _label_reference_tail: ($) =>
@@ -909,10 +945,10 @@ module.exports = grammar({
           repeat(
             choice(
               $._fragment,
-              alias($._set_delayed_quote_text, $.text),
+              alias($._delayed_quote_text, $.text),
               seq(
                 repeat1(field('redirect', $._redirection)),
-                choice($._fragment, alias($._set_delayed_quote_text, $.text)),
+                choice($._fragment, alias($._delayed_quote_text, $.text)),
               ),
             ),
           ),
@@ -989,10 +1025,6 @@ module.exports = grammar({
       ),
     _set_quoted_name_special: ($) =>
       choice($._expansion, alias($._string_sigil, $.text)),
-    _set_quoted_name_text: ($) =>
-      token(/[^ \t\r\n"%!=][^\r\n"%!=]*/),
-    _set_quoted_name_tail_text: ($) =>
-      token.immediate(/[^\r\n"%!=]+/),
 
     // Redirections are removed before SET interprets its payload. Keep each
     // surviving name segment in a separate source-contiguous `variable_name`,
@@ -1088,9 +1120,11 @@ module.exports = grammar({
       ),
     _redirect_argument: ($) =>
       seq(
-        $._standard_fragment,
-        repeat(seq($._redirect_concat, $._standard_fragment)),
+        $._redirect_fragment,
+        repeat(seq($._redirect_concat, $._redirect_fragment)),
       ),
+    _redirect_fragment: ($) =>
+      choice($._standard_fragment, alias($._delayed_quote_text, $.text)),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`. cmd skips its standard
     // separators before the target, but this parser phase does not treat a
