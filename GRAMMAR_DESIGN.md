@@ -187,6 +187,16 @@ next physical line remains a separate statement. Two markers make that local
 recovery cheaper than skipping the boundary even when a file has several
 missing bodies.
 
+The full CST does expose those anonymous `_body_boundary` terminals. They have
+empty source ranges and are ordinary, non-missing nodes, not CMD syntax. Named
+child traversal omits them. This is a limited exception to source-backed CST
+nodes. The separate MISSING body or command name carries the actual error.
+Hiding these terminals changes Tree-sitter's recovery choices: a missing body
+can consume the next line, and an empty nested block can lose its enclosing
+operator scope. Keep the markers until an alternative preserves those
+boundaries. Tests traverse all children and compare full incremental trees,
+including fields, ranges, anonymous nodes, and error flags.
+
 ## 4. The parenthesis model
 
 This is the most distinctive part of the design. cmd does not balance
