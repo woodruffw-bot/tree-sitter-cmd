@@ -119,6 +119,17 @@ mod windows {
     }
 
     #[test]
+    fn caret_escaped_set_quotes_leave_operators_active() {
+        let output = run_script("set-caret-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_CARET=left&echo operator^\"\r\nset TS_CMD_CARET\r\nset ^\"TS_CMD_CARET=left>caret.out tail^\"\r\nif exist caret.out echo redirected\r\nset TS_CMD_CARET\r\nset ^\"TS_CMD_CARET=left^&right^\"\r\nset TS_CMD_CARET\r\nset TS_CMD_SOURCE=expanded\r\nset ^\"TS_CMD_CARET=%TS_CMD_SOURCE%^\"\r\nset TS_CMD_CARET\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            ["operator\"", "TS_CMD_CARET=left", "redirected", "TS_CMD_CARET=left tail", "TS_CMD_CARET=left&right", "TS_CMD_CARET=expanded"],
+        );
+    }
+
+    #[test]
     fn redirect_filename_separators_follow_quotes_and_continuations() {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

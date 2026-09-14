@@ -878,9 +878,9 @@ module.exports = grammar({
     // SET "name=value". Keep the binding fields visible instead of hiding the
     // assignment in a generic string. Earlier quotes remain value text and the
     // SET-specific terminator leaves the final quote as the wrapper close.
-    // Caret-escaped wrapper quotes are also common in macro definitions. They
-    // remain opaque because their caret and quote phase ordering differs from
-    // ordinary quoted assignments.
+    // A caret-escaped opening quote is a literal during outer tokenization.
+    // Keep that SET payload as ordinary fragments so operators, redirections,
+    // and expansions retain their outer syntax roles.
     set_quoted: ($) =>
       choice(
         seq(
@@ -893,16 +893,14 @@ module.exports = grammar({
           $._set_string_end,
           optional($._set_ignored_tail),
         ),
-        prec.right(
-          seq(
-            $.caret_quoted_string,
-            repeat(
-              choice(
+        seq(
+          alias('^"', $.escape_sequence),
+          repeat(
+            choice(
+              $._fragment,
+              seq(
+                repeat1(field('redirect', $._redirection)),
                 $._fragment,
-                seq(
-                  repeat1(field('redirect', $._redirection)),
-                  $._fragment,
-                ),
               ),
             ),
           ),
@@ -936,8 +934,6 @@ module.exports = grammar({
           ),
         ),
       ),
-    caret_quoted_string: ($) =>
-      token(/\^"(?:[^\r\n^]|\^[^"\r\n])*(?:\^"|")/),
     // SET  /  SET prefix  (display). Redirections can split an unquoted query;
     // retain each surviving segment so tools can reconstruct the cmd input.
     // The quoted spelling keeps the same last-quote wrapper rule as an

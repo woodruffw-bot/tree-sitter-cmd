@@ -46,7 +46,6 @@
 ; Literals
 ; ---------------------------------------------------------------------------
 (string) @string
-(caret_quoted_string) @string
 (escape_sequence) @string.escape
 (file_descriptor) @number
 

@@ -114,6 +114,34 @@ fn internal_set_quotes_preserve_outer_operator_protection() {
 }
 
 #[test]
+fn caret_quoted_set_preserves_outer_syntax_and_source_fragments() {
+    for (source, kind, expected) in [
+        ("set ^\"x=foo&echo second^\"\n", "command", "echo second^\""),
+        ("set ^\"x=foo&&echo second^\"\n", "and_list", "set ^\"x=foo&&echo second^\""),
+        ("set ^\"x=foo||echo second^\"\n", "or_list", "set ^\"x=foo||echo second^\""),
+        ("set ^\"x=foo|echo second^\"\n", "pipeline", "set ^\"x=foo|echo second^\""),
+        ("set ^\"x=foo>out tail^\"\n", "redirect_file", ">out"),
+        ("set ^\"x=foo>out\n", "redirect_file", ">out"),
+        ("(set ^\"x=foo) & echo second^\"\n", "block", "(set ^\"x=foo)"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, kind, source), [expected]);
+    }
+
+    let source = "set ^\"x=%PATH%!SUFFIX!^&done^\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "variable", source), ["%PATH%"]);
+    assert_eq!(node_sources(root, "delayed_variable", source), ["!SUFFIX!"]);
+    assert_eq!(node_sources(root, "escape_sequence", source), ["^\"", "^&", "^\""]);
+    assert!(node_sources(root, "seq_list", source).is_empty());
+    assert!(node_sources(root, "string", source).is_empty());
+}
+
+#[test]
 fn redirect_filenames_stop_at_unprotected_separators() {
     for (source, redirect) in [
         ("echo hi >\"a^\",b tail\n", ">\"a^\""),

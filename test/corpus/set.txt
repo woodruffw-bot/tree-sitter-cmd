@@ -603,14 +603,19 @@ set ^"@quot=""
   (set_statement
     (keyword)
     (set_quoted
-      (caret_quoted_string)))
+      (escape_sequence)
+      (text)
+      (text)
+      (escape_sequence)))
   (set_statement
     (keyword)
     (set_quoted
-      (caret_quoted_string))))
+      (escape_sequence)
+      (text)
+      (string))))
 
 ===============================================
-caret-quoted assignment stops at closing wrapper
+caret-quoted assignment stops at command operator
 ===============================================
 
 set ^"X=foo^" & echo "hi"
@@ -622,11 +627,94 @@ set ^"X=foo^" & echo "hi"
     left: (set_statement
       (keyword)
       (set_quoted
-        (caret_quoted_string)))
+        (escape_sequence)
+        (text)
+        (escape_sequence)))
     right: (command
       name: (command_name)
       argument: (argument
         (string)))))
+
+=======================================================
+caret-escaped SET quotes do not protect outer operators
+=======================================================
+
+set ^"x=foo&echo second^"
+set ^"x=foo>out tail^"
+(set ^"x=foo) & echo second^"
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        (escape_sequence)
+        (text)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (escape_sequence))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument (text)))
+      (text)
+      (escape_sequence)))
+  (seq_list
+    left: (block
+      (set_statement
+        (keyword)
+        (set_quoted
+          (escape_sequence)
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (escape_sequence)))))
+
+=======================================================
+caret-quoted SET keeps expansions and protected operators
+=======================================================
+
+set ^"x=%PATH%!SUFFIX!^&done^"
+set ^"x=one^
+two^"
+set ^"x=unclosed
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text)
+      (variable)
+      (delayed_variable)
+      (escape_sequence)
+      (text)
+      (escape_sequence)))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text)
+      (escape_sequence)
+      (text)
+      (escape_sequence)))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text))))
 
 =======================================================
 assignment preserves redirections in source order

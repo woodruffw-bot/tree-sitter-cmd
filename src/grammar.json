@@ -2964,49 +2964,50 @@
           ]
         },
         {
-          "type": "PREC_RIGHT",
-          "value": 0,
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "caret_quoted_string"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "^\""
               },
-              {
-                "type": "REPEAT",
-                "content": {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "SYMBOL",
-                      "name": "_fragment"
-                    },
-                    {
-                      "type": "SEQ",
-                      "members": [
-                        {
-                          "type": "REPEAT1",
+              "named": true,
+              "value": "escape_sequence"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_fragment"
+                  },
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "REPEAT1",
+                        "content": {
+                          "type": "FIELD",
+                          "name": "redirect",
                           "content": {
-                            "type": "FIELD",
-                            "name": "redirect",
-                            "content": {
-                              "type": "SYMBOL",
-                              "name": "_redirection"
-                            }
+                            "type": "SYMBOL",
+                            "name": "_redirection"
                           }
-                        },
-                        {
-                          "type": "SYMBOL",
-                          "name": "_fragment"
                         }
-                      ]
-                    }
-                  ]
-                }
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "_fragment"
+                      }
+                    ]
+                  }
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       ]
     },
@@ -3101,13 +3102,6 @@
             ]
           }
         ]
-      }
-    },
-    "caret_quoted_string": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "\\^\"(?:[^\\r\\n^]|\\^[^\"\\r\\n])*(?:\\^\"|\")"
       }
     },
     "set_display": {
