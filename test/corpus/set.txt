@@ -122,6 +122,66 @@ set x>out=value
       value: (argument
         (text)))))
 
+==================================================
+quoted names protect metacharacters in all SET forms
+==================================================
+
+set "x(1)&|<>^=value"
+set /p "x(1)&|<>^=prompt"
+set "x(1)&|<>^"
+(set "x(1)&|<>^=value")
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_display (variable_name)))
+  (block
+    (set_statement
+      (keyword)
+      (set_quoted
+        name: (variable_name)
+        value: (argument (text))))))
+
+================================================
+quoted names retain expansions beside punctuation
+================================================
+
+set "x%N%(1)=value"
+set /p "x!N!&y =prompt"
+set "x%N%>y"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name (text) (variable) (text))
+      value: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name (text) (delayed_variable) (text))
+      prompt: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name (text) (variable) (text)))))
+
 ===============================
 assignment with spaces in value
 ===============================
@@ -979,3 +1039,42 @@ set ^"x=foo>!a"b!"&echo visible
       name: (command_name)
       argument: (argument
         (text)))))
+
+=======================================================
+quoted SET names end at operators after delayed quotes
+=======================================================
+
+set "x!a"!&echo y=z"
+set "x!a"!>out&echo y=z"
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_display
+        (variable_name
+          (text)
+          (delayed_variable))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (string))))
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_display
+        (variable_name
+          (text)
+          (delayed_variable)))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (string)))))

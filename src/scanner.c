@@ -48,6 +48,8 @@
 //                - quotes inside a quoted SET binding and its last wrapper
 //                  quote. Like STRING_END, SET_STRING_END also matches
 //                  zero-width at end of line / end of input.
+//   SET_NAME_TEXT / SET_NAME_TAIL_TEXT
+//                - quoted name fragments that honor the outer quote phase.
 //   SET_IGNORED_SUFFIX
 //                - opaque text after the last quote of a quoted SET binding.
 //                  cmd discards this text when it truncates at the last quote.
@@ -111,6 +113,8 @@ enum TokenType {
   SET_STRING_START,
   SET_INNER_QUOTE,
   SET_STRING_END,
+  SET_NAME_TEXT,
+  SET_NAME_TAIL_TEXT,
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
   SET_BINDING_END,
@@ -613,11 +617,42 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   if (valid_symbols[DELAYED_VARIABLE] && lexer->lookahead == '!') {
+    bool set_name_context = valid_symbols[SET_NAME_TEXT] ||
+                            valid_symbols[SET_NAME_TAIL_TEXT];
+    bool set_context = valid_symbols[SET_STRING_END] || set_name_context;
     return scan_delayed_variable(s, lexer,
-        valid_symbols[STRING_END] ||
-        (valid_symbols[SET_STRING_END] && s->set_in_quote),
-        valid_symbols[SET_STRING_END],
+        valid_symbols[STRING_END] || (set_context && s->set_in_quote),
+        set_context,
         valid_symbols[DELAYED_QUOTE_TEXT]);
+  }
+
+  // Name text is quoted initially, but expansions can expose outer syntax.
+  // Keep the leading-space and post-expansion ranges distinct as before.
+  if (valid_symbols[SET_NAME_TEXT] || valid_symbols[SET_NAME_TAIL_TEXT]) {
+    bool tail = valid_symbols[SET_NAME_TAIL_TEXT];
+    bool has_content = false;
+    if (!tail && (lexer->lookahead == ' ' || lexer->lookahead == '\t')) {
+      return false;
+    }
+    while (!lexer->eof(lexer)) {
+      int32_t c = lexer->lookahead;
+      if (c == '"' || c == '%' || c == '!' || c == '=' || c == '\r' ||
+          c == '\n' || (!s->set_in_quote && is_set_boundary(s, c))) break;
+      lexer->advance(lexer, false);
+      if (c == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
+        if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+        if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+        if (!lexer->eof(lexer) && lexer->lookahead != '%' && lexer->lookahead != '!') {
+          lexer->advance(lexer, false);
+        }
+      }
+      has_content = true;
+    }
+    if (has_content) {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = tail ? SET_NAME_TAIL_TEXT : SET_NAME_TEXT;
+      return true;
+    }
   }
 
   if (valid_symbols[SET_STRING_START]) {
@@ -644,7 +679,12 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       return false;
     }
     int32_t la = lexer->lookahead;
-    if (la == '\r' || la == '\n') {
+    // A delayed name reference may already contain the closing source quote.
+    // End that SET at the next active boundary without inserting a quote.
+    if (la == '\r' || la == '\n' ||
+        (!s->set_in_quote &&
+         (valid_symbols[SET_NAME_TEXT] || valid_symbols[SET_NAME_TAIL_TEXT]) &&
+         is_set_boundary(s, la))) {
       if (valid_symbols[SET_STRING_END]) {
         s->set_in_quote = false;
         lexer->result_symbol = SET_STRING_END;

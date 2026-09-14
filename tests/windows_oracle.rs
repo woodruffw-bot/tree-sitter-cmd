@@ -143,11 +143,37 @@ mod windows {
     }
 
     #[test]
+    fn quoted_set_names_accept_metacharacters() {
+        for name in ["TS_CMD_NAME(1)", "TS_CMD_NAME&x", "TS_CMD_NAME|x", "TS_CMD_NAME<x", "TS_CMD_NAME>x", "TS_CMD_NAME^x"] {
+            let source = format!(
+                "@echo off\r\nsetlocal DisableDelayedExpansion\r\n(set \"{name}=assigned\")\r\nset \"{name}\"\r\necho entered>input.txt\r\n<input.txt set /p \"{name}=prompt\" >nul\r\nset \"{name}\"\r\n",
+            );
+            let tree = parser().parse(&source, None).unwrap();
+            assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+            let output = run_script("set-quoted-names", source.as_bytes());
+            assert!(output.status.success(), "{name}: {}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{name}: {}", escaped(&output.stderr));
+            assert_eq!(
+                String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+                [format!("{name}=assigned"), format!("{name}=entered")],
+            );
+        }
+    }
+
+    #[test]
     fn delayed_quotes_in_caret_set_redirect_targets_protect_operators() {
         let output = run_script("set-redirect-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b! !c!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!\"&echo visible\r\necho done\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["visible", "done"]);
+    }
+
+    #[test]
+    fn delayed_name_quotes_leave_following_command_operators_active() {
+        let output = run_script("set-name-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME!a=present\"\r\nset \"TS_CMD_NAME!a\"!&echo sequence\r\nset \"TS_CMD_NAME!a\"!>name.out&echo redirected\r\ntype name.out\r\n(set \"TS_CMD_NAME!a\"!)&echo block\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["TS_CMD_NAME!a=present", "sequence", "redirected", "TS_CMD_NAME!a=present", "TS_CMD_NAME!a=present", "block"]);
     }
 
     #[test]
