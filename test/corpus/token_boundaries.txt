@@ -294,3 +294,29 @@ for %%a=in (x) do echo %%a
 ---
 
 (program (for_statement (keyword) variable: (loop_variable_declaration) (keyword) set: (for_set (argument (text))) (keyword) body: (command name: (command_name) argument: (argument (loop_variable)))) (for_statement (keyword) variable: (loop_variable_declaration) (keyword) set: (for_set (argument (text))) (keyword) body: (command name: (command_name) argument: (argument (loop_variable)))))
+
+================================================
+FOR keyword delimiters retain adjacent redirection
+================================================
+
+for %%a in ,;=(x)do>out echo %%a
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    variable: (loop_variable_declaration)
+    (keyword)
+    set: (for_set
+      (argument
+        (text)))
+    (keyword)
+    body: (command
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (command_name)
+      argument: (argument
+        (loop_variable)))))

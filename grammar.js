@@ -158,7 +158,7 @@ module.exports = grammar({
     $._concat,
     $._standard_concat,
     $._if_attached_operand,
-    $._else_boundary,
+    $._keyword_boundary,
     $._redirect_concat,
     $._rem,
     $._rem_text,
@@ -400,7 +400,7 @@ module.exports = grammar({
               // Ordinary command text wins until the consequence has ended.
               // A block closes that tail and leaves ELSE available here.
               alias(token(prec(-1, new RegExp(ciSource('else')))), $.keyword),
-              $._else_boundary,
+              $._keyword_boundary,
               choice(
                 field('alternative', $._statement),
                 $._missing_alternative,
@@ -531,12 +531,14 @@ module.exports = grammar({
           field('variable', $._loop_variable_declaration),
           $._required_standard_separator,
           kw($, 'in'),
+          $._keyword_boundary,
           optional($._standard_separator),
           alias($._block_open, '('),
           field('set', optional($.for_set)),
           alias($._block_close, ')'),
           optional($._standard_separator),
           kw($, 'do'),
+          $._keyword_boundary,
           // Operators after DO remain inside the loop body.
           choice(
             field('body', $._statement),

@@ -757,7 +757,7 @@
                   },
                   {
                     "type": "SYMBOL",
-                    "name": "_else_boundary"
+                    "name": "_keyword_boundary"
                   },
                   {
                     "type": "CHOICE",
@@ -1316,6 +1316,10 @@
             "value": "keyword"
           },
           {
+            "type": "SYMBOL",
+            "name": "_keyword_boundary"
+          },
+          {
             "type": "CHOICE",
             "members": [
               {
@@ -1384,6 +1388,10 @@
             },
             "named": true,
             "value": "keyword"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "_keyword_boundary"
           },
           {
             "type": "CHOICE",
@@ -4983,7 +4991,7 @@
     },
     {
       "type": "SYMBOL",
-      "name": "_else_boundary"
+      "name": "_keyword_boundary"
     },
     {
       "type": "SYMBOL",
