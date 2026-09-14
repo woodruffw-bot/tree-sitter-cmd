@@ -1100,3 +1100,99 @@ set "x=a"b>out% c"
           (text)))
       value: (argument
         (text)))))
+
+=======================================================
+delayed quotes protect caret-SET redirection filenames
+=======================================================
+
+set ^"x=foo>!a"b! !c!&echo hidden^"
+set ^"x=foo>!a"b!"&echo visible
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        (escape_sequence)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
+
+=======================================================
+quoted SET names end at operators after delayed quotes
+=======================================================
+
+set "x!a"!&echo y=z"
+set "x!a"!>out&echo y=z"
+
+---
+
+(program
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_display
+        (variable_name
+          (text)
+          (delayed_variable))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (string))))
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_display
+        (variable_name
+          (text)
+          (delayed_variable)))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (string)))))
+
+======================================================
+SET values resume after expanded duplication targets
+======================================================
+
+set "x=a"b>&%fd%c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_dup
+        operator: (redirect_dup_operator)
+        target: (variable))
+      value: (argument
+        (text)))))
