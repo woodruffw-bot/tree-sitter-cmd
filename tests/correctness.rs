@@ -681,6 +681,37 @@ fn quoted_set_values_keep_segments_around_redirections() {
 }
 
 #[test]
+fn leading_command_escapes_keep_their_source_ranges() {
+    for (source, name, escape) in [
+        ("^echo hi\n", "^echo", "^e"),
+        ("^a2>out\n", "^a2", "^a"),
+        ("^a 2>out\n", "^a", "^a"),
+        ("^\necho hi\n", "^\necho", "^\ne"),
+        ("^\r\necho hi\r\n", "^\r\necho", "^\r\ne"),
+        ("@^echo hi\n", "^echo", "^e"),
+        ("^@echo hi\n", "^@echo", "^@"),
+        ("^:label hi\n", "^:label", "^:"),
+        ("^%CMD% hi\n", "^%CMD%", "^"),
+        ("^!CMD! hi\n", "^!CMD!", "^"),
+        ("for %%a in (x) do ^echo hi\n", "^echo", "^e"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "command_name", source), [name]);
+        assert_eq!(node_sources(root, "escape_sequence", source), [escape]);
+    }
+
+    let source = "^if a==b echo hi\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error());
+    assert_eq!(node_sources(root, "command_name", source), ["^if"]);
+    assert!(node_sources(root, "if_statement", source).is_empty());
+    assert!(node_sources(root, "keyword", source).is_empty());
+}
+
+#[test]
 fn quoted_goto_names_end_at_lookup_delimiters() {
     for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
         for prefix in ["\"foo", "pre\"foo", "\"pre\"more\"foo"] {

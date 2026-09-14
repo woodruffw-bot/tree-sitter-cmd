@@ -386,6 +386,20 @@ mod windows {
     }
 
     #[test]
+    fn command_names_accept_leading_caret_escapes() {
+        let output = run_script(
+            "leading-command-escapes",
+            b"@echo off\r\nsetlocal\r\n^echo direct\r\n^\r\necho continued\r\nset \"TS_CMD_COMMAND=echo\"\r\n^%TS_CMD_COMMAND% expanded\r\n",
+        );
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            ["direct", "continued", "expanded"],
+        );
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [
