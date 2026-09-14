@@ -39,6 +39,9 @@
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
 //                  quote still closes (cmd runs an open quote to end of line).
+//   SET_DELAYED_QUOTE_TEXT
+//                - conservative source text for a caret-SET delayed reference
+//                  that opens a quote and the suffix protected by that quote.
 //   SET_STRING_START
 //                - opening SET wrapper quote; resets its outer quote phase.
 //   SET_INNER_QUOTE / SET_STRING_END
@@ -105,6 +108,7 @@ enum TokenType {
   RPAREN,
   CARET_ESCAPE,
   DELAYED_VARIABLE,
+  SET_DELAYED_QUOTE_TEXT,
   STRING_END,
   SET_STRING_START,
   SET_INNER_QUOTE,
@@ -209,37 +213,119 @@ static bool is_set_boundary(const Scanner *s, int32_t c) {
   }
 }
 
-// Skip a redirection while looking for SET's final surviving quote. Quotes
-// in its filename are removed with the redirect, so they cannot close SET.
-static void skip_set_redirect(const Scanner *s, TSLexer *lexer) {
-  int32_t operator = lexer->lookahead;
-  lexer->advance(lexer, false);
-  if (operator == '>' && lexer->lookahead == '>') lexer->advance(lexer, false);
-  bool duplicate = lexer->lookahead == '&';
-  if (duplicate) lexer->advance(lexer, false);
-  while (lexer->lookahead == ' ' || lexer->lookahead == '\t' ||
-         lexer->lookahead == ',' || lexer->lookahead == ';' ||
-         lexer->lookahead == '=') {
-    lexer->advance(lexer, false);
+// Track only quote lookahead. This state is local to one scanner call.
+typedef struct {
+  enum { SET_SUFFIX_TEXT, SET_REDIRECT_OPERATOR, SET_REDIRECT_START,
+         SET_REDIRECT_TEXT } phase;
+  bool quoted;
+  bool append;
+  bool duplicate;
+  unsigned escape;
+  bool done;
+  bool found_quote;
+} SetQuoteLookahead;
+
+static void advance_set_quote_lookahead(const Scanner *s, SetQuoteLookahead *look,
+                                        int32_t c) {
+  if (look->done || look->found_quote) return;
+  if (look->escape) {
+    // A caret continuation in a filename also protects the next character.
+    if (look->phase == SET_REDIRECT_TEXT) {
+      look->escape = look->escape == 1 && c == '\r' ? 2
+                   : look->escape < 3 && c == '\n' ? 3 : 0;
+      return;
+    }
+    look->escape = 0;
+    if (c != '\r' && c != '\n') return;
   }
-  if (duplicate && lexer->lookahead >= '0' && lexer->lookahead <= '9') {
-    lexer->advance(lexer, false);
+  if (c == '\r' || c == '\n') {
+    look->done = true;
     return;
   }
-  bool quoted = false;
-  while (!lexer->eof(lexer)) {
-    int32_t c = lexer->lookahead;
-    if (c == '\r' || c == '\n') break;
-    if (!quoted && (is_set_boundary(s, c) || c == ' ' || c == '\t' ||
-                    c == ',' || c == ';' || c == '=')) break;
-    lexer->advance(lexer, false);
-    if (c == '"') quoted = !quoted;
-    if (c == '^' && !quoted && !lexer->eof(lexer)) {
-      if (lexer->lookahead == '\r') lexer->advance(lexer, false);
-      if (lexer->lookahead == '\n') lexer->advance(lexer, false);
-      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+  for (;;) {
+    switch (look->phase) {
+      case SET_SUFFIX_TEXT:
+        if (c == '"') {
+          look->found_quote = true;
+        } else if (!look->quoted && (c == '<' || c == '>')) {
+          look->phase = SET_REDIRECT_OPERATOR;
+          look->append = c == '>';
+          look->duplicate = false;
+        } else if (!look->quoted && is_set_boundary(s, c)) {
+          look->done = true;
+        } else if (!look->quoted && c == '^') {
+          look->escape = 1;
+        }
+        return;
+      case SET_REDIRECT_OPERATOR:
+        if (c == '>' && look->append) {
+          look->append = false;
+          return;
+        }
+        look->phase = SET_REDIRECT_START;
+        if (c == '&') {
+          look->duplicate = true;
+          return;
+        }
+        break;
+      case SET_REDIRECT_START:
+        if (c == ' ' || c == '\t' || c == ',' || c == ';' || c == '=') return;
+        if (look->duplicate && c >= '0' && c <= '9') {
+          look->phase = SET_SUFFIX_TEXT;
+          return;
+        }
+        look->phase = SET_REDIRECT_TEXT;
+        break;
+      case SET_REDIRECT_TEXT:
+        if (!look->quoted && (is_set_boundary(s, c) || c == ' ' || c == '\t' ||
+                              c == ',' || c == ';' || c == '=')) {
+          look->phase = SET_SUFFIX_TEXT;
+          break;
+        }
+        if (c == '"') look->quoted = !look->quoted;
+        if (c == '^' && !look->quoted) look->escape = 1;
+        return;
     }
   }
+}
+
+// Quotes in a removed redirect target cannot close SET. Percent variables are
+// opaque here, matching the grammar's variable token. Keep the literal reading
+// in parallel until a closing percent confirms the token, since an unmatched
+// percent must not hide a later filename boundary or wrapper quote.
+static bool has_later_set_quote(const Scanner *s, TSLexer *lexer, bool quoted) {
+  SetQuoteLookahead look = {.quoted = quoted};
+  SetQuoteLookahead literal = {0};
+  enum { NO_PERCENT, PERCENT_START, PERCENT_VARIABLE } percent = NO_PERCENT;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    lexer->advance(lexer, false);
+    if (percent != NO_PERCENT) {
+      advance_set_quote_lookahead(s, &literal, c);
+      if (percent == PERCENT_START &&
+          (c == '%' || (c >= '0' && c <= '9') || c == '~' || c == '*' ||
+           c == '\r' || c == '\n')) {
+        look = literal;
+        percent = NO_PERCENT;
+      } else if (percent == PERCENT_VARIABLE && c == '%') {
+        percent = NO_PERCENT;
+      } else if (c == '\r' || c == '\n') {
+        look = literal;
+        percent = NO_PERCENT;
+      } else {
+        percent = PERCENT_VARIABLE;
+        continue;
+      }
+    } else {
+      advance_set_quote_lookahead(s, &look, c);
+      if (c == '%' && look.phase == SET_REDIRECT_TEXT) {
+        literal = look;
+        percent = PERCENT_START;
+      }
+    }
+    if (look.found_quote || look.done) return look.found_quote;
+  }
+  return percent == NO_PERCENT ? look.found_quote : literal.found_quote;
 }
 
 static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
@@ -250,7 +336,8 @@ static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
 // cannot hide an active operator or structural block close. Quotes can occur
 // in substitution payloads, but still toggle protection of outer operators.
 static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
-                                  bool quoted, bool set_context) {
+                                  bool quoted, bool set_context,
+                                  bool caret_set_context) {
   lexer->advance(lexer, false);
   bool has_content = false;
   while (!lexer->eof(lexer)) {
@@ -259,6 +346,21 @@ static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
     if (c == '!') {
       if (!has_content) return false;
       lexer->advance(lexer, false);
+      // A delayed reference can open a quote in an otherwise unquoted SET
+      // fragment. Keep that reference and its protected suffix as source text
+      // through the quote's close. Splitting at the bangs would hide the quote
+      // change or pair later bangs with the wrong reference.
+      if (caret_set_context && quoted) {
+        while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+               lexer->lookahead != '\n') {
+          int32_t suffix = lexer->lookahead;
+          lexer->advance(lexer, false);
+          if (suffix == '"') break;
+        }
+        lexer->mark_end(lexer);
+        lexer->result_symbol = SET_DELAYED_QUOTE_TEXT;
+        return true;
+      }
       lexer->mark_end(lexer);
       if (set_context) s->set_in_quote = quoted;
       lexer->result_symbol = DELAYED_VARIABLE;
@@ -632,7 +734,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return scan_delayed_variable(s, lexer,
         valid_symbols[STRING_END] ||
         (valid_symbols[SET_STRING_END] && s->set_in_quote),
-        valid_symbols[SET_STRING_END]);
+        valid_symbols[SET_STRING_END],
+        valid_symbols[SET_DELAYED_QUOTE_TEXT]);
   }
 
   if (valid_symbols[SET_STRING_START]) {
@@ -671,32 +774,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
 
-      bool has_later_quote = false;
       bool quoted = !s->set_in_quote;
-      while (!lexer->eof(lexer)) {
-        la = lexer->lookahead;
-        if (!quoted && (la == '<' || la == '>')) {
-          skip_set_redirect(s, lexer);
-          continue;
-        }
-        if (la == '\r' || la == '\n' ||
-            (!quoted && is_set_boundary(s, la))) {
-          break;
-        }
-        if (la == '^' && !quoted) {
-          lexer->advance(lexer, false);
-          if (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
-              lexer->lookahead != '\n') {
-            lexer->advance(lexer, false);
-          }
-          continue;
-        }
-        if (la == '"') {
-          has_later_quote = true;
-          break;
-        }
-        lexer->advance(lexer, false);
-      }
+      bool has_later_quote = has_later_set_quote(s, lexer, quoted);
 
       if (has_later_quote && valid_symbols[SET_INNER_QUOTE]) {
         s->set_in_quote = quoted;
@@ -855,7 +934,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   int32_t c = lexer->lookahead;
 
   if (want_delayed && c == '!') {
-    return scan_delayed_variable(s, lexer, false, false);
+    return scan_delayed_variable(s, lexer, false, false,
+                                 valid_symbols[SET_DELAYED_QUOTE_TEXT]);
   }
 
   // A source file descriptor is one digit directly adjacent to `<` or `>`.

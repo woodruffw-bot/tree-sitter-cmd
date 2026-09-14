@@ -130,6 +130,19 @@ mod windows {
     }
 
     #[test]
+    fn quotes_inside_caret_set_delayed_text_protect_later_operators() {
+        for mode in ["EnableDelayedExpansion", "DisableDelayedExpansion"] {
+            let source = format!(
+                "@echo off\r\nsetlocal {mode}\r\nset ^\"TS_CMD_ODD=!TS_CMD_MISSING\"suffix!&echo unexpected^\"\r\nset ^\"TS_CMD_ODD=!TS_CMD_MISSING\"suffix!|echo unexpected^\"\r\nset ^\"TS_CMD_ODD=!TS_CMD_MISSING\"suffix!>unexpected.txt^\"\r\nif exist unexpected.txt echo unexpected\r\n(\r\nset ^\"TS_CMD_ODD=!TS_CMD_MISSING\"suffix!)&echo unexpected^\"\r\n)\r\necho done\r\n",
+            );
+            let output = run_script("set-delayed-quotes", source.as_bytes());
+            assert!(output.status.success(), "{}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "done");
+        }
+    }
+
+    #[test]
     fn quoted_set_names_accept_metacharacters() {
         for name in ["TS_CMD_NAME(1)", "TS_CMD_NAME&x", "TS_CMD_NAME|x", "TS_CMD_NAME<x", "TS_CMD_NAME>x", "TS_CMD_NAME^x"] {
             let source = format!(
@@ -153,6 +166,14 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a", "a\"b c", "a\"b c"]);
+    }
+
+    #[test]
+    fn set_redirect_expansion_quotes_do_not_close_the_value() {
+        let output = run_script("set-redirect-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset v=out\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=% c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"%v:\"=%\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=%\r\necho !TS_CMD_QUOTE!\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a"]);
     }
 
     #[test]
@@ -250,14 +271,19 @@ mod windows {
         fs::create_dir(&directory).unwrap();
         let path = directory.join("case.cmd");
         let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
-        for target in ["TS_CMD_MISSING&echo TS_CMD_UNEXPECTED", "TS_CMD_MISSING>redirected"] {
+        for (target, reported_label) in [
+            ("TS_CMD_MISSING&echo TS_CMD_UNEXPECTED", "TS_CMD_MISSING&echo"),
+            ("TS_CMD_MISSING>redirected", "TS_CMD_MISSING>redirected"),
+        ] {
             let source = format!("@echo off\r\ngoto \"{target}\"\r\n");
             fs::write(&path, source).unwrap();
             let output = run_cmd(&comspec, &path);
             assert!(!output.status.success());
             assert!(output.stdout.is_empty(), "{}", escaped(&output.stdout));
+            // GOTO reports only the text before the first space. The protected
+            // operator still appears in the label instead of executing.
             assert!(
-                output.stderr.windows(target.len()).any(|part| part == target.as_bytes()),
+                output.stderr.windows(reported_label.len()).any(|part| part == reported_label.as_bytes()),
                 "{}", escaped(&output.stderr),
             );
             assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);

@@ -171,6 +171,7 @@ module.exports = grammar({
     $._rparen,
     $._caret_escape,
     $.delayed_variable,
+    $._set_delayed_quote_text,
     $._string_end,
     $._set_string_start,
     $._set_inner_quote,
@@ -906,9 +907,10 @@ module.exports = grammar({
           repeat(
             choice(
               $._fragment,
+              alias($._set_delayed_quote_text, $.text),
               seq(
                 repeat1(field('redirect', $._redirection)),
-                $._fragment,
+                choice($._fragment, alias($._set_delayed_quote_text, $.text)),
               ),
             ),
           ),
