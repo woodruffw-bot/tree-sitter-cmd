@@ -210,8 +210,8 @@ goto "foo|bar<in>out"
   (goto_statement
     (keyword)
     target: (label_reference
-      name: (label_name
-        (string))))
+      name: (label_name)
+      (label_text)))
   (goto_statement
     (keyword)
     target: (label_reference
@@ -254,3 +254,29 @@ goto foo>nul "bar&baz"
           (text)))
       name: (label_name
         (string)))))
+
+====================================================
+quoted GOTO lookup delimiters preserve protected tails
+====================================================
+
+goto "foo;ignored&echo bad"
+goto pre"foo:ignored>file" >nul later
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text))))

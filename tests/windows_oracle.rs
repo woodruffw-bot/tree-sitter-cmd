@@ -161,6 +161,22 @@ mod windows {
     }
 
     #[test]
+    fn delayed_quotes_in_caret_set_redirect_targets_protect_operators() {
+        let output = run_script("set-redirect-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b! !c!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!\"&echo visible\r\necho done\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["visible", "done"]);
+    }
+
+    #[test]
+    fn delayed_name_quotes_leave_following_command_operators_active() {
+        let output = run_script("set-name-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME!a=present\"\r\nset \"TS_CMD_NAME!a\"!&echo sequence\r\nset \"TS_CMD_NAME!a\"!>name.out&echo redirected\r\ntype name.out\r\n(set \"TS_CMD_NAME!a\"!)&echo block\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["TS_CMD_NAME!a=present", "sequence", "redirected", "TS_CMD_NAME!a=present", "TS_CMD_NAME!a=present", "block"]);
+    }
+
+    #[test]
     fn redirect_filename_separators_follow_quotes_and_continuations() {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
@@ -302,6 +318,19 @@ mod windows {
                 expected,
                 "{argument:?}",
             );
+        }
+    }
+
+    #[test]
+    fn goto_lookup_delimiters_remain_active_inside_quotes() {
+        for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
+            let source = format!(
+                "@echo off\r\ngoto \"TS_CMD_TARGET{delimiter}ignored&echo unexpected\"\r\necho missed\r\nexit /b 1\r\n:\"TS_CMD_TARGET\r\necho reached\r\n",
+            );
+            let output = run_script("goto-quoted-delimiters", source.as_bytes());
+            assert!(output.status.success(), "{delimiter:?}: {}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{delimiter:?}: {}", escaped(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["reached"]);
         }
     }
 
