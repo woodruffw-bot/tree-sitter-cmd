@@ -266,6 +266,36 @@ mod windows {
     }
 
     #[test]
+    fn escaped_text_keeps_digits_on_stdout() {
+        for (argument, printed, redirects_stderr) in [
+            ("a^b2", "ab2", false),
+            ("a^\r\nb2", "ab2", false),
+            ("a^b 2", "ab", true),
+            ("\"ab\"2", "\"ab\"", true),
+            ("a^ 2", "a", true),
+            ("a^&2", "a&", true),
+        ] {
+            let source = format!(
+                "@echo off\r\necho before\r\necho {argument}>out\r\necho after\r\ntype out\r\n",
+            );
+            let output = run_script("escaped-descriptor", source.as_bytes());
+            assert!(output.status.success(), "{}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let expected = if redirects_stderr {
+                ["before", printed, "after"]
+            } else {
+                ["before", "after", printed]
+            };
+            assert_eq!(
+                stdout.lines().map(str::trim_end).collect::<Vec<_>>(),
+                expected,
+                "{argument:?}",
+            );
+        }
+    }
+
+    #[test]
     fn goto_lookup_delimiters_remain_active_inside_quotes() {
         for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
             let source = format!(
@@ -276,6 +306,17 @@ mod windows {
             assert!(output.stderr.is_empty(), "{delimiter:?}: {}", escaped(&output.stderr));
             assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["reached"]);
         }
+    }
+
+    #[test]
+    fn escaped_if_operands_end_before_spaced_descriptors() {
+        let output = run_script("if-escaped-descriptor", b"@echo off\r\necho before\r\nif ab==a^b 2>nul echo matched\r\nif ab2==a^b2>out echo captured\r\necho after\r\ntype out\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            ["before", "matched", "after", "captured"],
+        );
     }
 
     #[test]
