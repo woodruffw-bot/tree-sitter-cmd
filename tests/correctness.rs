@@ -426,6 +426,39 @@ fn else_requires_a_complete_token() {
 }
 
 #[test]
+fn if_control_words_do_not_split_compound_operands() {
+    for prefix in ["/i", "not", "exist", "defined", "errorlevel", "cmdextversion"] {
+        for (suffix, child_kind) in [("\"x\"", "string"), ("%N%", "variable"), ("!N!", "delayed_variable"), ("^x", "escape_sequence")] {
+            let operand = format!("{prefix}{suffix}");
+            let source = format!("if {operand}==right echo matched\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let statement = root.named_child(0).unwrap();
+            let condition = statement.child_by_field_name("condition").unwrap();
+            assert_eq!(condition.kind(), "comparison");
+            let left = condition.child_by_field_name("left").unwrap();
+            assert_eq!(&source[left.byte_range()], operand);
+            assert_eq!(node_sources(left, "text", &source), [prefix]);
+            assert_eq!(node_sources(left, child_kind, &source), [suffix]);
+            assert_eq!(&source[condition.child_by_field_name("right").unwrap().byte_range()], "right");
+            for kind in ["if_flag", "not", "condition_keyword"] {
+                assert!(node_sources(root, kind, &source).is_empty(), "{source}: {kind}");
+            }
+        }
+    }
+    for separator in [" ", "\t", ",", ";", "="] {
+        let source = format!("if /I{separator}NOT{separator}DEFINED{separator}name echo matched\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "if_flag", &source), ["/I"]);
+        assert_eq!(node_sources(root, "not", &source), ["NOT"]);
+        assert_eq!(node_sources(root, "condition_keyword", &source), ["DEFINED"]);
+    }
+}
+
+#[test]
 fn for_binder_requires_a_source_separator_before_in() {
     for separator in [" ", "\t", ",", ";", "=", " ,;= "] {
         let source = format!("for %%a{separator}in (x) do echo %%a\n");

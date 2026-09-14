@@ -72,6 +72,33 @@ if existx==x echo no
       argument: (argument
         (text)))))
 
+================================================
+IF control words remain compound operand fragments
+================================================
+
+if not"x"==not"x" echo matched
+if exist"x"==exist"x" echo matched
+if /i"x"==/i"x" echo matched
+if defined"x"==defined"x" echo matched
+if errorlevel"x"==errorlevel"x" echo matched
+if cmdextversion"x"==cmdextversion"x" echo matched
+if not%N%==right echo matched
+if exist!N!==right echo matched
+if /i^x==right echo matched
+
+---
+
+(program
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (string)) operator: (comparison_operator) right: (argument (text) (string))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (variable)) operator: (comparison_operator) right: (argument (text))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (delayed_variable)) operator: (comparison_operator) right: (argument (text))) consequence: (command name: (command_name) argument: (argument (text))))
+  (if_statement (keyword) condition: (comparison left: (argument (text) (escape_sequence)) operator: (comparison_operator) right: (argument (text))) consequence: (command name: (command_name) argument: (argument (text)))))
+
 ====================================
 FOR F switch is not a word prefix
 ====================================

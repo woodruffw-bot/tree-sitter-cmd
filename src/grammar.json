@@ -659,11 +659,8 @@
                   {
                     "type": "ALIAS",
                     "content": {
-                      "type": "TOKEN",
-                      "content": {
-                        "type": "PATTERN",
-                        "value": "\\/[iI]"
-                      }
+                      "type": "SYMBOL",
+                      "name": "_if_flag"
                     },
                     "named": true,
                     "value": "if_flag"
@@ -688,11 +685,8 @@
                   {
                     "type": "ALIAS",
                     "content": {
-                      "type": "TOKEN",
-                      "content": {
-                        "type": "PATTERN",
-                        "value": "[nN][oO][tT]"
-                      }
+                      "type": "SYMBOL",
+                      "name": "_if_not"
                     },
                     "named": true,
                     "value": "not"
@@ -973,37 +967,8 @@
           "content": {
             "type": "ALIAS",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "TOKEN",
-                  "content": {
-                    "type": "PATTERN",
-                    "value": "[eE][xX][iI][sS][tT]"
-                  }
-                },
-                {
-                  "type": "TOKEN",
-                  "content": {
-                    "type": "PATTERN",
-                    "value": "[dD][eE][fF][iI][nN][eE][dD]"
-                  }
-                },
-                {
-                  "type": "TOKEN",
-                  "content": {
-                    "type": "PATTERN",
-                    "value": "[eE][rR][rR][oO][rR][lL][eE][vV][eE][lL]"
-                  }
-                },
-                {
-                  "type": "TOKEN",
-                  "content": {
-                    "type": "PATTERN",
-                    "value": "[cC][mM][dD][eE][xX][tT][vV][eE][rR][sS][iI][oO][nN]"
-                  }
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "_if_condition_keyword"
             },
             "named": true,
             "value": "condition_keyword"
@@ -4988,6 +4953,18 @@
     {
       "type": "SYMBOL",
       "name": "_if_attached_operand"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_if_flag"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_if_not"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_if_condition_keyword"
     },
     {
       "type": "SYMBOL",

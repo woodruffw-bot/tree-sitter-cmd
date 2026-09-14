@@ -13,6 +13,8 @@
 //                  token separators.
 //   IF_ATTACHED_OPERAND
 //                - zero-width selection of the RHS word attached to `==`.
+//   IF_FLAG / IF_NOT / IF_CONDITION_KEYWORD
+//                - IF control words followed by a standard source separator.
 //   REDIRECT_CONCAT
 //                - adjacent filename fragments; standard separators end the
 //                  target, while an attached opening parenthesis is literal.
@@ -97,6 +99,9 @@ enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
   IF_ATTACHED_OPERAND,
+  IF_FLAG,
+  IF_NOT,
+  IF_CONDITION_KEYWORD,
   KEYWORD_BOUNDARY,
   REDIRECT_CONCAT,
   REM,
@@ -480,6 +485,38 @@ static bool scan_rem(TSLexer *lexer) {
     return true;
   }
   return false;
+}
+
+// Reject a keyword before emitting it when another operand fragment follows.
+// Checking only after an internal keyword token would lose that prefix from
+// operands such as not"x", exist%N%, or /i^x.
+static bool scan_if_keyword(TSLexer *lexer, const bool *valid_symbols) {
+  char word[sizeof("cmdextversion")];
+  size_t length = 0;
+  while (length < sizeof(word) - 1) {
+    int32_t c = lexer->lookahead;
+    if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    if ((c < 'a' || c > 'z') && c != '/') break;
+    word[length++] = (char)c;
+    lexer->advance(lexer, false);
+  }
+  word[length] = '\0';
+  int32_t c = lexer->lookahead;
+  if (c != ' ' && c != '\t' && c != ',' && c != ';' && c != '=') return false;
+
+  if (valid_symbols[IF_FLAG] && strcmp(word, "/i") == 0) {
+    lexer->result_symbol = IF_FLAG;
+  } else if (valid_symbols[IF_NOT] && strcmp(word, "not") == 0) {
+    lexer->result_symbol = IF_NOT;
+  } else if (valid_symbols[IF_CONDITION_KEYWORD] &&
+             (strcmp(word, "exist") == 0 || strcmp(word, "defined") == 0 ||
+              strcmp(word, "errorlevel") == 0 || strcmp(word, "cmdextversion") == 0)) {
+    lexer->result_symbol = IF_CONDITION_KEYWORD;
+  } else {
+    return false;
+  }
+  lexer->mark_end(lexer);
+  return true;
 }
 
 // Classify a command-position `(` before returning its source-width token.
@@ -967,10 +1004,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   bool want_redirect_source = valid_symbols[REDIRECT_SOURCE];
   bool want_caret = valid_symbols[CARET_ESCAPE];
   bool want_delayed = valid_symbols[DELAYED_VARIABLE];
+  bool want_if_keyword = valid_symbols[IF_FLAG] || valid_symbols[IF_NOT] ||
+                         valid_symbols[IF_CONDITION_KEYWORD];
   bool want_paren = valid_symbols[EMPTY_BLOCK_OPEN] ||
                     valid_symbols[BLOCK_OPEN] || valid_symbols[BLOCK_CLOSE] ||
                     valid_symbols[LPAREN] || valid_symbols[RPAREN];
-  if (!want_rem && !want_redirect_source && !want_caret && !want_delayed && !want_paren) {
+  if (!want_rem && !want_redirect_source && !want_caret && !want_delayed &&
+      !want_if_keyword && !want_paren) {
     return false;
   }
 
@@ -980,6 +1020,11 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   int32_t c = lexer->lookahead;
+
+  if (want_if_keyword && (c == '/' || (c >= 'a' && c <= 'z') ||
+                         (c >= 'A' && c <= 'Z'))) {
+    return scan_if_keyword(lexer, valid_symbols);
+  }
 
   if (want_delayed && c == '!') {
     return scan_delayed_variable(s, lexer, false, false,
