@@ -101,6 +101,38 @@ fn caret_set_delayed_fragments_preserve_operator_and_bang_boundaries() {
 }
 
 #[test]
+fn delayed_quotes_in_redirect_filenames_preserve_source_boundaries() {
+    for prefix in ["set ^\"x=foo", "echo hi "] {
+        for (operator, target) in [
+            (">", "!a\"b!&echo hidden^\""),
+            (">>", "pre!a\"b! !c!&echo hidden^\""),
+            ("<", "!a\"b!|echo hidden"),
+            (">", "!a\"b!\"suffix"),
+        ] {
+            let source = format!("{prefix}{operator}{target}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            assert_eq!(root.named_child_count(), 1);
+            let statement = root.named_child(0).unwrap();
+            let redirect = statement.child_by_field_name("redirect").unwrap();
+            assert_eq!(&source[redirect.byte_range()], format!("{operator}{target}"));
+            assert_eq!(&source[redirect.child_by_field_name("operator").unwrap().byte_range()], operator);
+            assert_eq!(&source[redirect.child_by_field_name("target").unwrap().byte_range()], target);
+            assert!(node_sources(root, "delayed_variable", &source).is_empty());
+            assert!(node_sources(root, "seq_list", &source).is_empty());
+        }
+    }
+
+    let source = "set ^\"x=foo>!a\"b!\"&echo visible\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "redirect_file", source), [">!a\"b!\""]);
+    assert_eq!(node_sources(root, "command", source), ["echo visible"]);
+}
+
+#[test]
 fn attached_if_operands_retain_all_equals_signs() {
     for (operand, expected_right, expected_command) in [
         ("b=c", "b=c", "echo yes"),
@@ -394,7 +426,7 @@ fn goto_target_segments_do_not_include_removed_redirections() {
 #[test]
 fn goto_quotes_preserve_outer_boundaries_and_source_spelling() {
     for (source, names, redirects, blocks) in [
-        ("goto \"foo&echo bad\"\n", vec!["\"foo&echo bad\""], vec![], vec![]),
+        ("goto \"foo&echo bad\"\n", vec!["\"foo&echo"], vec![], vec![]),
         ("goto \"foo|bar<in>out\"\n", vec!["\"foo|bar<in>out\""], vec![], vec![]),
         ("(goto \"foo)bar\")\n", vec!["\"foo)bar\""], vec![], vec!["(goto \"foo)bar\")"]),
         ("goto pre\"foo>bar\"post>nul tail\n", vec!["pre\"foo>bar\"post", "tail"], vec![">nul"], vec![]),
@@ -418,6 +450,31 @@ fn goto_quotes_preserve_outer_boundaries_and_source_spelling() {
     let root = tree.root_node();
     assert!(!root.has_error());
     assert_eq!(node_sources(root, "string", source), ["\"%target%&!suffix!\""]);
+    assert_eq!(node_sources(root, "variable", source), ["%target%"]);
+    assert_eq!(node_sources(root, "delayed_variable", source), ["!suffix!"]);
+}
+
+#[test]
+fn quoted_goto_names_end_at_lookup_delimiters() {
+    for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
+        for prefix in ["\"foo", "pre\"foo", "\"pre\"more\"foo"] {
+            let tail = format!("{delimiter}ignored&echo bad\"");
+            let source = format!("goto {prefix}{tail}>nul later\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            assert_eq!(node_sources(root, "label_name", &source), [prefix]);
+            assert_eq!(node_sources(root, "label_text", &source), [tail.as_str(), "later"]);
+            assert_eq!(node_sources(root, "redirect_file", &source), [">nul"]);
+            assert!(node_sources(root, "command", &source).is_empty());
+        }
+    }
+    let source = "goto \"%target%;!suffix!&echo bad\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "label_name", source), ["\"%target%"]);
+    assert_eq!(node_sources(root, "label_text", source), [";!suffix!&echo bad\""]);
     assert_eq!(node_sources(root, "variable", source), ["%target%"]);
     assert_eq!(node_sources(root, "delayed_variable", source), ["!suffix!"]);
 }
