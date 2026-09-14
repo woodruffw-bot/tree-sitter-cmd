@@ -343,3 +343,34 @@ fn goto_target_segments_do_not_include_removed_redirections() {
         assert!(node_sources(root, "command_name", &source).is_empty());
     }
 }
+
+#[test]
+fn goto_quotes_preserve_outer_boundaries_and_source_spelling() {
+    for (source, names, redirects, blocks) in [
+        ("goto \"foo&echo bad\"\n", vec!["\"foo&echo bad\""], vec![], vec![]),
+        ("goto \"foo|bar<in>out\"\n", vec!["\"foo|bar<in>out\""], vec![], vec![]),
+        ("(goto \"foo)bar\")\n", vec!["\"foo)bar\""], vec![], vec!["(goto \"foo)bar\")"]),
+        ("goto pre\"foo>bar\"post>nul tail\n", vec!["pre\"foo>bar\"post", "tail"], vec![">nul"], vec![]),
+        ("goto foo>nul \"bar&baz\"\n", vec!["foo", "\"bar&baz\""], vec![">nul"], vec![]),
+        ("goto \"foo&bar\";ignored>nul more\n", vec!["\"foo&bar\""], vec![">nul"], vec![]),
+        ("goto \"foo&bar\n", vec!["\"foo&bar"], vec![], vec![]),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "label_name", source), names);
+        assert_eq!(node_sources(root, "redirect_file", source), redirects);
+        assert_eq!(node_sources(root, "block", source), blocks);
+        assert_eq!(node_sources(root, "goto_statement", source).len(), 1);
+        assert!(node_sources(root, "command", source).is_empty());
+        assert!(node_sources(root, "pipeline", source).is_empty());
+    }
+
+    let source = "goto \"%target%&!suffix!\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error());
+    assert_eq!(node_sources(root, "string", source), ["\"%target%&!suffix!\""]);
+    assert_eq!(node_sources(root, "variable", source), ["%target%"]);
+    assert_eq!(node_sources(root, "delayed_variable", source), ["!suffix!"]);
+}

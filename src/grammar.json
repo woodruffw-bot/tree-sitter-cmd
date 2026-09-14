@@ -2194,6 +2194,10 @@
           },
           {
             "type": "SYMBOL",
+            "name": "string"
+          },
+          {
+            "type": "SYMBOL",
             "name": "escape_sequence"
           },
           {
@@ -2220,7 +2224,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "[^ \\t\\r\\n:^+;,=&|<>()%!]+"
+        "value": "[^ \\t\\r\\n:^+;,=&|<>()%!\"]+"
       }
     },
     "_label_reference_tail": {

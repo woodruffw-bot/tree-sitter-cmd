@@ -703,6 +703,7 @@ module.exports = grammar({
       repeat1(
         choice(
           $._label_reference_text,
+          $.string,
           $.escape_sequence,
           alias($._caret_escape, $.escape_sequence),
           $._expansion,
@@ -710,9 +711,9 @@ module.exports = grammar({
         ),
       ),
     // Split hidden text at spaces so a following `2>` can be recognized as a
-    // redirect source, while the enclosing name still spans ordinary words.
+    // redirect source. Quotes use string grouping and remain in the name.
     _label_reference_text: ($) =>
-      token(/[^ \t\r\n:^+;,=&|<>()%!]+/),
+      token(/[^ \t\r\n:^+;,=&|<>()%!"]+/),
     _label_reference_tail: ($) =>
       seq(
         choice(

@@ -845,6 +845,10 @@
         {
           "type": "escape_sequence",
           "named": true
+        },
+        {
+          "type": "string",
+          "named": true
         }
       ]
     }

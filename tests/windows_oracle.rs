@@ -216,6 +216,30 @@ mod windows {
     }
 
     #[test]
+    fn goto_quotes_protect_operators_and_redirections() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "tree-sitter-cmd-goto-quotes-{}-{nonce}", std::process::id(),
+        ));
+        fs::create_dir(&directory).unwrap();
+        let path = directory.join("case.cmd");
+        let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
+        for target in ["TS_CMD_MISSING&echo TS_CMD_UNEXPECTED", "TS_CMD_MISSING>redirected"] {
+            let source = format!("@echo off\r\ngoto \"{target}\"\r\n");
+            fs::write(&path, source).unwrap();
+            let output = run_cmd(&comspec, &path);
+            assert!(!output.status.success());
+            assert!(output.stdout.is_empty(), "{}", escaped(&output.stdout));
+            assert!(
+                output.stderr.windows(target.len()).any(|part| part == target.as_bytes()),
+                "{}", escaped(&output.stderr),
+            );
+            assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+        }
+        fs::remove_dir_all(&directory).unwrap();
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [
