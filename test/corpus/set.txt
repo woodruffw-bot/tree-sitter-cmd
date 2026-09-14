@@ -970,6 +970,61 @@ set "x=y"junk^
 
 (program (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix))) (block (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix)))))
 
+======================================================
+quoted SET value segments survive removed redirections
+======================================================
+
+set "x=a"b>out c"
+set /p "x=a"b>out c"
+set "x=a"b>"out q" c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      prompt: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (string)))
+      value: (argument
+        (text)))))
+
 =======================================================
 quotes in delayed caret-SET text protect later operators
 =======================================================
@@ -1005,6 +1060,46 @@ set ^"x=!a"b"c!&echo visible^"
       argument: (argument
         (text)
         (escape_sequence)))))
+
+======================================================
+SET wrapper quotes exclude redirect expansion contents
+======================================================
+
+set "x=a"b>%v:"=% c"
+set "x=a"b>out% c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (variable)))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)
+          (text)))
+      value: (argument
+        (text)))))
 
 =======================================================
 delayed quotes protect caret-SET redirection filenames
@@ -1078,3 +1173,26 @@ set "x!a"!>out&echo y=z"
       argument: (argument
         (text)
         (string)))))
+
+======================================================
+SET values resume after expanded duplication targets
+======================================================
+
+set "x=a"b>&%fd%c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_dup
+        operator: (redirect_dup_operator)
+        target: (variable))
+      value: (argument
+        (text)))))

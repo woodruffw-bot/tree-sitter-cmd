@@ -607,6 +607,47 @@ fn escaped_if_operands_do_not_capture_spaced_descriptors() {
 }
 
 #[test]
+fn quoted_set_values_keep_segments_around_redirections() {
+    for prefix in ["set ", "set /p "] {
+        let field = if prefix == "set " { "value" } else { "prompt" };
+        for (tail, values, redirects) in [
+            ("a\"b>out c\"", vec!["a\"b", " c"], vec![">out"]),
+            ("a\"b>\"out q\" c\"", vec!["a\"b", " c"], vec![">\"out q\""]),
+            ("a\"b>&2 c\"", vec!["a\"b", " c"], vec![">&2"]),
+            ("a\"b>out c\"d\"e>two f\"", vec!["a\"b", " c\"d\"e", " f"], vec![">out", ">two"]),
+            ("a\"2>out c\"", vec!["a\"", " c"], vec!["2>out"]),
+            ("a\"b2>out c\"", vec!["a\"b2", " c"], vec![">out"]),
+            ("a\"b>%v:\"=% c\"", vec!["a\"b", " c"], vec![">%v:\"=%"]),
+            ("a\"b>\"%v:\"=%\" c\"", vec!["a\"b", " c"], vec![">\"%v:\"=%\""]),
+            ("a\"b>%v: =% c\"", vec!["a\"b", " c"], vec![">%v: =%"]),
+            ("a\"b>%v:&=% c\"", vec!["a\"b", " c"], vec![">%v:&=%"]),
+            ("a\"b>out% c\"", vec!["a\"b", " c"], vec![">out%"]),
+        ] {
+            let source = format!("{prefix}\"x={tail}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let binding = root.named_child(0).unwrap().named_child(1).unwrap();
+            let mut cursor = binding.walk();
+            let actual_values: Vec<_> = binding.children_by_field_name(field, &mut cursor)
+                .map(|node| &source[node.byte_range()]).collect();
+            assert_eq!(actual_values, values, "{source}");
+            let actual_redirects: Vec<_> = binding.children_by_field_name("redirect", &mut cursor)
+                .map(|node| &source[node.byte_range()]).collect();
+            assert_eq!(actual_redirects, redirects, "{source}");
+            assert!(node_sources(root, "set_ignored_suffix", &source).is_empty());
+        }
+    }
+    for tail in ["b>\"out q\"", "b>out&echo \"after\"", "b>out|echo \"after\"", "b>%v:\"=%", "b>out%\" c\""] {
+        let source = format!("set \"x=a\"{tail}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "set_ignored_suffix", &source), ["b"]);
+    }
+}
+
+#[test]
 fn quoted_goto_names_end_at_lookup_delimiters() {
     for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
         for prefix in ["\"foo", "pre\"foo", "\"pre\"more\"foo"] {
@@ -629,4 +670,34 @@ fn quoted_goto_names_end_at_lookup_delimiters() {
     assert_eq!(node_sources(root, "label_text", source), [";!suffix!&echo bad\""]);
     assert_eq!(node_sources(root, "variable", source), ["%target%"]);
     assert_eq!(node_sources(root, "delayed_variable", source), ["!suffix!"]);
+}
+
+#[test]
+fn set_values_resume_after_expanded_duplication_targets() {
+    for expansion in ["%fd%", "%fd:\"=%", "%1"] {
+        for (prefix, field) in [("set ", "value"), ("set /p ", "prompt")] {
+            for (first, source_fd) in [("a\"b", ""), ("a\"", "2")] {
+                let redirect_text = format!("{source_fd}>&{expansion}");
+                let source = format!("{prefix}\"x={first}{redirect_text}c\"\n");
+                let tree = parser().parse(&source, None).unwrap();
+                let root = tree.root_node();
+                assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+                let binding = root.named_child(0).unwrap().named_child(1).unwrap();
+                let mut cursor = binding.walk();
+                let values: Vec<_> = binding.children_by_field_name(field, &mut cursor)
+                    .map(|node| &source[node.byte_range()]).collect();
+                assert_eq!(values, [first, "c"], "{source}");
+                let redirect = binding.child_by_field_name("redirect").unwrap();
+                assert_eq!(&source[redirect.byte_range()], redirect_text);
+                let target = redirect.child_by_field_name("target").unwrap();
+                assert_eq!(&source[target.byte_range()], expansion);
+                assert_eq!(target.kind(), if expansion == "%1" { "parameter" } else { "variable" });
+                assert_eq!(
+                    redirect.child_by_field_name("source").map(|node| &source[node.byte_range()]),
+                    if source_fd.is_empty() { None } else { Some(source_fd) },
+                );
+                assert!(node_sources(root, "set_ignored_suffix", &source).is_empty());
+            }
+        }
+    }
 }

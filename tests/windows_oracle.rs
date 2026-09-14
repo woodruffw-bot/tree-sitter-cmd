@@ -161,6 +161,22 @@ mod windows {
     }
 
     #[test]
+    fn set_final_quote_follows_removed_redirections() {
+        let output = run_script("set-redirect-quotes", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b>out c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&2 c\"\r\necho !TS_CMD_QUOTE!\r\n<nul set /p \"TS_CMD_QUOTE=a\"b>prompt c\"\r\ntype prompt\r\necho(\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a", "a\"b c", "a\"b c"]);
+    }
+
+    #[test]
+    fn set_redirect_expansion_quotes_do_not_close_the_value() {
+        let output = run_script("set-redirect-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset v=out\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=% c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"%v:\"=%\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=%\r\necho !TS_CMD_QUOTE!\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a"]);
+    }
+
+    #[test]
     fn delayed_quotes_in_caret_set_redirect_targets_protect_operators() {
         let output = run_script("set-redirect-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b! !c!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!\"&echo visible\r\necho done\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
@@ -174,6 +190,15 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["TS_CMD_NAME!a=present", "sequence", "redirected", "TS_CMD_NAME!a=present", "TS_CMD_NAME!a=present", "block"]);
+    }
+
+    #[test]
+    fn set_values_resume_after_expanded_duplication_targets() {
+        // Use distinct handles because CMD cannot duplicate captured stdout onto itself.
+        let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 2\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"bc", "a\"c", "a\"bc"]);
     }
 
     #[test]
