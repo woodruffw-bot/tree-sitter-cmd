@@ -492,3 +492,47 @@ if x==x set x=else
         name: (variable_name)
         value: (argument
           (text))))))
+
+============================================================
+external body starts remain after the IF operand boundary
+============================================================
+
+if exist x rem note
+if 1==1 !CMD! arg
+if exist x 123 arg
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (rem_comment
+      (keyword)
+      (comment_text)))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name
+        (delayed_variable))
+      argument: (argument
+        (text))))
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))
