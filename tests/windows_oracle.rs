@@ -336,6 +336,20 @@ mod windows {
     }
 
     #[test]
+    fn if_body_starts_remain_separate_from_the_condition() {
+        let output = run_script(
+            "if-body-boundary",
+            b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_BODY=echo\"\r\nif 1==1 rem ignored\r\nif 1==1 !TS_CMD_BODY! delayed\r\nif 1==1 2>nul echo redirected\r\necho done\r\n",
+        );
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            ["delayed", "redirected", "done"],
+        );
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [

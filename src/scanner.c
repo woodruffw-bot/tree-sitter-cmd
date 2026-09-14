@@ -440,6 +440,7 @@ static bool scan_empty_or_block_open(Scanner *s, TSLexer *lexer,
 bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                                            const bool *valid_symbols) {
   Scanner *s = payload;
+  bool skipped_body_space = false;
 
   if (s->body_boundaries > 0 && !lexer->eof(lexer) &&
       lexer->lookahead != '\r' && lexer->lookahead != '\n') {
@@ -525,10 +526,9 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         s->body_boundaries == 1 && valid_symbols[BODY_BOUNDARY_AGAIN]
             ? BODY_BOUNDARY_AGAIN
             : BODY_BOUNDARY;
-    bool skipped_space = false;
     while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
       lexer->advance(lexer, true);
-      skipped_space = true;
+      skipped_body_space = true;
     }
     if (lexer->lookahead == '\r') {
       lexer->mark_end(lexer);
@@ -554,12 +554,12 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // The missing-body branch can be valid while the condition still has an
     // adjacent fragment. Preserve that adjacency before considering a body;
     // spacing means the operand has ended and must not synthesize a join.
-    if (!skipped_space && valid_symbols[STANDARD_CONCAT] &&
+    if (!skipped_body_space && valid_symbols[STANDARD_CONCAT] &&
         !is_standard_word_boundary(s, lexer->lookahead)) {
       lexer->result_symbol = STANDARD_CONCAT;
       return true;
     }
-    if (!skipped_space && valid_symbols[CONCAT] &&
+    if (!skipped_body_space && valid_symbols[CONCAT] &&
         !is_argument_concat_boundary(s, lexer->lookahead)) {
       lexer->result_symbol = CONCAT;
       return true;
@@ -569,10 +569,10 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // operand from the following command. Continue only for body starts whose
     // external tokens must be considered in this same scanner call.
     int32_t c = lexer->lookahead;
-    if (c == '(' && skipped_space && valid_symbols[EMPTY_BLOCK_OPEN]) {
+    if (c == '(' && skipped_body_space && valid_symbols[EMPTY_BLOCK_OPEN]) {
       return scan_empty_or_block_open(s, lexer, valid_symbols);
     }
-    if (c == '(' && skipped_space && valid_symbols[BLOCK_OPEN]) {
+    if (c == '(' && skipped_body_space && valid_symbols[BLOCK_OPEN]) {
       lexer->advance(lexer, false);
       lexer->mark_end(lexer);
       if (lexer->lookahead == ')' && valid_symbols[LPAREN]) {
@@ -627,7 +627,9 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   // A descriptor after a quoted or expanded fragment competes with CONCAT.
   // Prefer the descriptor only when the digit is followed by `<` or `>`. If it
   // is not, return a zero-width CONCAT at the marked start of the token.
-  if (valid_symbols[REDIRECT_SOURCE] &&
+  // The body-boundary check may already have skipped whitespace. Keep that
+  // source boundary for every adjacency check below.
+  if (!skipped_body_space && valid_symbols[REDIRECT_SOURCE] &&
       (valid_symbols[CONCAT] || valid_symbols[STANDARD_CONCAT] ||
        valid_symbols[REDIRECT_CONCAT]) &&
       lexer->lookahead >= '0' && lexer->lookahead <= '9') {
@@ -644,7 +646,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  if (valid_symbols[REDIRECT_CONCAT] && !lexer->eof(lexer) &&
+  if (!skipped_body_space && valid_symbols[REDIRECT_CONCAT] &&
+      !lexer->eof(lexer) &&
       !is_argument_concat_boundary(s, lexer->lookahead) &&
       lexer->lookahead != ',' && lexer->lookahead != ';') {
     lexer->result_symbol = REDIRECT_CONCAT;
@@ -652,14 +655,15 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   }
 
   // STANDARD_CONCAT: the same adjacency rule in a standard-separator slot.
-  if (valid_symbols[STANDARD_CONCAT] && !lexer->eof(lexer) &&
+  if (!skipped_body_space && valid_symbols[STANDARD_CONCAT] &&
+      !lexer->eof(lexer) &&
       !is_standard_word_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = STANDARD_CONCAT;
     return true;
   }
 
   // CONCAT: adjacency only, no whitespace skipping.
-  if (valid_symbols[CONCAT] && !lexer->eof(lexer) &&
+  if (!skipped_body_space && valid_symbols[CONCAT] && !lexer->eof(lexer) &&
       !is_argument_concat_boundary(s, lexer->lookahead)) {
     lexer->result_symbol = CONCAT;
     return true;

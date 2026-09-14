@@ -585,3 +585,28 @@ fn leading_command_escapes_keep_their_source_ranges() {
     assert!(node_sources(root, "if_statement", source).is_empty());
     assert!(node_sources(root, "keyword", source).is_empty());
 }
+
+#[test]
+fn if_body_starts_do_not_join_the_condition_across_whitespace() {
+    for (source, condition, body) in [
+        ("if exist x rem note\n", "exist x", "rem note"),
+        ("if exist x\trem note\n", "exist x", "rem note"),
+        ("if exist x rem-tool arg\n", "exist x", "rem-tool arg"),
+        ("if exist x 123 arg\n", "exist x", "123 arg"),
+        ("if exist x !CMD! arg\n", "exist x", "!CMD! arg"),
+        ("if 1==1 rem note\n", "1==1", "rem note"),
+        ("if 1==1 2>nul echo hi\n", "1==1", "2>nul echo hi"),
+        ("if exist pre!SUFFIX! rem note\n", "exist pre!SUFFIX!", "rem note"),
+        ("if exist pre^x rem note\n", "exist pre^x", "rem note"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(root.named_child_count(), 1);
+        let statement = root.named_child(0).unwrap();
+        let condition_node = statement.child_by_field_name("condition").unwrap();
+        let body_node = statement.child_by_field_name("consequence").unwrap();
+        assert_eq!(&source[condition_node.byte_range()], condition);
+        assert_eq!(&source[body_node.byte_range()], body);
+    }
+}
