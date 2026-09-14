@@ -195,3 +195,88 @@ whitespace-only colon lines stay comments
     (comment_text))
   (label
     name: (label_name)))
+
+========================================
+goto quotes protect outer metacharacters
+========================================
+
+goto "foo&echo bad"
+goto "foo|bar<in>out"
+(goto "foo)bar")
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name
+        (string))))
+  (block
+    (goto_statement
+      (keyword)
+      target: (label_reference
+        name: (label_name
+          (string))))))
+
+====================================================
+goto quoted names retain adjacent text and redirects
+====================================================
+
+goto pre"foo>bar"post>nul tail
+goto foo>nul "bar&baz"
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name
+        (string))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      name: (label_name
+        (string)))))
+
+====================================================
+quoted GOTO lookup delimiters preserve protected tails
+====================================================
+
+goto "foo;ignored&echo bad"
+goto pre"foo:ignored>file" >nul later
+
+---
+
+(program
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)))
+  (goto_statement
+    (keyword)
+    target: (label_reference
+      name: (label_name)
+      (label_text)
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      (label_text))))

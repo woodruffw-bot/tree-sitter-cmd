@@ -845,6 +845,10 @@
         {
           "type": "escape_sequence",
           "named": true
+        },
+        {
+          "type": "string",
+          "named": true
         }
       ]
     }
@@ -893,6 +897,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "_expansion",
+          "named": true
+        },
         {
           "type": "escape_sequence",
           "named": true

@@ -691,6 +691,23 @@ module.exports = grammar({
           ),
           optional($._label_reference_ignored_tail),
         ),
+        seq(
+          optional($._label_reference_prefix),
+          repeat(
+            seq(
+              field('name', alias($._label_reference_name, $.label_name)),
+              repeat1(field('redirect', $._redirection)),
+            ),
+          ),
+          field('name', alias($._label_reference_quoted_prefix, $.label_name)),
+          alias($._label_reference_quoted_tail, $.label_text),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              alias($._label_reference_ignored_text, $.label_text),
+            ),
+          ),
+        ),
         // Keep an empty or doubly-prefixed target, such as `goto ::name`, as a
         // target without inventing a resolvable label name.
         seq(
@@ -704,16 +721,34 @@ module.exports = grammar({
       repeat1(
         choice(
           $._label_reference_text,
+          alias($._label_reference_quoted_name, $.string),
           $.escape_sequence,
           alias($._caret_escape, $.escape_sequence),
           $._expansion,
           $._stray_sigil,
         ),
       ),
-    // Split hidden text at spaces so a following `2>` can be recognized as a
-    // redirect source, while the enclosing name still spans ordinary words.
+    // Quotes protect outer operators, but GOTO still stops lookup at its own
+    // delimiters. A split quoted span keeps the name and ignored text separate.
+    _label_reference_quoted_name: ($) =>
+      seq('"', repeat($._label_reference_quoted_content), $._string_end),
+    _label_reference_quoted_prefix: ($) =>
+      seq(optional($._label_reference_name), '"', repeat($._label_reference_quoted_content)),
+    _label_reference_quoted_content: ($) =>
+      choice(
+        token.immediate(/[^ \t\r\n":+;,=%!]+/),
+        $._expansion,
+        $._string_sigil,
+      ),
+    _label_reference_quoted_tail: ($) =>
+      seq(
+        token.immediate(/[ \t:+;,=]/),
+        repeat($._string_part),
+        $._string_end,
+        repeat($._label_reference_ignored_word),
+      ),
     _label_reference_text: ($) =>
-      token(/[^ \t\r\n:^+;,=&|<>()%!]+/),
+      token(/[^ \t\r\n:^+;,=&|<>()%!"]+/),
     _label_reference_tail: ($) =>
       seq(
         choice(

@@ -237,6 +237,48 @@ mod windows {
     }
 
     #[test]
+    fn goto_quotes_protect_operators_and_redirections() {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "tree-sitter-cmd-goto-quotes-{}-{nonce}", std::process::id(),
+        ));
+        fs::create_dir(&directory).unwrap();
+        let path = directory.join("case.cmd");
+        let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
+        for (target, reported_label) in [
+            ("TS_CMD_MISSING&echo TS_CMD_UNEXPECTED", "TS_CMD_MISSING&echo"),
+            ("TS_CMD_MISSING>redirected", "TS_CMD_MISSING>redirected"),
+        ] {
+            let source = format!("@echo off\r\ngoto \"{target}\"\r\n");
+            fs::write(&path, source).unwrap();
+            let output = run_cmd(&comspec, &path);
+            assert!(!output.status.success());
+            assert!(output.stdout.is_empty(), "{}", escaped(&output.stdout));
+            // GOTO reports only the text before the first space. The protected
+            // operator still appears in the label instead of executing.
+            assert!(
+                output.stderr.windows(reported_label.len()).any(|part| part == reported_label.as_bytes()),
+                "{}", escaped(&output.stderr),
+            );
+            assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+        }
+        fs::remove_dir_all(&directory).unwrap();
+    }
+
+    #[test]
+    fn goto_lookup_delimiters_remain_active_inside_quotes() {
+        for delimiter in [";", ",", "=", "+", ":", " ", "\t"] {
+            let source = format!(
+                "@echo off\r\ngoto \"TS_CMD_TARGET{delimiter}ignored&echo unexpected\"\r\necho missed\r\nexit /b 1\r\n:\"TS_CMD_TARGET\r\necho reached\r\n",
+            );
+            let output = run_script("goto-quoted-delimiters", source.as_bytes());
+            assert!(output.status.success(), "{delimiter:?}: {}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{delimiter:?}: {}", escaped(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["reached"]);
+        }
+    }
+
+    #[test]
     #[ignore = "manual Windows oracle; output requires human interpretation"]
     fn report_cmd_observations() {
         let cases = [
