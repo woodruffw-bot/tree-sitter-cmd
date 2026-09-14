@@ -315,6 +315,8 @@ A delayed reference that opens a quote in this payload, such as `!a"b!`, stays
 in one `text` fragment with the protected suffix through the next quote or line
 end. This keeps operators protected without pairing later bangs into invented
 expansions. Operators after the closing quote retain their normal role.
+Redirection filenames use the same representation when a delayed reference
+opens a quote, including filenames split across quoted and unquoted fragments.
 
 Redirections inside a quoted binding's ignored suffix remain positional
 `redirect` fields, while a terminal redirect stays on `set_statement`.
