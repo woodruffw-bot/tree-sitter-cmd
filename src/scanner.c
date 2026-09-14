@@ -92,7 +92,7 @@ enum TokenType {
   CONCAT,
   STANDARD_CONCAT,
   IF_ATTACHED_OPERAND,
-  ELSE_BOUNDARY,
+  KEYWORD_BOUNDARY,
   REDIRECT_CONCAT,
   REM,
   REM_TEXT,
@@ -458,13 +458,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return false;
   }
 
-  // ELSE is compared against a whole fetched token. A following quote,
+  // ELSE, IN, and DO are compared against whole fetched tokens. A following quote,
   // expansion, caret, or opening parenthesis still belongs to that token.
-  // Keep EOF/newline available so a bare ELSE retains its missing body.
-  if (valid_symbols[ELSE_BOUNDARY]) {
+  // Keep EOF/newline available so a bare control keyword retains its error.
+  if (valid_symbols[KEYWORD_BOUNDARY]) {
     int32_t c = lexer->lookahead;
     if (lexer->eof(lexer) || (c != '(' && is_standard_word_boundary(s, c))) {
-      lexer->result_symbol = ELSE_BOUNDARY;
+      lexer->result_symbol = KEYWORD_BOUNDARY;
       return true;
     }
     return false;
