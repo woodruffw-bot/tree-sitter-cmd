@@ -67,6 +67,46 @@ ho hi
       (text))))
 
 ============================================
+caret escape can begin a command name
+============================================
+
+^echo hi
+^%CMD% hi
+
+---
+
+(program
+  (command
+    name: (command_name
+      (escape_sequence)
+      (text))
+    argument: (argument
+      (text)))
+  (command
+    name: (command_name
+      (escape_sequence)
+      (variable))
+    argument: (argument
+      (text))))
+
+============================================
+line continuation can begin a command name
+============================================
+
+^
+echo continued
+
+---
+
+(program
+  (command
+    name: (command_name
+      (escape_sequence)
+      (text))
+    argument: (argument
+      (text))))
+
+============================================
 line continuation before an operator
 ============================================
 
