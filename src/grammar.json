@@ -744,8 +744,12 @@
                     "content": {
                       "type": "TOKEN",
                       "content": {
-                        "type": "PATTERN",
-                        "value": "[eE][lL][sS][eE]"
+                        "type": "PREC",
+                        "value": -1,
+                        "content": {
+                          "type": "PATTERN",
+                          "value": "[eE][lL][sS][eE]"
+                        }
                       }
                     },
                     "named": true,

@@ -180,6 +180,54 @@ fn last_set_quote_can_leave_the_ignored_suffix_quoted() {
 }
 
 #[test]
+fn else_remains_in_command_tails() {
+    for (tail, kind, text) in [
+        ("echo someone else here", "argument", "else"),
+        ("echo else", "argument", "else"),
+        ("echo elsewhere", "text", "elsewhere"),
+        ("echo someone ELSE here", "argument", "ELSE"),
+        ("set x=else", "argument", "else"),
+        ("set /p x=else", "argument", "else"),
+        ("set /a else", "argument", "else"),
+        ("goto someone else", "label_name", "someone else"),
+        ("call :helper else", "argument", "else"),
+        ("echo first >nul else", "argument", "else"),
+        ("echo first & echo someone else here", "argument", "else"),
+    ] {
+        let source = format!("if x==x {tail}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        let statement = root.named_child(0).unwrap();
+        let consequence = statement.child_by_field_name("consequence").unwrap();
+        assert_eq!(&source[consequence.byte_range()], tail);
+        assert!(statement.child_by_field_name("alternative").is_none());
+        assert!(node_sources(consequence, kind, &source).contains(&text), "{source}");
+    }
+}
+
+#[test]
+fn else_branches_follow_completed_blocks() {
+    for consequence in [
+        "(echo yes)",
+        "(echo yes)>nul",
+        "echo first |(echo last)",
+        "echo first & (echo last)",
+        "if y==y (echo inner) else (echo other)",
+    ] {
+        let source = format!("if x==x {consequence} else (echo no)\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        let statement = root.named_child(0).unwrap();
+        let body = statement.child_by_field_name("consequence").unwrap();
+        let alternative = statement.child_by_field_name("alternative").unwrap();
+        assert_eq!(&source[body.byte_range()], consequence);
+        assert_eq!(&source[alternative.byte_range()], "(echo no)");
+    }
+}
+
+#[test]
 fn else_requires_a_complete_token() {
     for suffix in ["x echo no", "where", "\"x\" echo no", "(echo no)", "%X% echo no", "^ echo no", ""] {
         let source = format!("if 1==1 (echo yes) else{suffix}\n");

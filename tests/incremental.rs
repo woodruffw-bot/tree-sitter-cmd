@@ -384,7 +384,7 @@ fn deleting_control_flow_body_keeps_next_line_separate() {
             "for_statement",
         ),
         (
-            "if exist marker echo yes else echo no\necho tail\n",
+            "if exist marker (echo yes) else echo no\necho tail\n",
             " echo no",
             "if_statement",
         ),

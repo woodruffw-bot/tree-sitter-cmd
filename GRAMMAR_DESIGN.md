@@ -307,16 +307,16 @@ Redirections inside a quoted binding's ignored suffix remain positional
 
 ### IF / ELSE
 
-Single-line (`IF cond cmd [ELSE cmd]`) and block (`IF cond ( ... ) ELSE ( ... )`)
-forms are both supported. cmd requires the IF body's closing `)`, the `ELSE`
-keyword, and ELSE's opening `(` to be on the same physical line; a `)` alone on a
-line followed by `ELSE` on the next is an error. This is enforced by not allowing
-a newline between the `then` body and the `else` branch. `prec.right` resolves
+An ELSE branch follows a completed block, including a block at the end of an
+operator expression. Within a simple command tail, ELSE remains ordinary text.
+For example, `IF 1==1 ECHO someone else here` has no alternative branch.
+The `ELSE` keyword must be on the same physical line as the end of the
+consequence. This is enforced by not allowing a newline between the consequence
+and the alternative. `prec.right` resolves
 the dangling-else to the nearest IF and lets `IF c1 IF c2 cmd` chain. IF does not
 take leading redirections. The consequence and alternative each consume a full
 command-operator expression. For example, both commands in
-`IF 1==1 ECHO a & ECHO b` belong to the consequence. An `ELSE` after the
-consequence starts the alternative instead of becoming part of that expression.
+`IF 1==1 ECHO a & ECHO b` belong to the consequence.
 `/I` is recognized only as a complete standard token. In
 `IF /ileft==right ...`, the longer `/ileft` word remains the comparison's left
 operand rather than becoming an `/I` flag plus `left`.
