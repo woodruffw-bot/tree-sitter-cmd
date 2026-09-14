@@ -39,6 +39,9 @@
 //                  grammar offers this token; we consume a closing `"`, or match
 //                  zero-width at end of line / end of input so an unterminated
 //                  quote still closes (cmd runs an open quote to end of line).
+//   SET_DELAYED_QUOTE_TEXT
+//                - conservative source text for a caret-SET delayed reference
+//                  that opens a quote and the suffix protected by that quote.
 //   SET_STRING_START
 //                - opening SET wrapper quote; resets its outer quote phase.
 //   SET_INNER_QUOTE / SET_STRING_END
@@ -103,6 +106,7 @@ enum TokenType {
   RPAREN,
   CARET_ESCAPE,
   DELAYED_VARIABLE,
+  SET_DELAYED_QUOTE_TEXT,
   STRING_END,
   SET_STRING_START,
   SET_INNER_QUOTE,
@@ -214,7 +218,8 @@ static bool is_standard_word_boundary(const Scanner *s, int32_t c) {
 // cannot hide an active operator or structural block close. Quotes can occur
 // in substitution payloads, but still toggle protection of outer operators.
 static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
-                                  bool quoted, bool set_context) {
+                                  bool quoted, bool set_context,
+                                  bool caret_set_context) {
   lexer->advance(lexer, false);
   bool has_content = false;
   while (!lexer->eof(lexer)) {
@@ -223,6 +228,21 @@ static bool scan_delayed_variable(Scanner *s, TSLexer *lexer,
     if (c == '!') {
       if (!has_content) return false;
       lexer->advance(lexer, false);
+      // A delayed reference can open a quote in an otherwise unquoted SET
+      // fragment. Keep that reference and its protected suffix as source text
+      // through the quote's close. Splitting at the bangs would hide the quote
+      // change or pair later bangs with the wrong reference.
+      if (caret_set_context && quoted) {
+        while (!lexer->eof(lexer) && lexer->lookahead != '\r' &&
+               lexer->lookahead != '\n') {
+          int32_t suffix = lexer->lookahead;
+          lexer->advance(lexer, false);
+          if (suffix == '"') break;
+        }
+        lexer->mark_end(lexer);
+        lexer->result_symbol = SET_DELAYED_QUOTE_TEXT;
+        return true;
+      }
       lexer->mark_end(lexer);
       if (set_context) s->set_in_quote = quoted;
       lexer->result_symbol = DELAYED_VARIABLE;
@@ -596,7 +616,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     return scan_delayed_variable(s, lexer,
         valid_symbols[STRING_END] ||
         (valid_symbols[SET_STRING_END] && s->set_in_quote),
-        valid_symbols[SET_STRING_END]);
+        valid_symbols[SET_STRING_END],
+        valid_symbols[SET_DELAYED_QUOTE_TEXT]);
   }
 
   if (valid_symbols[SET_STRING_START]) {
@@ -768,7 +789,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
   int32_t c = lexer->lookahead;
 
   if (want_delayed && c == '!') {
-    return scan_delayed_variable(s, lexer, false, false);
+    return scan_delayed_variable(s, lexer, false, false,
+                                 valid_symbols[SET_DELAYED_QUOTE_TEXT]);
   }
 
   // A source file descriptor is one digit directly adjacent to `<` or `>`.
