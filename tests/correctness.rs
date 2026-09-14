@@ -101,6 +101,38 @@ fn caret_set_delayed_fragments_preserve_operator_and_bang_boundaries() {
 }
 
 #[test]
+fn delayed_quotes_in_redirect_filenames_preserve_source_boundaries() {
+    for prefix in ["set ^\"x=foo", "echo hi "] {
+        for (operator, target) in [
+            (">", "!a\"b!&echo hidden^\""),
+            (">>", "pre!a\"b! !c!&echo hidden^\""),
+            ("<", "!a\"b!|echo hidden"),
+            (">", "!a\"b!\"suffix"),
+        ] {
+            let source = format!("{prefix}{operator}{target}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            assert_eq!(root.named_child_count(), 1);
+            let statement = root.named_child(0).unwrap();
+            let redirect = statement.child_by_field_name("redirect").unwrap();
+            assert_eq!(&source[redirect.byte_range()], format!("{operator}{target}"));
+            assert_eq!(&source[redirect.child_by_field_name("operator").unwrap().byte_range()], operator);
+            assert_eq!(&source[redirect.child_by_field_name("target").unwrap().byte_range()], target);
+            assert!(node_sources(root, "delayed_variable", &source).is_empty());
+            assert!(node_sources(root, "seq_list", &source).is_empty());
+        }
+    }
+
+    let source = "set ^\"x=foo>!a\"b!\"&echo visible\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "redirect_file", source), [">!a\"b!\""]);
+    assert_eq!(node_sources(root, "command", source), ["echo visible"]);
+}
+
+#[test]
 fn attached_if_operands_retain_all_equals_signs() {
     for (operand, expected_right, expected_command) in [
         ("b=c", "b=c", "echo yes"),

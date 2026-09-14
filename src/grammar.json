@@ -2988,7 +2988,7 @@
                     "type": "ALIAS",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "_set_delayed_quote_text"
+                      "name": "_delayed_quote_text"
                     },
                     "named": true,
                     "value": "text"
@@ -3018,7 +3018,7 @@
                             "type": "ALIAS",
                             "content": {
                               "type": "SYMBOL",
-                              "name": "_set_delayed_quote_text"
+                              "name": "_delayed_quote_text"
                             },
                             "named": true,
                             "value": "text"
@@ -3494,7 +3494,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "_standard_fragment"
+          "name": "_redirect_fragment"
         },
         {
           "type": "REPEAT",
@@ -3507,10 +3507,28 @@
               },
               {
                 "type": "SYMBOL",
-                "name": "_standard_fragment"
+                "name": "_redirect_fragment"
               }
             ]
           }
+        }
+      ]
+    },
+    "_redirect_fragment": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_standard_fragment"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_delayed_quote_text"
+          },
+          "named": true,
+          "value": "text"
         }
       ]
     },
@@ -4594,7 +4612,7 @@
     },
     {
       "type": "SYMBOL",
-      "name": "_set_delayed_quote_text"
+      "name": "_delayed_quote_text"
     },
     {
       "type": "SYMBOL",

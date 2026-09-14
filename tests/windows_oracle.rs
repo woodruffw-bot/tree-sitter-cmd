@@ -143,6 +143,14 @@ mod windows {
     }
 
     #[test]
+    fn delayed_quotes_in_caret_set_redirect_targets_protect_operators() {
+        let output = run_script("set-redirect-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b! !c!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!\"&echo visible\r\necho done\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["visible", "done"]);
+    }
+
+    #[test]
     fn redirect_filename_separators_follow_quotes_and_continuations() {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

@@ -945,3 +945,37 @@ set ^"x=!a"b"c!&echo visible^"
       argument: (argument
         (text)
         (escape_sequence)))))
+
+=======================================================
+delayed quotes protect caret-SET redirection filenames
+=======================================================
+
+set ^"x=foo>!a"b! !c!&echo hidden^"
+set ^"x=foo>!a"b!"&echo visible
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument
+        (text))))
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        (escape_sequence)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text))))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)))))

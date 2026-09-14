@@ -118,6 +118,8 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ("if a==b=c echo yes\necho tail\n", "==b", "== b"),
         ("if a== b=c echo yes\necho tail\n", "== b", "==b"),
         ("echo !x&y!\necho tail\n", "&", "^&"),
+        ("set ^\"x=foo>!ab!&echo tail^\"\necho end\n", "ab", "a\"b"),
+        ("set ^\"x=foo>!a\"b! !c!&echo tail^\"\necho end\n", "a\"b", "ab"),
         ("set ^\"x=!ab!&echo tail^\"\necho end\n", "ab", "a\"b"),
         ("set ^\"x=!a\"b!&echo tail^\"\necho end\n", "a\"b", "ab"),
         ("set ^\"x=!a\"b!&echo tail^\"\necho end\n", "b!", "b! !c!"),

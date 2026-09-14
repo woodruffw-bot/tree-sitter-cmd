@@ -170,7 +170,7 @@ module.exports = grammar({
     $._rparen,
     $._caret_escape,
     $.delayed_variable,
-    $._set_delayed_quote_text,
+    $._delayed_quote_text,
     $._string_end,
     $._set_string_start,
     $._set_inner_quote,
@@ -899,10 +899,10 @@ module.exports = grammar({
           repeat(
             choice(
               $._fragment,
-              alias($._set_delayed_quote_text, $.text),
+              alias($._delayed_quote_text, $.text),
               seq(
                 repeat1(field('redirect', $._redirection)),
-                choice($._fragment, alias($._set_delayed_quote_text, $.text)),
+                choice($._fragment, alias($._delayed_quote_text, $.text)),
               ),
             ),
           ),
@@ -1053,9 +1053,11 @@ module.exports = grammar({
       ),
     _redirect_argument: ($) =>
       seq(
-        $._standard_fragment,
-        repeat(seq($._redirect_concat, $._standard_fragment)),
+        $._redirect_fragment,
+        repeat(seq($._redirect_concat, $._redirect_fragment)),
       ),
+    _redirect_fragment: ($) =>
+      choice($._standard_fragment, alias($._delayed_quote_text, $.text)),
 
     // Handle duplication: `2>&1`, `>&2`, `<&3`. cmd skips its standard
     // separators before the target, but this parser phase does not treat a
