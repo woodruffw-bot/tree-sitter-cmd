@@ -392,7 +392,9 @@ module.exports = grammar({
           ),
           optional(
             seq(
-              kw($, 'else'),
+              // Ordinary command text wins until the consequence has ended.
+              // A block closes that tail and leaves ELSE available here.
+              alias(token(prec(-1, new RegExp(ciSource('else')))), $.keyword),
               $._else_boundary,
               choice(
                 field('alternative', $._statement),

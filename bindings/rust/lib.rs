@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn test_statement_fields_follow_quiet_scope() {
         let source = concat!(
-            "if exist x @echo yes else @@echo no\r\n",
+            "if exist x @(echo yes) else @@echo no\r\n",
             "for %%i in (x) do @echo %%i\r\n",
             "@echo left && @@echo right\r\n",
         );
@@ -171,9 +171,9 @@ mod tests {
         let consequence = only_field(if_statement, "consequence");
         let alternative = only_field(if_statement, "alternative");
         assert_eq!(consequence.kind(), "quiet_statement");
-        assert_eq!(&source[consequence.byte_range()], "@echo yes");
+        assert_eq!(&source[consequence.byte_range()], "@(echo yes)");
         assert_eq!(only_field(consequence, "quiet").kind(), "quiet");
-        assert_eq!(only_field(consequence, "body").kind(), "command");
+        assert_eq!(only_field(consequence, "body").kind(), "block");
         assert_eq!(alternative.kind(), "quiet_statement");
         assert_eq!(&source[alternative.byte_range()], "@@echo no");
         assert_eq!(only_field(alternative, "quiet").kind(), "quiet");

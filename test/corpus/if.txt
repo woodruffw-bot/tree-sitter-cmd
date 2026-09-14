@@ -442,3 +442,53 @@ if a==b=c
 ---
 
 (program (if_statement (keyword) condition: (comparison left: (argument (text)) operator: (comparison_operator) right: (argument (text) (text))) consequence: (MISSING "command")))
+
+==================================================
+ELSE remains text in an ECHO argument tail
+==================================================
+
+if x==x echo someone else here
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (command
+      name: (command_name)
+      argument: (argument
+        (text))
+      argument: (argument
+        (text))
+      argument: (argument
+        (text)))))
+
+==================================================
+ELSE remains a SET value
+==================================================
+
+if x==x set x=else
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument
+        (text))
+      operator: (comparison_operator)
+      right: (argument
+        (text)))
+    consequence: (set_statement
+      (keyword)
+      (set_assignment
+        name: (variable_name)
+        value: (argument
+          (text))))))

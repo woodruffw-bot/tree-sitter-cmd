@@ -385,7 +385,7 @@ set "exe=call "%exe%.bat""
 quiet prefixes wrap their statement scope
 ========================================
 
-if exist x @echo yes else @@echo no
+if exist x @(echo yes) else @@echo no
 for %%i in (x) do @echo %%i
 @echo left && @@echo right
 
@@ -400,10 +400,11 @@ for %%i in (x) do @echo %%i
         (text)))
     consequence: (quiet_statement
       quiet: (quiet)
-      body: (command
-        name: (command_name)
-        argument: (argument
-          (text))))
+      body: (block
+        (command
+          name: (command_name)
+          argument: (argument
+            (text)))))
     (keyword)
     alternative: (quiet_statement
       quiet: (quiet)

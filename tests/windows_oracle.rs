@@ -146,6 +146,14 @@ mod windows {
     }
 
     #[test]
+    fn else_in_a_command_tail_is_literal() {
+        let output = run_script("else-tail", b"@echo off\r\nsetlocal\r\nif 1==1 echo someone else here\r\nif 1==0 echo yes else echo unexpected\r\nif 1==1 set TS_CMD_ELSE=else\r\necho %TS_CMD_ELSE%\r\nif 1==0 (echo unexpected) else echo branch\r\nif 1==0 echo first |(echo last) else echo pipeline-branch\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["someone else here", "else", "branch", "pipeline-branch"]);
+    }
+
+    #[test]
     fn else_does_not_match_a_longer_word() {
         let invalid = run_script("else-prefix", b"@echo off\r\nif 1==1 (echo yes) elsex echo no\r\n");
         assert!(!invalid.status.success());

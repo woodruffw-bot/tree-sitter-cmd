@@ -276,7 +276,7 @@ fn malformed_control_flow_bodies_stay_local() {
             "command",
         ),
         (
-            b"if exist marker echo yes else\necho tail\n",
+            b"if exist marker (echo yes) else\necho tail\n",
             "if_statement",
             "command",
         ),
@@ -312,7 +312,7 @@ fn malformed_control_flow_bodies_stay_local() {
     for source in [
         b"if exist marker".as_slice(),
         b"for %%i in (one) do".as_slice(),
-        b"if exist marker echo yes else".as_slice(),
+        b"if exist marker (echo yes) else".as_slice(),
     ] {
         let tree = parser().parse(source, None).expect("malformed EOF parse");
         let root = tree.root_node();
