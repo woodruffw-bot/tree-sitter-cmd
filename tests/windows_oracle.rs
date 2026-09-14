@@ -194,7 +194,8 @@ mod windows {
 
     #[test]
     fn set_values_resume_after_expanded_duplication_targets() {
-        let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 1\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
+        // Use distinct handles because CMD cannot duplicate captured stdout onto itself.
+        let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 2\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"bc", "a\"c", "a\"bc"]);
