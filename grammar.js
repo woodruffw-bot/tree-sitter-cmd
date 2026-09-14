@@ -175,6 +175,7 @@ module.exports = grammar({
     $._set_string_start,
     $._set_inner_quote,
     $._set_string_end,
+    $._set_value_text,
     $._set_ignored_suffix,
     $._label_leading_space,
     $._set_binding_end,
@@ -851,10 +852,11 @@ module.exports = grammar({
             field('name', alias($._set_quoted_name, $.variable_name)),
           ),
           '=',
-          optional(
-            field(
-              'prompt',
-              alias($._set_quoted_value, $.argument),
+          optional(field('prompt', alias($._set_quoted_value, $.argument))),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              optional(field('prompt', alias($._set_quoted_value, $.argument))),
             ),
           ),
           $._set_string_end,
@@ -889,8 +891,12 @@ module.exports = grammar({
           $._set_string_start,
           optional(field('name', alias($._set_quoted_name, $.variable_name))),
           '=',
-          optional(
-            field('value', alias($._set_quoted_value, $.argument)),
+          optional(field('value', alias($._set_quoted_value, $.argument))),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              optional(field('value', alias($._set_quoted_value, $.argument))),
+            ),
           ),
           $._set_string_end,
           optional($._set_ignored_tail),
@@ -913,7 +919,7 @@ module.exports = grammar({
         1,
         repeat1(
           choice(
-            alias($._string_text, $.text),
+            alias($._set_value_text, $.text),
             $._expansion,
             alias($._string_sigil, $.text),
             alias($._set_inner_quote, $.text),

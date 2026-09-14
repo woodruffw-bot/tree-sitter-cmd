@@ -485,3 +485,39 @@ fn escaped_if_operands_do_not_capture_spaced_descriptors() {
         }
     }
 }
+
+#[test]
+fn quoted_set_values_keep_segments_around_redirections() {
+    for prefix in ["set ", "set /p "] {
+        let field = if prefix == "set " { "value" } else { "prompt" };
+        for (tail, values, redirects) in [
+            ("a\"b>out c\"", vec!["a\"b", " c"], vec![">out"]),
+            ("a\"b>\"out q\" c\"", vec!["a\"b", " c"], vec![">\"out q\""]),
+            ("a\"b>&2 c\"", vec!["a\"b", " c"], vec![">&2"]),
+            ("a\"b>out c\"d\"e>two f\"", vec!["a\"b", " c\"d\"e", " f"], vec![">out", ">two"]),
+            ("a\"2>out c\"", vec!["a\"", " c"], vec!["2>out"]),
+            ("a\"b2>out c\"", vec!["a\"b2", " c"], vec![">out"]),
+        ] {
+            let source = format!("{prefix}\"x={tail}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let binding = root.named_child(0).unwrap().named_child(1).unwrap();
+            let mut cursor = binding.walk();
+            let actual_values: Vec<_> = binding.children_by_field_name(field, &mut cursor)
+                .map(|node| &source[node.byte_range()]).collect();
+            assert_eq!(actual_values, values, "{source}");
+            let actual_redirects: Vec<_> = binding.children_by_field_name("redirect", &mut cursor)
+                .map(|node| &source[node.byte_range()]).collect();
+            assert_eq!(actual_redirects, redirects, "{source}");
+            assert!(node_sources(root, "set_ignored_suffix", &source).is_empty());
+        }
+    }
+    for tail in ["b>\"out q\"", "b>out&echo \"after\"", "b>out|echo \"after\""] {
+        let source = format!("set \"x=a\"{tail}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "set_ignored_suffix", &source), ["b"]);
+    }
+}

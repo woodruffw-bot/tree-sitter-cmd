@@ -45,6 +45,8 @@
 //                - quotes inside a quoted SET binding and its last wrapper
 //                  quote. Like STRING_END, SET_STRING_END also matches
 //                  zero-width at end of line / end of input.
+//   SET_VALUE_TEXT
+//                - a quoted SET value fragment, stopping at outer operators.
 //   SET_IGNORED_SUFFIX
 //                - opaque text after the last quote of a quoted SET binding.
 //                  cmd discards this text when it truncates at the last quote.
@@ -107,6 +109,7 @@ enum TokenType {
   SET_STRING_START,
   SET_INNER_QUOTE,
   SET_STRING_END,
+  SET_VALUE_TEXT,
   SET_IGNORED_SUFFIX,
   LABEL_LEADING_SPACE,
   SET_BINDING_END,
@@ -203,6 +206,39 @@ static bool is_set_boundary(const Scanner *s, int32_t c) {
       return s->depth > 0;
     default:
       return false;
+  }
+}
+
+// Skip a redirection while looking for SET's final surviving quote. Quotes
+// in its filename are removed with the redirect, so they cannot close SET.
+static void skip_set_redirect(const Scanner *s, TSLexer *lexer) {
+  int32_t operator = lexer->lookahead;
+  lexer->advance(lexer, false);
+  if (operator == '>' && lexer->lookahead == '>') lexer->advance(lexer, false);
+  bool duplicate = lexer->lookahead == '&';
+  if (duplicate) lexer->advance(lexer, false);
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t' ||
+         lexer->lookahead == ',' || lexer->lookahead == ';' ||
+         lexer->lookahead == '=') {
+    lexer->advance(lexer, false);
+  }
+  if (duplicate && lexer->lookahead >= '0' && lexer->lookahead <= '9') {
+    lexer->advance(lexer, false);
+    return;
+  }
+  bool quoted = false;
+  while (!lexer->eof(lexer)) {
+    int32_t c = lexer->lookahead;
+    if (c == '\r' || c == '\n') break;
+    if (!quoted && (is_set_boundary(s, c) || c == ' ' || c == '\t' ||
+                    c == ',' || c == ';' || c == '=')) break;
+    lexer->advance(lexer, false);
+    if (c == '"') quoted = !quoted;
+    if (c == '^' && !quoted && !lexer->eof(lexer)) {
+      if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+      if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+      if (!lexer->eof(lexer)) lexer->advance(lexer, false);
+    }
   }
 }
 
@@ -639,6 +675,10 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       bool quoted = !s->set_in_quote;
       while (!lexer->eof(lexer)) {
         la = lexer->lookahead;
+        if (!quoted && (la == '<' || la == '>')) {
+          skip_set_redirect(s, lexer);
+          continue;
+        }
         if (la == '\r' || la == '\n' ||
             (!quoted && is_set_boundary(s, la))) {
           break;
@@ -669,6 +709,53 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         return true;
       }
       return false;
+    }
+  }
+
+  // Values use the outer quote phase for operators, but retain every quote
+  // before SET's final wrapper quote as source text. Stop at active redirects
+  // so the grammar can keep each surviving value segment in its own range.
+  if (valid_symbols[SET_VALUE_TEXT]) {
+    bool has_content = false;
+    bool word_start = true;
+    while (!lexer->eof(lexer)) {
+      int32_t c = lexer->lookahead;
+      if (c == '"' || c == '%' || c == '!' || c == '\r' || c == '\n' ||
+          (!s->set_in_quote && is_set_boundary(s, c))) break;
+      if (!s->set_in_quote && word_start && c >= '0' && c <= '9') {
+        lexer->mark_end(lexer);
+        lexer->advance(lexer, false);
+        if (lexer->lookahead == '<' || lexer->lookahead == '>') {
+          if (has_content) {
+            lexer->result_symbol = SET_VALUE_TEXT;
+            return true;
+          }
+          if (valid_symbols[REDIRECT_SOURCE]) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = REDIRECT_SOURCE;
+            return true;
+          }
+          return false;
+        }
+      } else {
+        lexer->advance(lexer, false);
+      }
+      if (c == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
+        if (lexer->lookahead == '\r') lexer->advance(lexer, false);
+        if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+        if (!lexer->eof(lexer) && lexer->lookahead != '%' && lexer->lookahead != '!') {
+          c = lexer->lookahead;
+          lexer->advance(lexer, false);
+        }
+      }
+      word_start = c == ' ' || c == '\t' || c == ',' || c == ';' || c == '=' ||
+                   c == '(' || c == ')' || c == '&' || c == '|' || c == '"';
+      has_content = true;
+      lexer->mark_end(lexer);
+    }
+    if (has_content) {
+      lexer->result_symbol = SET_VALUE_TEXT;
+      return true;
     }
   }
 

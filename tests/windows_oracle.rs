@@ -148,6 +148,14 @@ mod windows {
     }
 
     #[test]
+    fn set_final_quote_follows_removed_redirections() {
+        let output = run_script("set-redirect-quotes", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b>out c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&2 c\"\r\necho !TS_CMD_QUOTE!\r\n<nul set /p \"TS_CMD_QUOTE=a\"b>prompt c\"\r\ntype prompt\r\necho(\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a", "a\"b c", "a\"b c"]);
+    }
+
+    #[test]
     fn redirect_filename_separators_follow_quotes_and_continuations() {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

@@ -969,3 +969,58 @@ set "x=y"junk^
 ---
 
 (program (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix))) (block (set_statement (keyword) (set_quoted name: (variable_name) value: (argument (text)) ignored: (set_ignored_suffix)))))
+
+======================================================
+quoted SET value segments survive removed redirections
+======================================================
+
+set "x=a"b>out c"
+set /p "x=a"b>out c"
+set "x=a"b>"out q" c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      prompt: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (string)))
+      value: (argument
+        (text)))))
