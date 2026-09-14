@@ -1,107 +1,125 @@
 # AGENTS.md
 
-Guidance for AI agents and human contributors working in this repository.
-
-This is a tree-sitter grammar for the Windows `cmd.exe` batch dialect (`.bat`,
-`.cmd`). The grammar lives in `grammar.js` and `src/scanner.c`; the design
-rationale is in `GRAMMAR_DESIGN.md`.
+Instructions for agents working on tree-sitter-cmd, a Tree-sitter grammar for
+Windows batch scripts (`.bat` and `.cmd`). Keep all agent development instructions
+in this file. Other documentation describes usage, behavior, and limitations.
 
 ## Grammar priorities
 
-- Static analysis is the primary use case. Prefer accurate, stable CST nodes
-  and fields, source fidelity, and local error recovery over highlighting
-  convenience.
-- Syntax errors must remain errors in the CST. Do not replace Tree-sitter
-  `ERROR` or missing state with a normal named node that only represents a
-  diagnostic or makes malformed input parse cleanly.
-- Highlight and injection queries are secondary consumers of the CST. Queries
-  must follow the grammar. Do not add grammar states, visible nodes, aliases, or
-  recovery behavior only to simplify a query.
-- Model cmd syntax, not the option languages of invoked programs. Treat flags
-  and option payloads as opaque arguments unless they materially change cmd's
-  statement shape, token boundaries, or interpretation of following syntax.
-  For example, FOR `/R` may consume a path and FOR `/F usebackq` changes the
-  role of quote delimiters. Individual `/F` parsing keywords such as `tokens=`
-  and `delims=` remain opaque.
-- Do not infer a downstream language or tool from a command name or its flags.
+- Static analysis is the primary use case. Preserve source text, accurate and
+  stable CST nodes and fields, and local error recovery.
+- Keep syntax errors visible as Tree-sitter `ERROR` or missing nodes. Do not
+  replace them with normal nodes or invent syntax to make malformed input parse.
+- Model cmd syntax. Keep program flags and option payloads as opaque arguments
+  unless they change statement structure or token boundaries. FOR `/R` may
+  consume a path. FOR `/F` options remain opaque, including `usebackq`, `tokens=`,
+  and `delims=`.
+- Keep highlight and injection queries consistent with the CST. Do not add
+  grammar states, nodes, aliases, or recovery rules just to simplify a query.
+  Do not infer another language from a command name or its flags.
+- Check `GRAMMAR_DESIGN.md` before changing a documented limitation or design
+  choice. The grammar parses batch syntax without tracking runtime state.
+- Do not remove the anonymous recovery markers unless the replacement preserves
+  missing-body line boundaries and nested block operator scope. Test full child
+  traversal and incremental parsing.
 
 ## Writing style
 
-This applies to docs, comments, commit messages, and PR descriptions.
+These rules apply to documentation, comments, commit messages, and PR descriptions.
 
-- Use simple, clear language. Prefer short sentences and common words.
-- No emdashes. Use a period, comma, colon, or parentheses instead.
-- No LLM flourishes: no "delve", no "it's worth noting", no inflated adjectives
-  ("comprehensive", "robust", "seamless"), no rule-of-three padding.
-- State facts, not marketing. Say what something does and what it does not do.
-  Skip stress-test counts, repo roll-calls, and superlatives.
-- Be accurate. Verify claims against the code before writing them down, and keep
-  numbers (test counts, fixture counts) current or leave them out.
-- Cut anything that does not help the reader. Shorter is better when the meaning
-  is the same.
+- Use clear, precise English. Prefer short sentences and common words.
+- Avoid semicolons and em dashes in prose. Preserve punctuation in code examples.
+- State what the code does. Remove marketing, inflated adjectives, filler, and
+  repetitive explanations.
+- Verify technical claims against the code. Omit test and fixture counts unless
+  the reader needs them.
+- Cut text that adds no useful information.
 
 ## Build and test
 
+Install the CLI from the official Rust crate:
+
 ```sh
 cargo install --locked --version 0.26.11 tree-sitter-cli
+```
+
+Its native JavaScript runtime evaluates `grammar.js`. Node and npm are not
+required.
+
+After editing `grammar.js` or `src/scanner.c`, run:
+
+```sh
 tree-sitter generate --js-runtime native
 tree-sitter test
 cargo test
 ```
 
-The CLI comes from the official Rust crate. Its bundled native runtime evaluates
-`grammar.js`, so Node and npm are not required.
+Commit the generated files. Do not edit `src/parser.c`, `src/grammar.json`, or
+`src/node-types.json` by hand. The CI jobs are in `.github/workflows/ci.yml`.
 
-Always run `tree-sitter generate --js-runtime native` after editing `grammar.js`
-or `src/scanner.c`, then run `tree-sitter test` and `cargo test`. CI runs the
-same steps (`.github/workflows/ci.yml`).
+Additional checks:
 
-Do not hand-edit generated files (`src/parser.c`, `src/grammar.json`,
-`src/node-types.json`). Change `grammar.js` and regenerate.
-
-## Layout
-
-```
-grammar.js          the grammar
-src/scanner.c       external scanner (word-join, REM, block parens, caret escape, string end)
-queries/            highlights.scm, injections.scm
-test/corpus/        unit corpus (input plus expected S-expression)
-test/real-world/    whole upstream scripts parsed by the Rust integration test
-tests/              Rust integration tests
-GRAMMAR_DESIGN.md   design document
-bindings/           rust crate
+```sh
+tree-sitter fuzz                  # Mutated inputs and incremental edits
+cargo test --test real_world      # Script fixtures
 ```
 
-## Conventions
+On Windows, run the observation report with:
 
-- Indentation follows `.editorconfig`: 2 spaces for `.js`, `.scm`, JSON, and
-  YAML; 4 spaces for C. Do not reformat unrelated lines.
-- Follow tree-sitter naming idioms. Named node types are snake_case and
-  descriptive. Reuse the field names already in use for the same role (`name`,
-  `value`, `left`, `right`, `operator`, `condition`, `consequence`,
-  `alternative`, `argument`, `source`, `target`, `body`, `option`, `kind`); do
-  not add a second name for one role (no `arg` beside `argument`, no `op` beside
-  `operator`). Helper rules that should not appear in the tree take a leading
-  underscore (`_name`). Expose a `choice` of related nodes as a `supertype` when
-  a query would want to match the group (for example `_expansion`). Alias
-  keywords to the named `keyword` node (alias to `$.keyword`, the symbol, not the
-  string `'keyword'`) so `(keyword)` matches them and they appear in the tree.
-- Highlight captures in `queries/highlights.scm` use the standard capture names
-  (`@keyword`, `@string`, `@operator`, `@variable`, `@comment`, `@number`,
-  `@punctuation.bracket`, and so on). Add a capture for a new visible node only
-  when a standard capture accurately describes it. Do not change the grammar to
-  make a highlight query easier to write.
-- When adding a construct, add a focused case to the matching `test/corpus/`
-  file with its expected S-expression.
-- When adding a real-world fixture, follow `test/real-world/README.md`: drop the
-  verbatim script in `fixtures/`, add a `<name>.LICENSE` sibling, and add a row
-  to `sources.tsv`.
-- The grammar targets the batch dialect and over-accepts a few runtime-gated
-  constructs on purpose. Before "fixing" an apparent quirk, check
-  `GRAMMAR_DESIGN.md` to see whether it is a documented decision.
+```sh
+cargo test --test windows_oracle -- --include-ignored --nocapture
+```
+
+Review the report before drawing conclusions about cmd syntax. Command output
+and exit status alone do not establish the correct CST. Add focused corpus or
+Rust assertions when a grammar change implements confirmed behavior.
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `grammar.js` | Grammar rules |
+| `src/scanner.c` | Context-sensitive tokens |
+| `queries/` | Highlight and injection queries |
+| `test/corpus/` | Inputs and expected syntax trees |
+| `test/real-world/` | Script fixtures and their metadata |
+| `tests/` | Rust integration tests |
+| `GRAMMAR_DESIGN.md` | Grammar behavior and design decisions |
+| `bindings/rust/` | Rust bindings |
+
+## Code conventions
+
+- Follow `.editorconfig`: 2 spaces for JavaScript, Scheme, JSON, and YAML, and
+  4 spaces for C. Do not reformat unrelated lines.
+- Use descriptive snake_case node names. Reuse existing field names for the same
+  role, such as `argument` and `operator`. Do not introduce synonyms such as
+  `arg` or `op`.
+- Prefix hidden helper rules with `_`. Use supertypes for groups of related
+  nodes, such as `_expansion`.
+- Alias keywords to `$.keyword`, not the string `'keyword'`, so they appear as
+  named nodes and match `(keyword)` queries.
+- Use standard highlight captures, such as `@keyword`, `@string`, `@operator`,
+  `@variable`, and `@comment`. Add a capture only when it describes the node.
+- Add a focused input and expected syntax tree in `test/corpus/` for each new
+  construct.
+
+## Script fixtures
+
+Keep existing fixtures intact. To add a fixture:
+
+1. Save the UTF-8 script verbatim under `test/real-world/fixtures/`.
+2. Add a `<filename>.LICENSE` sibling recording its origin, SPDX identifier,
+   copyright, and a link to the full license.
+3. Add a row to `test/real-world/sources.tsv` as `<filename>\t<source-url>`.
+   Use a GitHub `blob` URL with the full 40-character commit ID for GitHub sources.
+4. Run `cargo test --test real_world`.
+
+When a fixture needs to preserve a particular node kind, add a row to
+`test/real-world/contracts.tsv` as `<filename>\t<node-kind>\t<minimum-count>`.
+These checks supplement the rejection of `ERROR` and missing nodes without
+fixing the entire tree shape.
 
 ## Pull requests
 
-- Keep changes focused. Documentation-only changes should not touch the grammar,
-  and vice versa.
-- State plainly in the description what changed and what did not.
+Keep changes focused. Keep documentation cleanup separate from grammar changes.
+Explain the problem, what changed, and how the change was checked.

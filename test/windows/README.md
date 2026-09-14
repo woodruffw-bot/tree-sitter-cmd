@@ -1,24 +1,20 @@
-# Windows cmd oracle
+# Windows cmd tests
 
-This opt-in harness runs short byte-exact scripts through both `cmd.exe` and
-the grammar. It reports command output, exit status, the CST, and every
-`ERROR` or `MISSING` node.
+[`tests/windows_oracle.rs`](../../tests/windows_oracle.rs) runs short scripts
+through `cmd.exe`. It contains regression assertions and an optional observation
+report that also parses each script with the grammar.
 
-Run it on Windows:
+The report includes command output, exit status, the CST, and every `ERROR` or
+missing node. Output is escaped byte for byte, including bytes from the active
+OEM code page. Undecodable bytes are preserved in the report.
 
-```sh
-cargo test --test windows_oracle -- --include-ignored --nocapture
-```
+The observations need interpretation. Diagnostics depend on the system language,
+an exit status may come from an executed command, and successful execution does
+not establish a particular CST shape.
 
-The output is evidence, not an automatic conformance result. `cmd.exe`
-diagnostics are localized, an exit status can come from the command rather than
-the parser, and successful execution does not prove a specific CST shape.
-Output is escaped byte-for-byte, including bytes from the active OEM code page,
-so the report never replaces undecodable output with Unicode replacement text.
-Review each observation before changing the grammar. Keep focused corpus and
-Rust assertions in the PR that implements a confirmed behavior.
+Cases include separators, help forms, echo suppression, empty blocks, carriage
+returns, redirection spacing, caret continuations, IF and FOR token boundaries,
+colon comments, FOR /F source delimiters, SET /A, and PowerShell comment markers.
 
-The initial cases cover standard separators, help forms, quiet scope, empty
-blocks, standalone carriage returns, redirection spacing, caret continuations,
-complete IF/FOR token boundaries, colon-comment command positions, FOR /F
-source delimiters, empty SET /A expressions, and PowerShell polyglot markers.
+Run instructions and guidance for grammar changes are in
+[AGENTS.md](../../AGENTS.md).

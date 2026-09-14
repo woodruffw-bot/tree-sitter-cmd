@@ -1,50 +1,30 @@
-# Real-world parse-regression corpus
+# Script regression tests
 
-Known-good, real-world Windows batch/cmd scripts, checked in and parsed by CI to
-guard against regressions. Unlike the unit corpus in `../corpus/` (small inputs
-with expected S-expressions), these are whole upstream files. Fixtures must be
-UTF-8. The Rust integration test validates that encoding, parses the original
-bytes, and requires a tree without `ERROR` or `MISSING` nodes.
+The Rust integration test parses complete batch scripts from `fixtures/`. It
+validates UTF-8, parses the original bytes, and rejects trees containing `ERROR`
+or missing nodes. The smaller inputs in [`../corpus/`](../corpus/) also specify
+expected syntax trees.
 
-```
-fixtures/      the committed scripts (plus a .LICENSE per file)
-sources.tsv    filename and source URL for each fixture
-contracts.tsv  minimum node counts for selected fixtures
-FEATURE_COVERAGE.md
-               grammar-sensitive coverage and intentionally open gaps
-```
+| Path | Contents |
+| --- | --- |
+| `fixtures/` | Scripts and a `.LICENSE` file for each script |
+| `sources.tsv` | Fixture filenames and source URLs |
+| `contracts.tsv` | Minimum counts of selected node kinds |
+| [FEATURE_COVERAGE.md](FEATURE_COVERAGE.md) | Syntax examples and coverage gaps |
 
-Run it:
+Each `sources.tsv` row has the form `<filename>\t<source-url>`. Each
+`contracts.tsv` row has the form `<filename>\t<node-kind>\t<minimum-count>`.
+The node counts check selected parts of a tree without fixing its full shape.
 
-```sh
-cargo test --test real_world
-```
+## Sources and licenses
 
-## Third-party content and licensing
+Most fixtures are verbatim copies of third-party scripts used as test input.
+Each remains under its upstream license. Its `<filename>.LICENSE` file records
+the origin, SPDX identifier, copyright, and a link to the full license.
 
-Most files under `fixtures/` are third-party, included verbatim solely as test
-input. They are not part of the grammar and are not covered by this repository's
-MIT license; each remains under its upstream project's license. Every fixture
-has a sibling `<filename>.LICENSE` recording its origin, SPDX identifier,
-copyright, and a link to the full license text. Licenses currently represented:
-Apache-2.0 (incl. the LLVM exception), MIT, BSD-3-Clause, Artistic-2.0, PSF-2.0,
-GPL-2.0-only, and GPL-2.0-or-later. They are aggregated here for testing only.
+The `mre-*.bat` fixtures are original examples written for this repository and
+covered by its MIT license. They reproduce batch idioms without copying
+third-party scripts.
 
-The `mre-*.bat` files are different: they are original Minimal Reproducible
-Examples authored for this repo (MIT, like the grammar). They distill idioms from
-scripts whose licenses forbid vendoring the real file verbatim (for example
-Elasticsearch, Elastic-2.0 / SSPL) without copying any third-party text.
-
-## Adding a case
-
-Add cases as new constructs or bugs surface; do not rewrite existing ones.
-
-1. Drop the script in `fixtures/`, kept verbatim.
-2. Add a `fixtures/<name>.LICENSE` sibling with its provenance and license.
-3. Add a row to `sources.tsv`: `<name>\t<source-url>`. For a GitHub source,
-   use a `blob` URL with the full 40-character commit ID.
-4. Confirm `cargo test --test real_world` passes.
-
-Add a row to `contracts.tsv` when a fixture is meant to preserve a specific
-node kind. Contracts use the form `<filename>\t<node-kind>\t<minimum-count>`.
-They supplement the no-recovery check without fixing the full CST in place.
+Instructions for running the tests and adding fixtures are in
+[AGENTS.md](../../AGENTS.md).
