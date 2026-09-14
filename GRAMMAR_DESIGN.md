@@ -375,6 +375,12 @@ MISSING state; they are not accepted as targetless statement nodes. Recovery
 also stops at the physical line boundary so a following command is not adopted
 as the missing target.
 
+When a redirection splits a GOTO target, `label_reference` keeps the surviving
+text in source order. Its `name` field can contain several contiguous
+`label_name` segments, with `redirect` siblings between them. Text after a
+lookup delimiter stays `label_text` across redirections. Terminal redirects
+remain on `goto_statement`.
+
 ### Redirection
 
 A leading digit is a redirection fd only at a token boundary and immediately

@@ -854,7 +854,7 @@
     "named": true,
     "fields": {
       "name": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -862,10 +862,20 @@
             "named": true
           }
         ]
+      },
+      "redirect": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "_redirection",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": false,
       "types": [
         {
@@ -878,7 +888,21 @@
   {
     "type": "label_text",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "or_list",

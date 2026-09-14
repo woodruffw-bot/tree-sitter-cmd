@@ -193,6 +193,7 @@ module.exports = grammar({
   // These pure choices are exposed as transparent supertypes so queries can
   // target the category without adding wrapper nodes to the CST.
   supertypes: ($) => [$._expansion, $._redirection],
+  inline: ($) => [$._label_reference_ignored_tail],
 
   // Only horizontal whitespace is globally ignorable. A caret-newline cannot
   // be an extra: cmd discards the newline, then forces the first character of
@@ -210,6 +211,7 @@ module.exports = grammar({
     [$.set_quoted],
     [$.set_display],
     [$.set_display, $._set_binding],
+    [$.label_reference],
   ],
 
   rules: {
@@ -678,13 +680,19 @@ module.exports = grammar({
             'name',
             alias($._label_reference_name, $.label_name),
           ),
-          optional(alias($._label_reference_tail, $.label_text)),
+          repeat(
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              field('name', alias($._label_reference_name, $.label_name)),
+            ),
+          ),
+          optional($._label_reference_ignored_tail),
         ),
         // Keep an empty or doubly-prefixed target, such as `goto ::name`, as a
         // target without inventing a resolvable label name.
         seq(
           ':',
-          optional(alias($._label_reference_tail, $.label_text)),
+          optional($._label_reference_ignored_tail),
         ),
       ),
     _label_reference_prefix: ($) =>
@@ -699,11 +707,42 @@ module.exports = grammar({
           $._stray_sigil,
         ),
       ),
+    // Split hidden text at spaces so a following `2>` can be recognized as a
+    // redirect source, while the enclosing name still spans ordinary words.
     _label_reference_text: ($) =>
-      token(
-        /[^ \t\r\n:^+;,=&|<>()%!](?:[^:\r\n^+;,=&|<>()%!]*[^ \t:\r\n^+;,=&|<>()%!])?/,
+      token(/[^ \t\r\n:^+;,=&|<>()%!]+/),
+    _label_reference_tail: ($) =>
+      seq(
+        choice(
+          token(/[:+][^ \t\r\n,;=&|<>)^"]*/),
+          token(/[,;=]/),
+        ),
+        repeat($._label_reference_ignored_word),
       ),
-    _label_reference_tail: ($) => token(/[:+;,=][^\r\n&|<>)]*/),
+    // Redirections are siblings of the surviving name/text segments. A name
+    // segment never covers removed source, and a delimiter keeps later text
+    // on the ignored-tail path even across another redirection.
+    _label_reference_ignored_tail: ($) =>
+      seq(
+        repeat(field('redirect', $._redirection)),
+        alias($._label_reference_tail, $.label_text),
+        repeat(
+          seq(
+            repeat1(field('redirect', $._redirection)),
+            alias($._label_reference_ignored_text, $.label_text),
+          ),
+        ),
+      ),
+    _label_reference_ignored_text: ($) =>
+      repeat1($._label_reference_ignored_word),
+    _label_reference_ignored_word: ($) =>
+      choice(
+        token(/[^ \t\r\n,;=&|<>)^"]+/),
+        token(/[,;=]/),
+        $.string,
+        $.escape_sequence,
+        alias($._caret_escape, $.escape_sequence),
+      ),
 
     // CALL :label args  /  CALL file args  /  CALL command. Redirections may
     // precede the keyword or appear anywhere in the argument tail (e.g.

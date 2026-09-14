@@ -2087,16 +2087,43 @@
               }
             },
             {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "REPEAT1",
+                    "content": {
+                      "type": "FIELD",
+                      "name": "redirect",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_redirection"
+                      }
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "name",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "_label_reference_name"
+                      },
+                      "named": true,
+                      "value": "label_name"
+                    }
+                  }
+                ]
+              }
+            },
+            {
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_label_reference_tail"
-                  },
-                  "named": true,
-                  "value": "label_text"
+                  "type": "SYMBOL",
+                  "name": "_label_reference_ignored_tail"
                 },
                 {
                   "type": "BLANK"
@@ -2116,13 +2143,8 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_label_reference_tail"
-                  },
-                  "named": true,
-                  "value": "label_text"
+                  "type": "SYMBOL",
+                  "name": "_label_reference_ignored_tail"
                 },
                 {
                   "type": "BLANK"
@@ -2194,15 +2216,135 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "[^ \\t\\r\\n:^+;,=&|<>()%!](?:[^:\\r\\n^+;,=&|<>()%!]*[^ \\t:\\r\\n^+;,=&|<>()%!])?"
+        "value": "[^ \\t\\r\\n:^+;,=&|<>()%!]+"
       }
     },
     "_label_reference_tail": {
-      "type": "TOKEN",
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "TOKEN",
+              "content": {
+                "type": "PATTERN",
+                "value": "[:+][^ \\t\\r\\n,;=&|<>)^\"]*"
+              }
+            },
+            {
+              "type": "TOKEN",
+              "content": {
+                "type": "PATTERN",
+                "value": "[,;=]"
+              }
+            }
+          ]
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_label_reference_ignored_word"
+          }
+        }
+      ]
+    },
+    "_label_reference_ignored_tail": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "FIELD",
+            "name": "redirect",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_redirection"
+            }
+          }
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_label_reference_tail"
+          },
+          "named": true,
+          "value": "label_text"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "REPEAT1",
+                "content": {
+                  "type": "FIELD",
+                  "name": "redirect",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_redirection"
+                  }
+                }
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_label_reference_ignored_text"
+                },
+                "named": true,
+                "value": "label_text"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "_label_reference_ignored_text": {
+      "type": "REPEAT1",
       "content": {
-        "type": "PATTERN",
-        "value": "[:+;,=][^\\r\\n&|<>)]*"
+        "type": "SYMBOL",
+        "name": "_label_reference_ignored_word"
       }
+    },
+    "_label_reference_ignored_word": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "PATTERN",
+            "value": "[^ \\t\\r\\n,;=&|<>)^\"]+"
+          }
+        },
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "PATTERN",
+            "value": "[,;=]"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "escape_sequence"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_caret_escape"
+          },
+          "named": true,
+          "value": "escape_sequence"
+        }
+      ]
     },
     "call_statement": {
       "type": "PREC_RIGHT",
@@ -4362,6 +4504,9 @@
     [
       "set_display",
       "_set_binding"
+    ],
+    [
+      "label_reference"
     ]
   ],
   "precedences": [],
@@ -4475,7 +4620,9 @@
       "name": "_error_sentinel"
     }
   ],
-  "inline": [],
+  "inline": [
+    "_label_reference_ignored_tail"
+  ],
   "supertypes": [
     "_expansion",
     "_redirection"
