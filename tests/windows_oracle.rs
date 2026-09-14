@@ -130,6 +130,24 @@ mod windows {
     }
 
     #[test]
+    fn quoted_set_names_accept_metacharacters() {
+        for name in ["TS_CMD_NAME(1)", "TS_CMD_NAME&x", "TS_CMD_NAME|x", "TS_CMD_NAME<x", "TS_CMD_NAME>x", "TS_CMD_NAME^x"] {
+            let source = format!(
+                "@echo off\r\nsetlocal DisableDelayedExpansion\r\n(set \"{name}=assigned\")\r\nset \"{name}\"\r\necho entered>input.txt\r\n<input.txt set /p \"{name}=prompt\" >nul\r\nset \"{name}\"\r\n",
+            );
+            let tree = parser().parse(&source, None).unwrap();
+            assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+            let output = run_script("set-quoted-names", source.as_bytes());
+            assert!(output.status.success(), "{name}: {}", escaped(&output.stderr));
+            assert!(output.stderr.is_empty(), "{name}: {}", escaped(&output.stderr));
+            assert_eq!(
+                String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+                [format!("{name}=assigned"), format!("{name}=entered")],
+            );
+        }
+    }
+
+    #[test]
     fn redirect_filename_separators_follow_quotes_and_continuations() {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

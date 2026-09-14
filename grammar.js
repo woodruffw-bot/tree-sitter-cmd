@@ -848,7 +848,7 @@ module.exports = grammar({
         seq(
           $._set_string_start,
           optional(
-            field('name', alias($._set_name, $.variable_name)),
+            field('name', alias($._set_quoted_name, $.variable_name)),
           ),
           '=',
           optional(
@@ -887,7 +887,7 @@ module.exports = grammar({
       choice(
         seq(
           $._set_string_start,
-          optional(field('name', alias($._set_name, $.variable_name))),
+          optional(field('name', alias($._set_quoted_name, $.variable_name))),
           '=',
           optional(
             field('value', alias($._set_quoted_value, $.argument)),
@@ -953,11 +953,36 @@ module.exports = grammar({
         ),
         seq(
           $._set_string_start,
-          optional(alias($._set_name, $.variable_name)),
+          optional(alias($._set_quoted_name, $.variable_name)),
           $._set_string_end,
           optional($._set_ignored_tail),
         ),
       ),
+
+    // Quotes protect metacharacters in SET names. Carets are literal here;
+    // expansions still retain their own nodes inside the name.
+    _set_quoted_name: ($) =>
+      choice(
+        $._set_quoted_name_text,
+        prec.right(
+          seq(
+            repeat(alias($._set_quoted_name_text, $.text)),
+            $._set_quoted_name_special,
+            repeat(
+              choice(
+                alias($._set_quoted_name_tail_text, $.text),
+                $._set_quoted_name_special,
+              ),
+            ),
+          ),
+        ),
+      ),
+    _set_quoted_name_special: ($) =>
+      choice($._expansion, alias($._string_sigil, $.text)),
+    _set_quoted_name_text: ($) =>
+      token(/[^ \t\r\n"%!=][^\r\n"%!=]*/),
+    _set_quoted_name_tail_text: ($) =>
+      token.immediate(/[^\r\n"%!=]+/),
 
     // Redirections are removed before SET interprets its payload. Keep each
     // surviving name segment in a separate source-contiguous `variable_name`,

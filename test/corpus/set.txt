@@ -122,6 +122,66 @@ set x>out=value
       value: (argument
         (text)))))
 
+==================================================
+quoted names protect metacharacters in all SET forms
+==================================================
+
+set "x(1)&|<>^=value"
+set /p "x(1)&|<>^=prompt"
+set "x(1)&|<>^"
+(set "x(1)&|<>^=value")
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_display (variable_name)))
+  (block
+    (set_statement
+      (keyword)
+      (set_quoted
+        name: (variable_name)
+        value: (argument (text))))))
+
+================================================
+quoted names retain expansions beside punctuation
+================================================
+
+set "x%N%(1)=value"
+set /p "x!N!&y =prompt"
+set "x%N%>y"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name (text) (variable) (text))
+      value: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name (text) (delayed_variable) (text))
+      prompt: (argument (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name (text) (variable) (text)))))
+
 ===============================
 assignment with spaces in value
 ===============================

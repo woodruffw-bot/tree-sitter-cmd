@@ -142,6 +142,36 @@ fn caret_quoted_set_preserves_outer_syntax_and_source_fragments() {
 }
 
 #[test]
+fn quoted_set_names_preserve_metacharacters_and_expansions() {
+    for name in ["x(1)", "x&y", "x|y", "x<y", "x>y", "x^y", "x%N%(1)", "x!N!&y "] {
+        for payload in [format!("\"{name}=value\""), format!("/p \"{name}=prompt\""), format!("\"{name}\"")] {
+            for source in [format!("set {payload}\n"), format!("(set {payload})\n")] {
+                let tree = parser().parse(&source, None).unwrap();
+                let root = tree.root_node();
+                assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+                assert_eq!(node_sources(root, "variable_name", &source), [name]);
+                for kind in ["seq_list", "pipeline", "redirect_file", "escape_sequence"] {
+                    assert!(node_sources(root, kind, &source).is_empty(), "{source}: {kind}");
+                }
+                if name.contains("%N%") {
+                    assert_eq!(node_sources(root, "variable", &source), ["%N%"]);
+                }
+                if name.contains("!N!") {
+                    assert_eq!(node_sources(root, "delayed_variable", &source), ["!N!"]);
+                }
+            }
+        }
+    }
+    let source = "set x&echo after\nset x>out=y\nset x^&y=value\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "command_name", source), ["echo"]);
+    assert_eq!(node_sources(root, "redirect_file", source), [">out"]);
+    assert_eq!(node_sources(root, "escape_sequence", source), ["^&"]);
+}
+
+#[test]
 fn redirect_filenames_stop_at_unprotected_separators() {
     for (source, redirect) in [
         ("echo hi >\"a^\",b tail\n", ">\"a^\""),
