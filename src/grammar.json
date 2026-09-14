@@ -3042,6 +3042,15 @@
                     "name": "_fragment"
                   },
                   {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_set_delayed_quote_text"
+                    },
+                    "named": true,
+                    "value": "text"
+                  },
+                  {
                     "type": "SEQ",
                     "members": [
                       {
@@ -3056,8 +3065,22 @@
                         }
                       },
                       {
-                        "type": "SYMBOL",
-                        "name": "_fragment"
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "_fragment"
+                          },
+                          {
+                            "type": "ALIAS",
+                            "content": {
+                              "type": "SYMBOL",
+                              "name": "_set_delayed_quote_text"
+                            },
+                            "named": true,
+                            "value": "text"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -4801,6 +4824,10 @@
     {
       "type": "SYMBOL",
       "name": "delayed_variable"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_set_delayed_quote_text"
     },
     {
       "type": "SYMBOL",

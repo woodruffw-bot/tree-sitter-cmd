@@ -1024,3 +1024,79 @@ set "x=a"b>"out q" c"
           (string)))
       value: (argument
         (text)))))
+
+=======================================================
+quotes in delayed caret-SET text protect later operators
+=======================================================
+
+set ^"x=!a"b!&echo hidden^"
+set ^"x=!a"b! !c!&echo hidden^"
+set ^"x=!a"b"c!&echo visible^"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text)
+      (text)))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (escape_sequence)
+      (text)
+      (text)))
+  (seq_list
+    left: (set_statement
+      (keyword)
+      (set_quoted
+        (escape_sequence)
+        (text)
+        (delayed_variable)))
+    right: (command
+      name: (command_name)
+      argument: (argument
+        (text)
+        (escape_sequence)))))
+
+======================================================
+SET wrapper quotes exclude redirect expansion contents
+======================================================
+
+set "x=a"b>%v:"=% c"
+set "x=a"b>out% c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (variable)))
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)
+          (text)))
+      value: (argument
+        (text)))))
