@@ -296,11 +296,17 @@ quoted assignments, prompts, and displays: cmd truncates the parameter at the
 last quote, so that suffix is source text but is not part of the binding value.
 
 `SET` also accepts caret-escaped wrapper quotes, as in
-`set ^"macro=call helper^"`. These are represented as one
-`caret_quoted_string`. They do not use normal string grouping because the carets
-make the quote characters literal during cmd tokenization. A caret-escaped
-closing wrapper ends the node immediately, so later operators and commands stay
-outside the assignment.
+`set ^"macro=call helper^"`. The `set_quoted` payload contains ordinary text,
+escape, string, and expansion fragments. Caret-escaped quotes are literal during
+outer tokenization, so they do not group operators or redirections. The grammar
+does not infer binding fields or require a closing quote for this spelling.
+
+A delayed reference that opens a quote in this payload, such as `!a"b!`, stays
+in one `text` fragment with the protected suffix through the next quote or line
+end. This keeps operators protected without pairing later bangs into invented
+expansions. Operators after the closing quote retain their normal role.
+Redirection filenames use the same representation when a delayed reference
+opens a quote, including filenames split across quoted and unquoted fragments.
 
 Redirections inside a quoted binding's ignored suffix remain positional
 `redirect` fields, while a terminal redirect stays on `set_statement`.

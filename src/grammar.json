@@ -2964,49 +2964,73 @@
           ]
         },
         {
-          "type": "PREC_RIGHT",
-          "value": 0,
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "caret_quoted_string"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "^\""
               },
-              {
-                "type": "REPEAT",
-                "content": {
-                  "type": "CHOICE",
-                  "members": [
-                    {
+              "named": true,
+              "value": "escape_sequence"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_fragment"
+                  },
+                  {
+                    "type": "ALIAS",
+                    "content": {
                       "type": "SYMBOL",
-                      "name": "_fragment"
+                      "name": "_delayed_quote_text"
                     },
-                    {
-                      "type": "SEQ",
-                      "members": [
-                        {
-                          "type": "REPEAT1",
+                    "named": true,
+                    "value": "text"
+                  },
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "REPEAT1",
+                        "content": {
+                          "type": "FIELD",
+                          "name": "redirect",
                           "content": {
-                            "type": "FIELD",
-                            "name": "redirect",
+                            "type": "SYMBOL",
+                            "name": "_redirection"
+                          }
+                        }
+                      },
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "_fragment"
+                          },
+                          {
+                            "type": "ALIAS",
                             "content": {
                               "type": "SYMBOL",
-                              "name": "_redirection"
-                            }
+                              "name": "_delayed_quote_text"
+                            },
+                            "named": true,
+                            "value": "text"
                           }
-                        },
-                        {
-                          "type": "SYMBOL",
-                          "name": "_fragment"
-                        }
-                      ]
-                    }
-                  ]
-                }
+                        ]
+                      }
+                    ]
+                  }
+                ]
               }
-            ]
-          }
+            }
+          ]
         }
       ]
     },
@@ -3101,13 +3125,6 @@
             ]
           }
         ]
-      }
-    },
-    "caret_quoted_string": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PATTERN",
-        "value": "\\^\"(?:[^\\r\\n^]|\\^[^\"\\r\\n])*(?:\\^\"|\")"
       }
     },
     "set_display": {
@@ -3477,7 +3494,7 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "_standard_fragment"
+          "name": "_redirect_fragment"
         },
         {
           "type": "REPEAT",
@@ -3490,10 +3507,28 @@
               },
               {
                 "type": "SYMBOL",
-                "name": "_standard_fragment"
+                "name": "_redirect_fragment"
               }
             ]
           }
+        }
+      ]
+    },
+    "_redirect_fragment": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_standard_fragment"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_delayed_quote_text"
+          },
+          "named": true,
+          "value": "text"
         }
       ]
     },
@@ -4574,6 +4609,10 @@
     {
       "type": "SYMBOL",
       "name": "delayed_variable"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_delayed_quote_text"
     },
     {
       "type": "SYMBOL",

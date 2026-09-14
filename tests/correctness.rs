@@ -54,6 +54,85 @@ fn protected_metacharacters_remain_in_delayed_references() {
 }
 
 #[test]
+fn caret_set_delayed_fragments_preserve_operator_and_bang_boundaries() {
+    for operator in ["&", "|", "<", ">"] {
+        let source = format!("set ^\"x=!a\"b!{operator}echo hidden^\"\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(root.named_child_count(), 1);
+        assert_eq!(root.named_child(0).unwrap().kind(), "set_statement");
+        assert!(node_sources(root, "delayed_variable", &source).is_empty());
+        assert_eq!(node_sources(root, "text", &source), ["x=", &format!("!a\"b!{operator}echo hidden^\"")]);
+    }
+
+    for suffix in ["&echo hidden^\"", " !c!&echo hidden^\"", "&echo hidden"] {
+        let source = format!("set ^\"x=!a\"b!{suffix}\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(root.named_child(0).unwrap().kind(), "set_statement");
+        assert!(node_sources(root, "delayed_variable", &source).is_empty());
+        assert!(node_sources(root, "command_name", &source).is_empty());
+        assert_eq!(node_sources(root, "text", &source), ["x=", &format!("!a\"b!{suffix}")]);
+    }
+
+    let source = "set ^\"x=!a\"b!\"&echo visible\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "seq_list", source), [source.trim_end()]);
+    assert_eq!(node_sources(root, "command_name", source), ["echo"]);
+
+    let source = "(set ^\"x=!a\"b!)&echo hidden^\")\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "block", source), [source.trim_end()]);
+    assert!(node_sources(root, "seq_list", source).is_empty());
+
+    let source = "set ^\"x=!a\"b\"c!&echo visible^\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "delayed_variable", source), ["!a\"b\"c!"]);
+    assert_eq!(node_sources(root, "command_name", source), ["echo"]);
+    assert_eq!(node_sources(root, "seq_list", source), [source.trim_end()]);
+}
+
+#[test]
+fn delayed_quotes_in_redirect_filenames_preserve_source_boundaries() {
+    for prefix in ["set ^\"x=foo", "echo hi "] {
+        for (operator, target) in [
+            (">", "!a\"b!&echo hidden^\""),
+            (">>", "pre!a\"b! !c!&echo hidden^\""),
+            ("<", "!a\"b!|echo hidden"),
+            (">", "!a\"b!\"suffix"),
+        ] {
+            let source = format!("{prefix}{operator}{target}\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            assert_eq!(root.named_child_count(), 1);
+            let statement = root.named_child(0).unwrap();
+            let redirect = statement.child_by_field_name("redirect").unwrap();
+            assert_eq!(&source[redirect.byte_range()], format!("{operator}{target}"));
+            assert_eq!(&source[redirect.child_by_field_name("operator").unwrap().byte_range()], operator);
+            assert_eq!(&source[redirect.child_by_field_name("target").unwrap().byte_range()], target);
+            assert!(node_sources(root, "delayed_variable", &source).is_empty());
+            assert!(node_sources(root, "seq_list", &source).is_empty());
+        }
+    }
+
+    let source = "set ^\"x=foo>!a\"b!\"&echo visible\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "redirect_file", source), [">!a\"b!\""]);
+    assert_eq!(node_sources(root, "command", source), ["echo visible"]);
+}
+
+#[test]
 fn attached_if_operands_retain_all_equals_signs() {
     for (operand, expected_right, expected_command) in [
         ("b=c", "b=c", "echo yes"),
@@ -111,6 +190,34 @@ fn internal_set_quotes_preserve_outer_operator_protection() {
     let tree = parser().parse(source, None).unwrap();
     assert!(!tree.root_node().has_error());
     assert_eq!(node_sources(tree.root_node(), "command_name", source), ["echo"]);
+}
+
+#[test]
+fn caret_quoted_set_preserves_outer_syntax_and_source_fragments() {
+    for (source, kind, expected) in [
+        ("set ^\"x=foo&echo second^\"\n", "command", "echo second^\""),
+        ("set ^\"x=foo&&echo second^\"\n", "and_list", "set ^\"x=foo&&echo second^\""),
+        ("set ^\"x=foo||echo second^\"\n", "or_list", "set ^\"x=foo||echo second^\""),
+        ("set ^\"x=foo|echo second^\"\n", "pipeline", "set ^\"x=foo|echo second^\""),
+        ("set ^\"x=foo>out tail^\"\n", "redirect_file", ">out"),
+        ("set ^\"x=foo>out\n", "redirect_file", ">out"),
+        ("(set ^\"x=foo) & echo second^\"\n", "block", "(set ^\"x=foo)"),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, kind, source), [expected]);
+    }
+
+    let source = "set ^\"x=%PATH%!SUFFIX!^&done^\"\n";
+    let tree = parser().parse(source, None).unwrap();
+    let root = tree.root_node();
+    assert!(!root.has_error(), "{}", root.to_sexp());
+    assert_eq!(node_sources(root, "variable", source), ["%PATH%"]);
+    assert_eq!(node_sources(root, "delayed_variable", source), ["!SUFFIX!"]);
+    assert_eq!(node_sources(root, "escape_sequence", source), ["^\"", "^&", "^\""]);
+    assert!(node_sources(root, "seq_list", source).is_empty());
+    assert!(node_sources(root, "string", source).is_empty());
 }
 
 #[test]
