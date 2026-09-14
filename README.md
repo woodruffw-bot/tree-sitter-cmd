@@ -1,51 +1,47 @@
 # tree-sitter-cmd
 
-A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for Windows
-`cmd.exe` batch scripts (`.bat` and `.cmd`).
+A [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for Windows
+`cmd.exe` batch scripts (`.bat` and `.cmd`), intended for static analysis.
 
-`cmd.exe` has no public grammar. This grammar is based on the
-[ReactOS](https://github.com/reactos/reactos) parser
-(`base/shell/cmd/parser.c`), the [ss64](https://ss64.com/nt/) and Microsoft
-Learn references, and the dBenham/jeb batch-line-parser phase model. See
-[`GRAMMAR_DESIGN.md`](GRAMMAR_DESIGN.md) for design decisions.
+`cmd.exe` has no public formal grammar. This grammar draws on the
+[ReactOS parser](https://github.com/reactos/reactos/tree/master/base/shell/cmd),
+[ss64](https://ss64.com/nt/), Microsoft Learn, and the dBenham/jeb model of batch
+parsing phases. [GRAMMAR_DESIGN.md](GRAMMAR_DESIGN.md) describes the behavior and
+limitations in detail.
 
-## What it parses
+## Supported syntax
 
-- Commands, argument tails, and low-precedence `@` echo suppression over full
-  statements.
-- The `&`, `&&`, `||`, and `|` operators. The grammar uses cmd precedence:
-  `&` < `||` < `&&` < `|`.
-- Input, output, and handle redirections, including leading redirections.
-- Multi-line `( ... )` blocks with attached redirections.
-- `IF` forms, including `/I`, `NOT`, comparisons, condition tests, `ELSE`,
-  and nested statements.
-- `FOR` forms, including `/D`, `/R`, `/L`, and `/F` sources and options.
-- `GOTO`, `CALL`, labels, and the colon-glued `goto:eof` and `call:label`
-  forms.
+- Commands and arguments, with `@` echo suppression over full statements.
+- Command operators, from lowest to highest precedence: `&`, `||`, `&&`, `|`.
+- File and handle redirections before and after commands or within their arguments.
+- Parenthesized blocks with attached redirections.
+- `IF` conditions, comparisons, `/I`, `NOT`, `ELSE`, and nested statements.
+- `FOR` loops, including `/D`, `/R`, `/L`, and `/F`.
+- `GOTO`, `CALL`, labels, `goto:eof`, and `call:label`.
 - `SET`, `SET /A`, `SET /P`, quoted assignments, and display forms.
 - Percent, delayed, positional, modified, and `FOR` variable expansions.
 - `REM` and `::` comments.
-- Caret escapes, caret line continuations, and double-quoted strings. Expansions
-  inside strings remain named nodes.
+- Caret escapes, line continuations, and double-quoted strings.
 
-Parentheses depend on context. `(` starts a block only where a command is
-expected. Inside an argument it is a literal character, so `echo (text)` is one
-command. In a block, the first unescaped `)` closes the block. Use `^)` to
-include a closing parenthesis in a command inside the block. The external
-scanner tracks the block depth.
+A `(` starts a block where a command is expected. In an argument it is literal,
+so `echo (text)` is one command. Inside a block, an unquoted, unescaped `)` closes
+the block. A literal closing parenthesis in that context needs a caret escape,
+`^)`.
 
-Keyword extraction distinguishes complete keywords from longer command names.
-For example, `set` is a keyword, but `setlocal` is a command. Likewise, `rem`
-is a comment, but `remote` is a command. Keywords appear as named `(keyword)`
-nodes. Percent and delayed expansions share the `_expansion` supertype.
+Keywords appear as named `keyword` nodes. A longer command name such as
+`setlocal` or `remote` does not become a `set` or `rem` keyword. Expansions remain
+named nodes inside strings and share the `_expansion` supertype.
 
 ## Usage
 
+From the repository root:
+
 ```sh
 cargo install --locked --version 0.26.11 tree-sitter-cli
-tree-sitter generate --js-runtime native
 tree-sitter parse path/to/script.bat
 ```
+
+The repository includes the generated parser. Only Rust bindings are provided.
 
 From Rust:
 
@@ -62,78 +58,48 @@ let tree = parser.parse(source, None).unwrap();
 println!("{}", tree.root_node().to_sexp());
 ```
 
-The crate exports `HIGHLIGHTS_QUERY` and `INJECTIONS_QUERY`. Only Rust bindings
-are provided.
+The crate also exports `NODE_TYPES`, `HIGHLIGHTS_QUERY`, and `INJECTIONS_QUERY`.
 
 ### Input encoding
 
-This crate provides a Tree-sitter language, not a file loader. The caller must
-select or decode the script's encoding before parsing it:
+The caller selects or decodes the script's encoding before parsing:
 
-- Pass UTF-8 to Tree-sitter's default parse API. A leading UTF-8 byte-order
-  mark is handled by Tree-sitter itself.
-- Use Tree-sitter's UTF-16LE, UTF-16BE, or custom-encoding input API when the
-  binding provides one and original input offsets must be preserved.
-- For an OEM code page, select the code page from external context. Batch files
-  do not contain enough information for this grammar to infer it.
-- Reject mixed-encoding input or normalize it in an explicit preprocessing
-  step. One Tree-sitter input has one encoding.
+- The default Tree-sitter parse API accepts UTF-8. Tree-sitter handles a leading
+  byte-order mark.
+- Bindings with UTF-16LE, UTF-16BE, or custom-decoder APIs can preserve offsets in
+  the original encoded input.
+- OEM code pages need external context. The grammar cannot infer a code page from
+  the script.
+- Mixed encodings need to be rejected or normalized before parsing. One
+  Tree-sitter input has one encoding.
 
-Node byte ranges refer to the buffer passed to Tree-sitter. If a caller
-transcodes a file to UTF-8, ranges refer to the transcoded bytes. Callers that
-need original file offsets must retain their own offset map or use an
-encoding-aware Tree-sitter input API.
-
-
-## Testing
-
-```sh
-tree-sitter test # unit corpus
-tree-sitter fuzz # mutated inputs and incremental edits
-cargo test       # Rust and real-world regression tests
-```
-
-The unit corpus contains focused inputs and expected syntax trees. Rust
-integration tests parse upstream scripts from raw bytes and reject `ERROR` or
-`MISSING` nodes. Each fixture retains its third-party license. See
-[`test/real-world/README.md`](test/real-world/README.md).
+Node byte ranges refer to the buffer passed to Tree-sitter. After transcoding to
+UTF-8, they refer to the UTF-8 bytes. Callers that need the original file offsets
+must retain an offset map or use a suitable Tree-sitter input API.
 
 ## Known limitations
 
-`cmd.exe` processes input in several context-dependent phases. A single
-context-free parse cannot match every case. See `GRAMMAR_DESIGN.md` for details.
+`cmd.exe` expands and parses input in several phases. This grammar parses the
+unexpanded source, so it cannot reproduce every runtime interpretation.
 
-- `!VAR!` is always parsed as a delayed reference, even when delayed expansion
-  is not active and the text is literal at runtime.
-- `SET /A` expressions are an argument tail, not an arithmetic syntax tree.
-- An additional `=` in the attached right operand of an `IF` `==` comparison
-  is not yet preserved. For example, `if b===b ...` loses the third `=` from
-  the operand CST.
-- An unquoted `(` in a `FOR` set ends the set at the first `)`. Quote a set
-  item that contains parentheses, such as
-  `for %%a in ("file (1).txt")`.
-- `/F` apostrophe/backtick command-source modes are not inferred. Their bytes
-  remain generic `for_set` argument text and receive no language injection.
-  Apostrophes and backticks do not shield outer operators or parentheses;
-  caret-protect those characters where CMD's outer parse requires it.
+- Delayed references such as `!VAR!` are recognized even when delayed expansion
+  is disabled at runtime.
+- `SET /A` expressions remain argument text without an arithmetic syntax tree.
+- A `FOR` set ends at the first unquoted, unescaped `)`. A filename containing
+  parentheses needs quotes, as in `for %%a in ("file (1).txt") do echo %%a`.
+- `FOR /F` apostrophes and backticks remain ordinary argument text. The grammar
+  does not infer command sources or inject another language. These delimiters do
+  not protect outer operators or parentheses from cmd parsing.
 - Caret-spelled control-flow keywords are not decoded into keyword nodes. They
-  may remain generic command text or produce an error.
-- Variable names that contain a literal newline, as used by `%LF%` macros, are
-  not supported.
+  may remain command text or produce an error.
+- Variable names containing a literal newline are not supported.
+- `FOR` reference scope and ambiguous modifier spellings cannot be resolved from
+  syntax alone.
 
-## Layout
-
-```
-grammar.js          the grammar
-src/scanner.c       external scanner (word-join, REM, block parens, caret escape, string end)
-queries/            highlights.scm, injections.scm
-test/corpus/        unit test corpus
-test/real-world/    real-world regression harness
-tests/              Rust integration tests
-GRAMMAR_DESIGN.md   design document
-bindings/           Rust crate
-```
+The [script fixtures](test/real-world/README.md) and
+[Windows tests](test/windows/README.md) describe how behavior is checked.
+Development instructions are in [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT.
+[MIT](LICENSE).
