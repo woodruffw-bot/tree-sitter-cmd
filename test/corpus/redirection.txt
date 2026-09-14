@@ -419,3 +419,85 @@ echo >"out"2>err
 ---
 
 (program (block (command name: (command_name) argument: (argument (text)) redirect: (redirect_file operator: (redirect_operator) target: (argument (text) (text) (text))) argument: (argument (text)) argument: (argument (text)))) (command name: (command_name) redirect: (redirect_file operator: (redirect_operator) target: (argument (string))) redirect: (redirect_file source: (file_descriptor) operator: (redirect_operator) target: (argument (text)))))
+
+============================================================
+escaped ordinary text keeps a following digit in its word
+============================================================
+
+echo a^b2>out
+echo a^
+b2>out
+echo a^b2>&1
+echo "ab"2>out
+echo a^b 2>out
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument (text) (escape_sequence) (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument (text))))
+  (command
+    name: (command_name)
+    argument: (argument (text) (escape_sequence) (text))
+    redirect: (redirect_file
+      operator: (redirect_operator)
+      target: (argument (text))))
+  (command
+    name: (command_name)
+    argument: (argument (text) (escape_sequence) (text))
+    redirect: (redirect_dup
+      operator: (redirect_dup_operator)
+      target: (file_descriptor)))
+  (command
+    name: (command_name)
+    argument: (argument (string))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument (text))))
+  (command
+    name: (command_name)
+    argument: (argument (text) (escape_sequence))
+    redirect: (redirect_file
+      source: (file_descriptor)
+      operator: (redirect_operator)
+      target: (argument (text)))))
+
+============================================================
+IF escaped operand keeps a spaced descriptor on its body
+============================================================
+
+if exist a^b 2>nul echo yes
+if x==a^b2>nul echo yes
+
+---
+
+(program
+  (if_statement
+    (keyword)
+    condition: (unary_condition
+      kind: (condition_keyword)
+      argument: (argument (text) (escape_sequence)))
+    consequence: (command
+      redirect: (redirect_file
+        source: (file_descriptor)
+        operator: (redirect_operator)
+        target: (argument (text)))
+      name: (command_name)
+      argument: (argument (text))))
+  (if_statement
+    (keyword)
+    condition: (comparison
+      left: (argument (text))
+      operator: (comparison_operator)
+      right: (argument (text) (escape_sequence) (text)))
+    consequence: (command
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument (text)))
+      name: (command_name)
+      argument: (argument (text)))))

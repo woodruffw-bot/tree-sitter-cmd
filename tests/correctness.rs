@@ -374,3 +374,84 @@ fn goto_quotes_preserve_outer_boundaries_and_source_spelling() {
     assert_eq!(node_sources(root, "variable", source), ["%target%"]);
     assert_eq!(node_sources(root, "delayed_variable", source), ["!suffix!"]);
 }
+
+#[test]
+fn escaped_text_does_not_start_a_redirection_descriptor() {
+    for (tail, argument, descriptor, operator, target) in [
+        ("a^b2>out", "a^b2", None, ">", "out"),
+        ("a^\nb2>out", "a^\nb2", None, ">", "out"),
+        ("a^\r\nb2>out", "a^\r\nb2", None, ">", "out"),
+        ("a^b22>out", "a^b22", None, ">", "out"),
+        ("a^b2x>out", "a^b2x", None, ">", "out"),
+        ("a^b2<input", "a^b2", None, "<", "input"),
+        ("a^b2>&1", "a^b2", None, ">&", "1"),
+        ("a^b 2>out", "a^b", Some("2"), ">", "out"),
+        ("\"ab\"2>out", "\"ab\"", Some("2"), ">", "out"),
+        ("a^ 2>out", "a^ ", Some("2"), ">", "out"),
+        ("a^&2>out", "a^&", Some("2"), ">", "out"),
+    ] {
+        let source = format!("echo {tail}\necho tail\n");
+        let tree = parser().parse(&source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source:?}: {}", root.to_sexp());
+        assert_eq!(root.named_child_count(), 2);
+        let command = root.named_child(0).unwrap();
+        let argument_node = command.child_by_field_name("argument").unwrap();
+        assert_eq!(&source[argument_node.byte_range()], argument, "{source:?}");
+        let redirect = command.child_by_field_name("redirect").unwrap();
+        assert_eq!(
+            redirect.child_by_field_name("source").map(|node| &source[node.byte_range()]),
+            descriptor,
+            "{source:?}",
+        );
+        for (field, expected) in [("operator", operator), ("target", target)] {
+            let node = redirect.child_by_field_name(field).unwrap();
+            assert_eq!(&source[node.byte_range()], expected, "{source:?}");
+        }
+    }
+
+    for (source, kind, expected) in [
+        ("call a^b2>out\n", "argument", vec!["a^b2", "out"]),
+        ("set x=a^b2>out\n", "argument", vec!["a^b2", "out"]),
+        ("set a^b2>out=value\n", "variable_name", vec!["a^b2"]),
+        ("goto a^b2>out\n", "label_name", vec!["a^b2"]),
+        ("echo >a^b2>out\n", "argument", vec!["a^b2", "out"]),
+    ] {
+        let tree = parser().parse(source, None).unwrap();
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source:?}: {}", root.to_sexp());
+        assert!(node_sources(root, "file_descriptor", source).is_empty());
+        assert_eq!(node_sources(root, kind, source), expected, "{source:?}");
+    }
+}
+
+#[test]
+fn escaped_if_operands_do_not_capture_spaced_descriptors() {
+    for (prefix, field) in [("if exist ", "argument"), ("if x==", "right")] {
+        for (operand, expected, descriptor) in [
+            ("a^b2", "a^b2", None),
+            ("a^b 2", "a^b", Some("2")),
+            ("a^b\t2", "a^b", Some("2")),
+            ("a^\r\nb2", "a^\r\nb2", None),
+            ("a^\r\nb 2", "a^\r\nb", Some("2")),
+        ] {
+            let source = format!("{prefix}{operand}>nul echo yes\n");
+            let tree = parser().parse(&source, None).unwrap();
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source:?}: {}", root.to_sexp());
+            let statement = root.named_child(0).unwrap();
+            let condition = statement.child_by_field_name("condition").unwrap();
+            let argument = condition.child_by_field_name(field).unwrap();
+            assert_eq!(&source[argument.byte_range()], expected, "{source:?}");
+            let consequence = statement.child_by_field_name("consequence").unwrap();
+            let redirect = consequence.child_by_field_name("redirect").unwrap();
+            assert_eq!(
+                redirect.child_by_field_name("source").map(|node| &source[node.byte_range()]),
+                descriptor,
+                "{source:?}",
+            );
+            let expected_body = if descriptor.is_some() { "2>nul echo yes" } else { ">nul echo yes" };
+            assert_eq!(&source[consequence.byte_range()], expected_body, "{source:?}");
+        }
+    }
+}

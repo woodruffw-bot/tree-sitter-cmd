@@ -163,6 +163,7 @@ module.exports = grammar({
     $._rem,
     $._rem_text,
     $._redirect_source,
+    $._escaped_redirect_digit,
     $._empty_block_open,
     $._block_open,
     $._block_close,
@@ -498,7 +499,7 @@ module.exports = grammar({
       choice(
         alias($._if_text, $.text),
         $.string,
-        $.escape_sequence,
+        $._escape_fragment,
         // A lone caret escaping a following `%`/`!` (e.g. `if ^%V:~0,1% …`).
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
@@ -631,7 +632,7 @@ module.exports = grammar({
       choice(
         alias($._for_arg_text, $.text),
         $.string,
-        $.escape_sequence,
+        $._escape_fragment,
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
@@ -704,7 +705,7 @@ module.exports = grammar({
         choice(
           $._label_reference_text,
           $.string,
-          $.escape_sequence,
+          $._escape_fragment,
           alias($._caret_escape, $.escape_sequence),
           $._expansion,
           $._stray_sigil,
@@ -743,7 +744,7 @@ module.exports = grammar({
         token(/[^ \t\r\n,;=&|<>)^"]+/),
         token(/[,;=]/),
         $.string,
-        $.escape_sequence,
+        $._escape_fragment,
         alias($._caret_escape, $.escape_sequence),
       ),
 
@@ -999,7 +1000,7 @@ module.exports = grammar({
       ),
     _set_name_special: ($) =>
       choice(
-        $.escape_sequence,
+        $._escape_fragment,
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
@@ -1168,7 +1169,7 @@ module.exports = grammar({
       choice(
         alias($._standard_text, $.text),
         $.string,
-        $.escape_sequence,
+        $._escape_fragment,
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
@@ -1199,7 +1200,7 @@ module.exports = grammar({
       choice(
         $.text,
         $.string,
-        $.escape_sequence,
+        $._escape_fragment,
         // A lone caret escaping a following `%`/`!` expansion (`echo ^%PATH^%`).
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
@@ -1220,6 +1221,27 @@ module.exports = grammar({
     // escape nodes. Do not consume `%`/`!` here: percent expansion precedes
     // caret handling, and delayed expansion follows it, so `_caret_escape`
     // keeps the caret separate from the expansion node in those cases.
+    // A following digit does not start a descriptor after escaped ordinary
+    // text. Escaped separators and quotes keep their descriptor boundary.
+    _escape_fragment: ($) =>
+      choice(
+        seq(
+          alias($._text_escape, $.escape_sequence),
+          optional(alias($._escaped_redirect_digit, $.text)),
+        ),
+        $.escape_sequence,
+      ),
+    _text_escape: ($) =>
+      token(
+        prec(
+          1,
+          choice(
+            /\^[^ \t\r\n,;=()&|"%!]/,
+            /\^\r?\n[^ \t\r\n,;=()&|"%!]/,
+          ),
+        ),
+      ),
+
     escape_sequence: ($) =>
       token(
         choice(

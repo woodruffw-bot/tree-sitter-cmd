@@ -19,6 +19,9 @@
 //   REM          - the `rem` comment keyword (whole-word; tree-sitter declines
 //                  to keyword-extract it).
 //   REM_TEXT     - the opaque body of a REM comment through end of line.
+//   ESCAPED_REDIRECT_DIGIT
+//                - a digit before redirection that follows escaped ordinary
+//                  text and remains part of that word.
 //   REDIRECT_SOURCE
 //                - a source file descriptor digit immediately followed by a
 //                  redirection operator.
@@ -92,6 +95,7 @@ enum TokenType {
   REM,
   REM_TEXT,
   REDIRECT_SOURCE,
+  ESCAPED_REDIRECT_DIGIT,
   EMPTY_BLOCK_OPEN,
   BLOCK_OPEN,
   BLOCK_CLOSE,
@@ -378,6 +382,27 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
       lexer->advance(lexer, false);
       s->depth--;
       lexer->result_symbol = BLOCK_CLOSE;
+      return true;
+    }
+    return false;
+  }
+
+  // Check immediately after an ordinary escape, before any branch can skip
+  // whitespace. A separated digit may begin the next command's redirection.
+  if (valid_symbols[ESCAPED_REDIRECT_DIGIT] &&
+      lexer->lookahead >= '0' && lexer->lookahead <= '9') {
+    lexer->mark_end(lexer);
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '<' || lexer->lookahead == '>') {
+      lexer->mark_end(lexer);
+      lexer->result_symbol = ESCAPED_REDIRECT_DIGIT;
+      return true;
+    }
+    if (valid_symbols[REDIRECT_CONCAT] || valid_symbols[STANDARD_CONCAT] ||
+        valid_symbols[CONCAT]) {
+      lexer->result_symbol = valid_symbols[REDIRECT_CONCAT] ? REDIRECT_CONCAT
+                           : valid_symbols[STANDARD_CONCAT] ? STANDARD_CONCAT
+                           : CONCAT;
       return true;
     }
     return false;
