@@ -1351,15 +1351,7 @@
             "named": true
           },
           {
-            "type": "delayed_variable",
-            "named": true
-          },
-          {
             "type": "file_descriptor",
-            "named": true
-          },
-          {
-            "type": "loop_variable",
             "named": true
           },
           {
@@ -1368,10 +1360,6 @@
           },
           {
             "type": "parameter_tilde",
-            "named": true
-          },
-          {
-            "type": "percent_literal",
             "named": true
           },
           {

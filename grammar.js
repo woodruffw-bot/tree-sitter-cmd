@@ -113,8 +113,8 @@ function redirected($) {
 }
 
 /**
- * Expansion spellings that must begin at the current byte. Duplication targets
- * use these aliases so the target must begin at the current byte.
+ * Percent expansions that run before redirection parsing. Delayed and FOR
+ * expansions run too late to supply a handle duplication target.
  */
 function immediateExpansion($) {
   return choice(
@@ -122,7 +122,6 @@ function immediateExpansion($) {
       token.immediate(/%[^%0-9~*\r\n][^%\r\n]*%/),
       $.variable,
     ),
-    $.delayed_variable,
     alias(token.immediate(/%[0-9]/), $.parameter),
     alias(token.immediate(/%\*/), $.all_arguments),
     alias(
@@ -131,13 +130,6 @@ function immediateExpansion($) {
       ),
       $.parameter_tilde,
     ),
-    alias(
-      token.immediate(
-        new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?' + FOR_VAR),
-      ),
-      $.loop_variable,
-    ),
-    alias(token.immediate(/%%/), $.percent_literal),
   );
 }
 

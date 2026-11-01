@@ -116,7 +116,9 @@ establish a descriptor boundary. A spaced digit remains an argument.
 
 File targets use standard separators: spaces, tabs, commas, semicolons, and
 equals signs. Handle duplication skips these before its target. A duplication
-target is a digit or expansion. Missing targets retain error state.
+target is a digit or a percent expansion evaluated before redirection parsing.
+Delayed references, FOR references, and literal `%%` cannot supply this target.
+Missing and invalid targets retain error state.
 
 Redirections can occur before and within command tails. IF and FOR reject
 leading redirections. The CST records source order without modeling stream

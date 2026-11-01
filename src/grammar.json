@@ -4116,10 +4116,6 @@
               "value": "variable"
             },
             {
-              "type": "SYMBOL",
-              "name": "delayed_variable"
-            },
-            {
               "type": "ALIAS",
               "content": {
                 "type": "IMMEDIATE_TOKEN",
@@ -4154,30 +4150,6 @@
               },
               "named": true,
               "value": "parameter_tilde"
-            },
-            {
-              "type": "ALIAS",
-              "content": {
-                "type": "IMMEDIATE_TOKEN",
-                "content": {
-                  "type": "PATTERN",
-                  "value": "%%(?:~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?)?[^ \\t\\r\\n%~*&|<>()=\"]"
-                }
-              },
-              "named": true,
-              "value": "loop_variable"
-            },
-            {
-              "type": "ALIAS",
-              "content": {
-                "type": "IMMEDIATE_TOKEN",
-                "content": {
-                  "type": "PATTERN",
-                  "value": "%%"
-                }
-              },
-              "named": true,
-              "value": "percent_literal"
             }
           ]
         }

@@ -418,3 +418,58 @@ cmd 2>&^
 ---
 
 (program (command name: (command_name) redirect: (redirect_dup source: (file_descriptor) operator: (redirect_dup_operator) target: (MISSING file_descriptor)) argument: (argument (escape_sequence))))
+
+====================
+delayed expansion is too late for a duplication target
+:error
+====================
+
+cmd 2>&!FD!
+
+---
+
+(program)
+
+====================
+escaped delayed expansion is too late for a duplication target
+:error
+====================
+
+cmd 2>&!A^&B!
+
+---
+
+(program)
+
+====================
+FOR expansion is too late for a duplication target
+:error
+====================
+
+cmd 2>&%%i
+
+---
+
+(program)
+
+====================
+modified FOR expansion is too late for a duplication target
+:error
+====================
+
+cmd 2>&%%~i
+
+---
+
+(program)
+
+====================
+literal percent cannot supply a duplication target
+:error
+====================
+
+cmd 2>&%%
+
+---
+
+(program)

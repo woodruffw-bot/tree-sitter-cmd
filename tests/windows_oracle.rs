@@ -86,6 +86,22 @@ mod windows {
     }
 
     #[test]
+    fn late_expansions_cannot_supply_duplication_targets() {
+        for command in [
+            "echo marker >&!fd!",
+            "for %%a in (2) do echo marker >&%%a",
+            "for %%a in (2) do echo marker >&%%~a",
+            "echo marker >&%%",
+        ] {
+            let source = format!("@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\n{command}\r\n");
+            let output = run_script("late-duplication-target", source.as_bytes());
+            assert!(!output.status.success(), "{command}");
+            assert!(!output.stderr.is_empty(), "{command}");
+            assert!(output.stdout.is_empty(), "{command}: {}", escaped(&output.stdout));
+        }
+    }
+
+    #[test]
     fn set_names_accept_parentheses_and_internal_quotes() {
         let output = run_script("set-name-fragments", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset TS_CMD_NAME(x)=paren\r\nset TS_CMD_NAME\"x\"=quote\r\nset TS_CMD_NAME\"a&b\"=protected\r\nset TS_CMD_NAME(x)\r\nset TS_CMD_NAME\"x\"\r\nset TS_CMD_NAME\"a&b\"\r\necho reply>input\r\nset /p TS_CMD_NAME(x)=prompt<input\r\necho.\r\nset TS_CMD_NAME(x)\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
