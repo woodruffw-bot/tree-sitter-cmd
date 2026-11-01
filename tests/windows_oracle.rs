@@ -86,6 +86,22 @@ mod windows {
     }
 
     #[test]
+    fn late_expansions_cannot_supply_duplication_targets() {
+        for command in [
+            "echo marker >&!fd!",
+            "for %%a in (2) do echo marker >&%%a",
+            "for %%a in (2) do echo marker >&%%~a",
+            "echo marker >&%%",
+        ] {
+            let source = format!("@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\n{command}\r\n");
+            let output = run_script("late-duplication-target", source.as_bytes());
+            assert!(!output.status.success(), "{command}");
+            assert!(!output.stderr.is_empty(), "{command}");
+            assert!(output.stdout.is_empty(), "{command}: {}", escaped(&output.stdout));
+        }
+    }
+
+    #[test]
     fn quoted_set_names_keep_internal_quotes() {
         let output = run_script("quoted-set-name", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME_a\"b\"=x\"\r\nset TS_CMD_NAME_\r\nset \"TS_CMD_OTHER_a\"b>nul c\"=x\"\r\nset TS_CMD_OTHER_\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
@@ -233,10 +249,10 @@ mod windows {
     #[test]
     fn set_values_resume_after_expanded_duplication_targets() {
         // Use distinct handles because CMD cannot duplicate captured stdout onto itself.
-        let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 2\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
+        let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 2\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&%~1c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&%*c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"bc", "a\"c", "a\"bc"]);
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"bc", "a\"c", "a\"bc", "a\"bc", "a\"bc"]);
     }
 
     #[test]

@@ -112,9 +112,28 @@ function redirected($) {
   );
 }
 
+/** A contiguous quoted SET name segment, including expansions and inner quotes. */
+function quotedSetName($, text) {
+  return choice(
+    text,
+    prec.right(
+      seq(
+        repeat(alias(text, $.text)),
+        $._set_quoted_name_special,
+        repeat(
+          choice(
+            alias($._set_quoted_name_tail_text, $.text),
+            $._set_quoted_name_special,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /**
- * Expansion spellings that must begin at the current byte. Duplication targets
- * use these aliases so the target must begin at the current byte.
+ * Percent expansions that run before redirection parsing. Delayed and FOR
+ * expansions run too late to supply a handle duplication target.
  */
 function immediateExpansion($) {
   return choice(
@@ -122,7 +141,6 @@ function immediateExpansion($) {
       token.immediate(/%[^%0-9~*\r\n][^%\r\n]*%/),
       $.variable,
     ),
-    $.delayed_variable,
     alias(token.immediate(/%[0-9]/), $.parameter),
     alias(token.immediate(/%\*/), $.all_arguments),
     alias(
@@ -131,13 +149,6 @@ function immediateExpansion($) {
       ),
       $.parameter_tilde,
     ),
-    alias(
-      token.immediate(
-        new RegExp('%%(?:~' + TILDE_MODS + PATH_SEARCH + ')?' + FOR_VAR),
-      ),
-      $.loop_variable,
-    ),
-    alias(token.immediate(/%%/), $.percent_literal),
   );
 }
 
@@ -188,6 +199,7 @@ module.exports = grammar({
     $._set_ignored_suffix,
     $._label_leading_space,
     $._set_binding_end,
+    $._set_name_redirect,
     $.body_boundary,
     $.body_boundary_again,
     $._block_body_boundary,
@@ -221,6 +233,7 @@ module.exports = grammar({
     [$.set_arith],
     [$.set_quoted],
     [$.set_display],
+    [$.set_quoted, $.set_display],
     [$.set_display, $._set_binding],
     [$.label_reference],
   ],
@@ -893,6 +906,15 @@ module.exports = grammar({
           optional(
             field('name', alias($._set_quoted_name, $.variable_name)),
           ),
+          repeat(
+            seq(
+              $._set_name_redirect,
+              field('redirect', $._redirection),
+              optional(
+                field('name', alias($._set_quoted_name_tail, $.variable_name)),
+              ),
+            ),
+          ),
           '=',
           optional(field('prompt', alias($._set_quoted_value, $.argument))),
           repeat(
@@ -922,8 +944,8 @@ module.exports = grammar({
         ),
       ),
     // SET "name=value". Keep the binding fields visible instead of hiding the
-    // assignment in a generic string. Earlier quotes remain value text and the
-    // SET-specific terminator leaves the final quote as the wrapper close.
+    // assignment in a generic string. Earlier quotes remain name or value text.
+    // The SET-specific terminator leaves the final quote as the wrapper close.
     // A caret-escaped opening quote is a literal during outer tokenization.
     // Keep that SET payload as ordinary fragments so operators, redirections,
     // and expansions retain their outer syntax roles.
@@ -932,6 +954,15 @@ module.exports = grammar({
         seq(
           $._set_string_start,
           optional(field('name', alias($._set_quoted_name, $.variable_name))),
+          repeat(
+            seq(
+              $._set_name_redirect,
+              field('redirect', $._redirection),
+              optional(
+                field('name', alias($._set_quoted_name_tail, $.variable_name)),
+              ),
+            ),
+          ),
           '=',
           optional(field('value', alias($._set_quoted_value, $.argument))),
           repeat(
@@ -1003,29 +1034,23 @@ module.exports = grammar({
         seq(
           $._set_string_start,
           optional(alias($._set_quoted_name, $.variable_name)),
+          repeat(
+            seq(
+              $._set_name_redirect,
+              field('redirect', $._redirection),
+              optional(alias($._set_quoted_name_tail, $.variable_name)),
+            ),
+          ),
           $._set_string_end,
           optional($._set_ignored_tail),
         ),
       ),
 
-    // Quotes protect metacharacters in SET names. Carets are literal here;
-    // expansions still retain their own nodes inside the name.
-    _set_quoted_name: ($) =>
-      choice(
-        $._set_quoted_name_text,
-        prec.right(
-          seq(
-            repeat(alias($._set_quoted_name_text, $.text)),
-            $._set_quoted_name_special,
-            repeat(
-              choice(
-                alias($._set_quoted_name_tail_text, $.text),
-                $._set_quoted_name_special,
-              ),
-            ),
-          ),
-        ),
-      ),
+    // Inner quotes remain name text and toggle protection of outer operators.
+    // Active redirects split the name into contiguous segments. A continuation
+    // keeps leading spaces because they survive removal of the redirect.
+    _set_quoted_name: ($) => quotedSetName($, $._set_quoted_name_text),
+    _set_quoted_name_tail: ($) => quotedSetName($, $._set_quoted_name_tail_text),
     _set_quoted_name_special: ($) =>
       choice(
         $._expansion,

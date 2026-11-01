@@ -100,8 +100,10 @@ closes in its value is not supported.
 A caret-escaped opening quote does not protect later operators. Such SET
 payloads use source fragments without inferred binding fields.
 
-An unquoted name split by redirections has repeated `name: (variable_name)`
+A binding name split by redirections has repeated `name: (variable_name)`
 fields with `redirect` siblings. No name node spans removed redirection text.
+Quoted names retain surviving spaces after each redirection. Display forms
+keep the same name segments without binding fields.
 SET `/A` requires a payload but does not parse the arithmetic language.
 
 ## Redirections
@@ -116,7 +118,9 @@ establish a descriptor boundary. A spaced digit remains an argument.
 
 File targets use standard separators: spaces, tabs, commas, semicolons, and
 equals signs. Handle duplication skips these before its target. A duplication
-target is a digit or expansion. Missing targets retain error state.
+target is a digit or a percent expansion evaluated before redirection parsing.
+Delayed references, FOR references, and literal `%%` cannot supply this target.
+Missing and invalid targets retain error state.
 
 Redirections can occur before and within command tails. IF and FOR reject
 leading redirections. The CST records source order without modeling stream
