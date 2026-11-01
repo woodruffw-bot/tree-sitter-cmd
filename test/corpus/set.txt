@@ -1333,3 +1333,143 @@ set "x=a"b>&%*c"
         (all_arguments))
       (argument
         (text)))))
+
+==================
+Quoted SET names keep internal quotes
+==================
+set "a"b"=x"
+set /p "a"b"=prompt"
+set "a"b"
+set "a"b=x"
+set "a"&echo tail
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name
+        (text)
+        (text)
+        (text)
+        (text))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name
+        (text)
+        (text)
+        (text)
+        (text))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name
+        (text)
+        (text)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (argument
+        (text))))
+  (seq_list
+    (set_statement
+      (keyword)
+      (set_display
+        (variable_name)))
+    (command
+      (command_name)
+      (argument
+        (text)))))
+
+==================
+Quoted SET names retain fragments around redirects
+==================
+set "a"b>nul c"=x"
+set /p "a"b>nul c"=prompt"
+set "a"b>nul c"
+set "a"2>nul=x"
+set "a"b>&2"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name
+        (text)
+        (text))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name
+        (text)
+        (text))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name)))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name
+        (text)
+        (text))
+      (redirect_file
+        (file_descriptor)
+        (redirect_operator)
+        (argument
+          (text)))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (redirect_dup
+        (redirect_dup_operator)
+        (file_descriptor)))))

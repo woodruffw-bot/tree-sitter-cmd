@@ -94,6 +94,16 @@ fn assert_incremental_matches_fresh(before: &str, needle: &str, replacement: &st
 #[test]
 fn scanner_sensitive_edits_match_fresh_parses() {
     let cases = [
+        ("set \"x!a\"!&echo y=z\"\necho tail\n", "!&", "!>out&"),
+        ("set \"x!a\"!>out&echo y=z\"\necho tail\n", ">out", ""),
+        ("set \"a\"b c\"=x\"\necho tail\n", "b", "b>nul"),
+        ("set \"a\"b>nul c\"=x\"\necho tail\n", ">nul", ""),
+        ("set /p \"a\"b>nul c\"=x\"\necho tail\n", ">nul", ">&2"),
+        ("set /p \"a\"b>&2 c\"=x\"\necho tail\n", ">&2", ">nul"),
+        ("set \"a\"b>nul c\"\necho tail\n", " c\"", " c\"=x\""),
+        ("set \"a\"b>nul c\"=x\"\necho tail\n", " c\"=x\"", " c\""),
+        ("set \"ab=x\"\necho tail\n", "ab", "a\"b\""),
+        ("set \"a\"b\"=x\"\necho tail\n", "a\"b\"", "ab"),
         ("set \"x=a\"b>&%1c\"\necho tail\n", "%1", "%~1"),
         ("set \"x=a\"b>&%~1c\"\necho tail\n", "%~1", "%1"),
         ("echo !ab!x!c!&echo tail\n", "ab", "a\"b"),

@@ -64,6 +64,9 @@
 //   SET_BINDING_END
 //                - zero-width confirmation that the next non-horizontal byte
 //                  after a redirected unquoted SET name is its `=` delimiter.
+//   SET_NAME_REDIRECT
+//                - zero-width confirmation that a redirect in a quoted name
+//                  precedes another surviving wrapper quote.
 //   BODY_BOUNDARY
 //                - zero-width marker at newline or EOF when an IF/ELSE/FOR body
 //                  is absent. The grammar aliases it to an anonymous
@@ -129,6 +132,7 @@ enum TokenType {
     SET_IGNORED_SUFFIX,
     LABEL_LEADING_SPACE,
     SET_BINDING_END,
+    SET_NAME_REDIRECT,
     BODY_BOUNDARY,
     BODY_BOUNDARY_AGAIN,
     BLOCK_BODY_BOUNDARY,
@@ -953,9 +957,13 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
 
     // Name text is quoted initially, but expansions can expose outer syntax.
     // Keep the leading-space and post-expansion ranges distinct as before.
-    if (valid_symbols[SET_NAME_TEXT] || valid_symbols[SET_NAME_TAIL_TEXT]) {
+    bool want_set_name =
+        valid_symbols[SET_NAME_TEXT] || valid_symbols[SET_NAME_TAIL_TEXT];
+    bool starts_digit = lexer->lookahead >= '0' && lexer->lookahead <= '9';
+    if (want_set_name || (valid_symbols[SET_NAME_REDIRECT] && starts_digit)) {
         bool tail = valid_symbols[SET_NAME_TAIL_TEXT];
         bool has_content = false;
+        bool word_start = true;
         if (!tail && (lexer->lookahead == ' ' || lexer->lookahead == '\t')) {
             return false;
         }
@@ -964,7 +972,33 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
             if (c == '"' || c == '%' || c == '!' || c == '=' || c == '\r' ||
                 c == '\n' || (!s->set_in_quote && is_set_boundary(s, c)))
                 break;
-            lexer->advance(lexer, false);
+            if (!s->set_in_quote && word_start && c >= '0' && c <= '9') {
+                lexer->mark_end(lexer);
+                lexer->advance(lexer, false);
+                if (lexer->lookahead == '<' || lexer->lookahead == '>') {
+                    if (has_content) {
+                        if (!want_set_name)
+                            return false;
+                        lexer->result_symbol =
+                            tail ? SET_NAME_TAIL_TEXT : SET_NAME_TEXT;
+                        return true;
+                    }
+                    if (valid_symbols[SET_NAME_REDIRECT]) {
+                        if (!has_later_set_quote(s, lexer, false))
+                            return false;
+                        lexer->result_symbol = SET_NAME_REDIRECT;
+                        return true;
+                    }
+                    if (valid_symbols[REDIRECT_SOURCE]) {
+                        lexer->mark_end(lexer);
+                        lexer->result_symbol = REDIRECT_SOURCE;
+                        return true;
+                    }
+                    return false;
+                }
+            } else {
+                lexer->advance(lexer, false);
+            }
             if (c == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
                 if (lexer->lookahead == '\r')
                     lexer->advance(lexer, false);
@@ -972,16 +1006,37 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                     lexer->advance(lexer, false);
                 if (!lexer->eof(lexer) && lexer->lookahead != '%' &&
                     lexer->lookahead != '!') {
+                    c = lexer->lookahead;
                     lexer->advance(lexer, false);
                 }
             }
+            word_start = c == ' ' || c == '\t' || c == ',' || c == ';' ||
+                         c == '(' || c == ')' || c == '&' || c == '|' ||
+                         c == '"';
             has_content = true;
         }
-        if (has_content) {
+        if (has_content && want_set_name) {
             lexer->mark_end(lexer);
             lexer->result_symbol = tail ? SET_NAME_TAIL_TEXT : SET_NAME_TEXT;
             return true;
         }
+        if (!want_set_name)
+            return false;
+    }
+
+    if (valid_symbols[SET_NAME_REDIRECT] && !s->set_in_quote &&
+        (lexer->lookahead == '<' || lexer->lookahead == '>')) {
+        lexer->mark_end(lexer);
+        if (has_later_set_quote(s, lexer, false)) {
+            lexer->result_symbol = SET_NAME_REDIRECT;
+            return true;
+        }
+        if (valid_symbols[SET_STRING_END]) {
+            s->set_in_quote = false;
+            lexer->result_symbol = SET_STRING_END;
+            return true;
+        }
+        return false;
     }
 
     if (valid_symbols[SET_STRING_START]) {
@@ -995,7 +1050,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     }
 
     // SET_INNER_QUOTE / SET_STRING_END: cmd uses the last quote in a quoted SET
-    // binding as the wrapper close. Earlier quotes are literal value fragments.
+    // binding as the wrapper close. Earlier quotes are name or value fragments.
     // Track the outer tokenizer's quote phase: operators are boundaries only
     // outside quotes, even though SET later treats earlier quotes as value text.
     if (valid_symbols[SET_INNER_QUOTE] || valid_symbols[SET_STRING_END]) {
