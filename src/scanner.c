@@ -959,9 +959,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // Keep the leading-space and post-expansion ranges distinct as before.
     bool want_set_name =
         valid_symbols[SET_NAME_TEXT] || valid_symbols[SET_NAME_TAIL_TEXT];
-    if (want_set_name ||
-        (valid_symbols[SET_NAME_REDIRECT] && lexer->lookahead >= '0' &&
-         lexer->lookahead <= '9')) {
+    bool starts_digit = lexer->lookahead >= '0' && lexer->lookahead <= '9';
+    if (want_set_name || (valid_symbols[SET_NAME_REDIRECT] && starts_digit)) {
         bool tail = valid_symbols[SET_NAME_TAIL_TEXT];
         bool has_content = false;
         bool word_start = true;
