@@ -1282,3 +1282,54 @@ set x"!a>b!"
     (argument (text))))
   (set_statement (keyword) (set_display
     (variable_name (text) (string (delayed_variable))))))
+
+==================
+SET values resume after modified parameter duplication targets
+==================
+set "x=a"b>&%~1c"
+set /p "x=a"b>&%~1c"
+set "x=a"b>&%*c"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name)
+      (argument
+        (text)
+        (text)
+        (text))
+      (redirect_dup
+        (redirect_dup_operator)
+        (parameter_tilde))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name)
+      (argument
+        (text)
+        (text)
+        (text))
+      (redirect_dup
+        (redirect_dup_operator)
+        (parameter_tilde))
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name)
+      (argument
+        (text)
+        (text)
+        (text))
+      (redirect_dup
+        (redirect_dup_operator)
+        (all_arguments))
+      (argument
+        (text)))))

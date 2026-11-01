@@ -874,7 +874,7 @@ fn quoted_goto_names_end_at_lookup_delimiters() {
 
 #[test]
 fn set_values_resume_after_expanded_duplication_targets() {
-    for expansion in ["%fd%", "%fd:\"=%", "%1"] {
+    for expansion in ["%fd%", "%fd:\"=%", "%1", "%~1", "%~dp1", "%~$PATH:1", "%~$P\"Q:1", "%*"] {
         for (prefix, field) in [("set ", "value"), ("set /p ", "prompt")] {
             for (first, source_fd) in [("a\"b", ""), ("a\"", "2")] {
                 let redirect_text = format!("{source_fd}>&{expansion}");
@@ -891,7 +891,15 @@ fn set_values_resume_after_expanded_duplication_targets() {
                 assert_eq!(&source[redirect.byte_range()], redirect_text);
                 let target = redirect.child_by_field_name("target").unwrap();
                 assert_eq!(&source[target.byte_range()], expansion);
-                assert_eq!(target.kind(), if expansion == "%1" { "parameter" } else { "variable" });
+                assert_eq!(target.kind(), if expansion.starts_with("%~") {
+                    "parameter_tilde"
+                } else if expansion == "%1" {
+                    "parameter"
+                } else if expansion == "%*" {
+                    "all_arguments"
+                } else {
+                    "variable"
+                });
                 assert_eq!(
                     redirect.child_by_field_name("source").map(|node| &source[node.byte_range()]),
                     if source_fd.is_empty() { None } else { Some(source_fd) },

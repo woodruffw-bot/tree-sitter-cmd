@@ -329,17 +329,58 @@ static bool has_later_set_quote(const Scanner *s, TSLexer *lexer, bool quoted) {
     SetQuoteLookahead look = {.quoted = quoted};
     SetQuoteLookahead literal = {0};
     bool percent_dup_target = false;
-    enum { NO_PERCENT, PERCENT_START, PERCENT_VARIABLE } percent = NO_PERCENT;
+    enum {
+        NO_PERCENT,
+        PERCENT_START,
+        PERCENT_VARIABLE,
+        PARAMETER_MODIFIERS,
+        PARAMETER_PATH_START,
+        PARAMETER_PATH,
+        PARAMETER_DIGIT
+    } percent = NO_PERCENT;
     while (!lexer->eof(lexer)) {
         int32_t c = lexer->lookahead;
         lexer->advance(lexer, false);
         if (percent != NO_PERCENT) {
             advance_set_quote_lookahead(s, &literal, c);
-            if (percent == PERCENT_START &&
-                (c == '%' || (c >= '0' && c <= '9') || c == '~' || c == '*' ||
-                 c == '\r' || c == '\n')) {
+            if (percent >= PARAMETER_MODIFIERS) {
+                if (percent == PARAMETER_MODIFIERS && c > 0 && c < 128 &&
+                    strchr("dpnxfsatzDPNXFSATZ", c)) {
+                    continue;
+                }
+                if (percent == PARAMETER_MODIFIERS && c == '$') {
+                    percent = PARAMETER_PATH_START;
+                    continue;
+                }
+                if (percent == PARAMETER_PATH_START &&
+                    ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                     c == '_')) {
+                    percent = PARAMETER_PATH;
+                    continue;
+                }
+                if (percent == PARAMETER_PATH && c != '\r' && c != '\n') {
+                    if (c == ':')
+                        percent = PARAMETER_DIGIT;
+                    continue;
+                }
+                if ((percent == PARAMETER_MODIFIERS ||
+                     percent == PARAMETER_DIGIT) &&
+                    c >= '0' && c <= '9') {
+                    if (percent_dup_target)
+                        look.phase = SET_SUFFIX_TEXT;
+                } else {
+                    look = literal;
+                }
+                percent = NO_PERCENT;
+            } else if (percent == PERCENT_START && c == '~') {
+                percent = PARAMETER_MODIFIERS;
+                continue;
+            } else if (percent == PERCENT_START &&
+                       (c == '%' || (c >= '0' && c <= '9') || c == '*' ||
+                        c == '\r' || c == '\n')) {
                 look = literal;
-                if (percent_dup_target && c >= '0' && c <= '9') {
+                if (percent_dup_target &&
+                    ((c >= '0' && c <= '9') || c == '*')) {
                     look.phase = SET_SUFFIX_TEXT;
                 }
                 percent = NO_PERCENT;
