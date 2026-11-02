@@ -142,6 +142,25 @@ mod windows {
     }
 
     #[test]
+    fn quoted_set_trims_initial_horizontal_space() {
+        let output = run_script("quoted-set-space", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \" TS_AUDIT=value\"\r\necho spaced:[! TS_AUDIT!]\r\necho trimmed:[!TS_AUDIT!]\r\nset \"\tTS_TAB=value\"\r\necho tab:[!TS_TAB!]\r\necho reply>input\r\nset /p \" TS_PROMPT=\"<input\r\necho prompt:[!TS_PROMPT!]\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("ASCII oracle output")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "spaced:[]",
+                "trimmed:[value]",
+                "tab:[value]",
+                "prompt:[reply]"
+            ]
+        );
+    }
+
+    #[test]
     fn quoted_set_names_keep_internal_quotes() {
         let output = run_script("quoted-set-name", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME_a\"b\"=x\"\r\nset TS_CMD_NAME_\r\nset \"TS_CMD_OTHER_a\"b>nul c\"=x\"\r\nset TS_CMD_OTHER_\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

@@ -1,0 +1,34 @@
+==================
+Quoted SET trims initial spaces and tabs
+==================
+set " name=value"
+set /p " name=prompt"
+set "	name=value"
+set " name"
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name))))

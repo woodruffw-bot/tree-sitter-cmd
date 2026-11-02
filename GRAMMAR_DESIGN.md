@@ -94,6 +94,8 @@ In `set "name=value"` and `set /p "name=prompt"`, the final surviving quote
 closes the wrapper. Earlier quotes remain payload text and still affect outer
 operator protection. Quotes in removed redirection targets do not close the
 wrapper. Text after the final wrapper quote is `set_ignored_suffix`.
+Initial spaces and tabs after the opening wrapper quote are trimmed before
+the name. They remain in the wrapper's source range, outside the name field.
 
 Parentheses in an unquoted name follow the surrounding block context. Balanced
 quoted fragments inside an unquoted name protect operators and remain part of

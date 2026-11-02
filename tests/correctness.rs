@@ -50,6 +50,35 @@ fn unquoted_set_names_keep_post_redirect_whitespace() {
     }
 }
 
+#[test]
+fn quoted_set_names_trim_initial_horizontal_space() {
+    for (prefix, kind, field) in [
+        ("set ", "set_quoted", "value"),
+        ("set /p ", "set_prompt", "prompt"),
+    ] {
+        for gap in [" ", "\t", " \t "] {
+            for ending in ["\n", "\r\n"] {
+                let source = format!("{prefix}\"{gap}name=value\"{ending}");
+                let tree = parser().parse(&source, None).expect("quoted SET tree");
+                let root = tree.root_node();
+                assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+                let binding = root
+                    .named_child(0)
+                    .expect("SET statement")
+                    .named_child(1)
+                    .expect("SET binding");
+                assert_eq!(binding.kind(), kind);
+                assert_eq!(binding.start_byte(), "set ".len());
+                let name = binding.child_by_field_name("name").expect("trimmed name");
+                assert_eq!(&source[name.byte_range()], "name");
+                assert_eq!(name.start_byte(), prefix.len() + 1 + gap.len());
+                let value = binding.child_by_field_name(field).expect("value or prompt");
+                assert_eq!(&source[value.byte_range()], "value");
+            }
+        }
+    }
+}
+
 fn node_sources<'a>(node: Node<'_>, kind: &str, source: &'a str) -> Vec<&'a str> {
     let mut result = Vec::new();
     if node.kind() == kind {
