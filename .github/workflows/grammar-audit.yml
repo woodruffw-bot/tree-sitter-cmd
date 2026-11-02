@@ -1,0 +1,27 @@
+name: Grammar correctness observations
+
+on:
+  push:
+    branches: ["audit/grammar-correctness-20261102"]
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    name: Native CMD observations
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Observe batch syntax
+        shell: python
+        run: |
+          import json, pathlib, subprocess, tempfile
+          cases = json.loads(r'''[["quoted_name_spaces","@echo off\nsetlocal EnableDelayedExpansion\nset \" TS_AUDIT=value\"\necho leading:[! TS_AUDIT!]\nset \" =blank\"\necho blank:[! !]\necho reply>input\nset /p \" TS_PROMPT=\"<input\necho prompt:[! TS_PROMPT!]\n"],["redirected_name_spaces","@echo off\nsetlocal EnableDelayedExpansion\nset TS_AUDIT>nul NAME=value\necho spaced:[!TS_AUDIT NAME!]\necho concatenated:[!TS_AUDITNAME!]\nset TS_TRAIL>nul =value\necho trailing:[!TS_TRAIL !]\necho reply>input\nset /p TS_PROMPT>nul NAME=<input\necho prompt:[!TS_PROMPT NAME!]\n"],["escaped_set_equals","@echo off\nsetlocal EnableDelayedExpansion\nset TS_CARET^=name=value\necho first:[!TS_CARET!]\nset TS_ONLY^=value\necho only:[!TS_ONLY!]\necho reply>input\nset /p TS_PROMPT^=ignored<input\necho prompt:[!TS_PROMPT!]\n"],["conditional_precedence","@echo off\nver >nul || echo BAD && echo AND_RAN\ncmd /d /c exit 1 && echo BAD || echo OR_RAN\ncmd /d /c exit 1 || echo RECOVERED && echo AFTER\n"],["escaped_if_equals","@echo off\nif foo^=^=foo echo IF_RAN\n"],["for_percent_variable","@echo off\nfor %%% in (one) do echo [%%%]\n"],["for_star_variable","@echo off\nfor %%* in (one) do echo [%%*]\n"],["attached_if_block","@echo off\nif \"a\"==\"a\"(echo STRING_RAN)\nif 1 equ 1(echo NUMBER_RAN)\n"]]''')
+          for name, source in cases:
+              with tempfile.TemporaryDirectory(prefix='cmd-grammar-audit-') as directory:
+                  path = pathlib.Path(directory) / 'case.cmd'
+                  path.write_bytes(source.replace('\n', '\r\n').encode('utf-8'))
+                  result = subprocess.run(['cmd.exe', '/d', '/c', str(path)], cwd=directory, capture_output=True, timeout=10)
+                  print(json.dumps({'case': name, 'status': result.returncode, 'stdout': result.stdout.decode('ascii', errors='backslashreplace'), 'stderr': result.stderr.decode('ascii', errors='backslashreplace')}), flush=True)
+          
