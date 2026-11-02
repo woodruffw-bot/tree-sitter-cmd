@@ -17,7 +17,7 @@ jobs:
         shell: python
         run: |
           import json, pathlib, subprocess, tempfile
-          cases = json.loads(r'''[["rem_operators","@echo off\nrem note & echo REM_AND_RAN\nrem note >redirected\nif exist redirected echo REM_REDIRECT_RAN\necho REM_DONE\n"],["rem_block_close","@echo off\n(\nrem note)\necho AFTER_BLOCK\n"],["rem_pipe","@echo off\nrem note | echo REM_PIPE_RAN\n"],["rem_expansion","@echo off\nset TS_AUDIT=expanded\nrem %TS_AUDIT% & echo EXPANSION_TAIL\n"]]''')
+          cases = json.loads(r'''[["quoted_leading_space_assignment","@echo off\nsetlocal EnableDelayedExpansion\nset \" TS_AUDIT=value\"\necho spaced:[! TS_AUDIT!]\necho trimmed:[!TS_AUDIT!]\n"],["quoted_leading_space_prompt","@echo off\nsetlocal EnableDelayedExpansion\necho reply>input\nset /p \" TS_PROMPT=\"<input\necho spaced:[! TS_PROMPT!]\necho trimmed:[!TS_PROMPT!]\n"],["quoted_space_only_name","@echo off\nset \" =blank\"\n"],["quoted_tab_name","@echo off\nsetlocal EnableDelayedExpansion\nset \"\tTS_AUDIT=value\"\necho trimmed:[!TS_AUDIT!]\n"],["for_tilde_variable","@echo off\nfor %%~ in (one) do echo [%%~]\n"],["for_modified_star_variable","@echo off\nfor %%* in (one) do echo [%%~n*]\n"],["for_star_reference","@echo off\nfor %%* in (one) do echo %%*\n"]]''')
           for name, source in cases:
               with tempfile.TemporaryDirectory(prefix='cmd-grammar-audit-') as directory:
                   path = pathlib.Path(directory) / 'case.cmd'
