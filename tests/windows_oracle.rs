@@ -161,6 +161,25 @@ mod windows {
     }
 
     #[test]
+    fn active_escaped_equals_delimit_set_bindings() {
+        let output = run_script("set-escaped-equals", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset TS_CARET^=name=value\r\necho first:[!TS_CARET!]\r\nset TS_ONLY^=value\r\necho only:[!TS_ONLY!]\r\necho reply>input\r\nset /p TS_PROMPT^=ignored<input\r\necho prompt:[!TS_PROMPT!]\r\nset TS_CONT^\r\n=value\r\necho continued:[!TS_CONT!]\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("ASCII oracle output")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "first:[name=value]",
+                "only:[value]",
+                "ignoredprompt:[reply]",
+                "continued:[value]"
+            ]
+        );
+    }
+
+    #[test]
     fn quoted_set_names_keep_internal_quotes() {
         let output = run_script("quoted-set-name", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME_a\"b\"=x\"\r\nset TS_CMD_NAME_\r\nset \"TS_CMD_OTHER_a\"b>nul c\"=x\"\r\nset TS_CMD_OTHER_\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));

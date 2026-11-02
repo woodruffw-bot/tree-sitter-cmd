@@ -64,6 +64,8 @@
 //   SET_BINDING_END
 //                - zero-width confirmation that the next byte
 //                  after a redirected unquoted SET name is its `=` delimiter.
+//   SET_ESCAPED_EQUALS
+//                - an active caret escape that exposes a SET binding delimiter.
 //   SET_NAME_REDIRECT
 //                - zero-width confirmation that a redirect in a quoted name
 //                  precedes another surviving wrapper quote.
@@ -132,6 +134,7 @@ enum TokenType {
     SET_IGNORED_SUFFIX,
     LABEL_LEADING_SPACE,
     SET_BINDING_END,
+    SET_ESCAPED_EQUALS,
     SET_NAME_REDIRECT,
     BODY_BOUNDARY,
     BODY_BOUNDARY_AGAIN,
@@ -534,6 +537,24 @@ static void skip_ws(TSLexer *lexer) {
     }
 }
 
+// Caret removal exposes an equals sign before SET interprets its binding.
+static bool scan_set_escaped_equals(TSLexer *lexer) {
+    if (lexer->lookahead != '^')
+        return false;
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '\r') {
+        lexer->advance(lexer, false);
+        if (lexer->lookahead != '\n')
+            return false;
+    }
+    if (lexer->lookahead == '\n')
+        lexer->advance(lexer, false);
+    if (lexer->lookahead != '=')
+        return false;
+    lexer->advance(lexer, false);
+    return true;
+}
+
 // Keep punctuation in an argument, but stop before a descriptor following a
 // separator. An internal text token would consume that digit before the
 // scanner could recognize its redirection.
@@ -891,8 +912,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // terminal redirect must remain on the statement rather than inducing a
     // recovered, missing `=`.
     if (valid_symbols[SET_BINDING_END]) {
-        if (lexer->lookahead == '=') {
-            lexer->mark_end(lexer);
+        lexer->mark_end(lexer);
+        if (lexer->lookahead == '=' || scan_set_escaped_equals(lexer)) {
             lexer->result_symbol = SET_BINDING_END;
             return true;
         }
@@ -971,6 +992,8 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
             if (c == '"' || c == '%' || c == '!' || c == '=' || c == '\r' ||
                 c == '\n' || (!s->set_in_quote && is_set_boundary(s, c)))
                 break;
+            if (c == '^' && !s->set_in_quote)
+                lexer->mark_end(lexer);
             if (!s->set_in_quote && word_start && c >= '0' && c <= '9') {
                 lexer->mark_end(lexer);
                 lexer->advance(lexer, false);
@@ -999,10 +1022,26 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                 lexer->advance(lexer, false);
             }
             if (c == '^' && !s->set_in_quote && !lexer->eof(lexer)) {
-                if (lexer->lookahead == '\r')
+                bool valid_continuation = true;
+                if (lexer->lookahead == '\r') {
                     lexer->advance(lexer, false);
+                    if (lexer->lookahead != '\n')
+                        valid_continuation = false;
+                }
                 if (lexer->lookahead == '\n')
                     lexer->advance(lexer, false);
+                if (valid_continuation && lexer->lookahead == '=' &&
+                    valid_symbols[SET_ESCAPED_EQUALS]) {
+                    if (has_content) {
+                        lexer->result_symbol =
+                            tail ? SET_NAME_TAIL_TEXT : SET_NAME_TEXT;
+                        return true;
+                    }
+                    lexer->advance(lexer, false);
+                    lexer->mark_end(lexer);
+                    lexer->result_symbol = SET_ESCAPED_EQUALS;
+                    return true;
+                }
                 if (!lexer->eof(lexer) && lexer->lookahead != '%' &&
                     lexer->lookahead != '!') {
                     c = lexer->lookahead;
@@ -1050,6 +1089,18 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
             lexer->result_symbol = SET_STRING_START;
             return true;
         }
+    }
+
+    if (valid_symbols[SET_ESCAPED_EQUALS] && lexer->lookahead == '^') {
+        bool quoted_context = want_set_name || valid_symbols[SET_STRING_END];
+        if (quoted_context && s->set_in_quote)
+            return false;
+        if (scan_set_escaped_equals(lexer)) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = SET_ESCAPED_EQUALS;
+            return true;
+        }
+        return false;
     }
 
     // SET_INNER_QUOTE / SET_STRING_END: cmd uses the last quote in a quoted SET

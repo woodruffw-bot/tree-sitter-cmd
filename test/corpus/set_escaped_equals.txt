@@ -1,0 +1,51 @@
+==================
+Active escaped equals signs delimit SET bindings
+==================
+set name^=value=tail
+set /p name^=prompt
+set "a^=x"
+set "a"b^=x"
+set name^
+=value
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      (variable_name)
+      (escape_sequence)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name)
+      (escape_sequence)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_quoted
+      (variable_name
+        (text)
+        (text)
+        (text))
+      (escape_sequence)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      (variable_name)
+      (escape_sequence)
+      (argument
+        (text)))))
