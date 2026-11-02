@@ -84,6 +84,16 @@ jobs:
       - name: Build crate
         run: cargo build --verbose
 
+      - name: Install Rust checks
+        run: rustup component add rustfmt clippy
+
+      - name: Check Rust formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all -- --check
+
+      - name: Lint Rust code
+        run: cargo clippy --all-targets -- -D warnings
+
       - name: Test crate and fixtures
         run: cargo test --verbose
 

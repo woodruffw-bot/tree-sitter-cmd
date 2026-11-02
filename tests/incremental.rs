@@ -149,10 +149,18 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ("goto \"foo_ignored&echo bad\"\necho tail\n", "_", ";"),
         ("goto foo>nul bar\necho tail\n", "foo>nul bar", "foo bar"),
         ("goto foo>nul tail\necho after\n", "foo>nul", "\"foo>nul\""),
-        ("goto \"foo>nul\" tail\necho after\n", "\"foo>nul\"", "foo>nul"),
+        (
+            "goto \"foo>nul\" tail\necho after\n",
+            "\"foo>nul\"",
+            "foo>nul",
+        ),
         ("(goto \"foo)bar\")\necho after\n", "foo)bar", "foo&bar"),
         ("set \"x=y\"junk^\n&echo after\necho tail\n", "\n&", "\n &"),
-        ("set \"x=y\"junk^\r\n &echo after\necho tail\n", "\n &", "\n&"),
+        (
+            "set \"x=y\"junk^\r\n &echo after\necho tail\n",
+            "\n &",
+            "\n&",
+        ),
         ("if exist a^b2>nul echo yes\n", "b2", "b 2"),
         ("if x==a^b 2>nul echo yes\n", "b 2", "b2"),
         ("echo a^b2>out\necho tail\n", "^b", "\"b\""),
@@ -167,28 +175,32 @@ fn scanner_sensitive_edits_match_fresh_parses() {
         ("if a== b=c echo yes\necho tail\n", "== b", "==b"),
         ("echo !x&y!\necho tail\n", "&", "^&"),
         ("set ^\"x=foo>!ab!&echo tail^\"\necho end\n", "ab", "a\"b"),
-        ("set ^\"x=foo>!a\"b! !c!&echo tail^\"\necho end\n", "a\"b", "ab"),
+        (
+            "set ^\"x=foo>!a\"b! !c!&echo tail^\"\necho end\n",
+            "a\"b",
+            "ab",
+        ),
         ("set \"x!ab!&echo y=z\"\necho tail\n", "ab", "a\"b"),
         ("set \"x!a\"b!&echo y=z\"\necho tail\n", "a\"b", "ab"),
         ("set \"x!a\"!^&tail&echo end\necho after\n", "^&", "&"),
         ("set ^\"x=!ab!&echo tail^\"\necho end\n", "ab", "a\"b"),
         ("set ^\"x=!a\"b!&echo tail^\"\necho end\n", "a\"b", "ab"),
         ("set ^\"x=!a\"b!&echo tail^\"\necho end\n", "b!", "b! !c!"),
-        ("set ^\"x=!a\"b! !c!&echo tail^\"\necho end\n", "b! !c!", "b!"),
+        (
+            "set ^\"x=!a\"b! !c!&echo tail^\"\necho end\n",
+            "b! !c!",
+            "b!",
+        ),
         ("set ^\"x=!a\"b\"c!&echo tail^\"\necho end\n", "b\"c", "bc"),
-        ("(set ^\"x=!a\"b!)&echo tail^\")\necho end\n", "a\"b", "a\"b\""),
+        (
+            "(set ^\"x=!a\"b!)&echo tail^\")\necho end\n",
+            "a\"b",
+            "a\"b\"",
+        ),
         ("echo \"!x&y!\"\necho tail\n", "!x&y!", "!x\" & echo \"y!"),
         ("echo one ^\r\n  two\r\n", "one ^", "one^"),
-        (
-            "set \"x=a\"tail\r\necho after\r\n",
-            "tail",
-            "tail\"",
-        ),
-        (
-            "set \"x=a\"tail\"\r\necho after\r\n",
-            "tail\"",
-            "tail",
-        ),
+        ("set \"x=a\"tail\r\necho after\r\n", "tail", "tail\""),
+        ("set \"x=a\"tail\"\r\necho after\r\n", "tail\"", "tail"),
         (": target\necho after\n", "target", "  "),
         ("goto :loop\necho after\n", "loop", ""),
         (
@@ -316,11 +328,7 @@ fn malformed_edit_keeps_error_inside_closed_block() {
     let before = "(\necho inside\n)\necho after\n";
     let needle = "echo inside";
     let start = before.find(needle).expect("edit needle");
-    let (incremental, edited) = edited_tree(
-        before.as_bytes(),
-        start..start + needle.len(),
-        b"if",
-    );
+    let (incremental, edited) = edited_tree(before.as_bytes(), start..start + needle.len(), b"if");
     let fresh = parser()
         .parse(edited.as_slice(), None)
         .expect("fresh malformed parse");
@@ -345,7 +353,10 @@ fn malformed_edit_keeps_error_inside_closed_block() {
         .expect("tail command");
 
     assert_eq!(block.kind(), "block");
-    assert!(block.has_error(), "the malformed statement must stay marked");
+    assert!(
+        block.has_error(),
+        "the malformed statement must stay marked"
+    );
     assert_eq!(block.end_byte(), close_end);
     assert_eq!(tail.kind(), "command");
     assert!(!tail.has_error(), "the later command must remain clean");

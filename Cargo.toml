@@ -34,3 +34,7 @@ cc = "1.2"
 
 [dev-dependencies]
 tree-sitter = "0.27.0"
+
+[lints.clippy]
+unwrap_used = "warn"
+undocumented_unsafe_blocks = "warn"

@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 use tree_sitter::{Node, Parser};
 
 // Lock the source-backed structures used by analyzers without coupling this
@@ -45,6 +43,8 @@ fn parser() -> Parser {
 }
 
 fn escaped_source(source: &[u8]) -> String {
+    use std::fmt::Write as _;
+
     let mut escaped = String::new();
     for &byte in source {
         match byte {
@@ -67,6 +67,8 @@ fn append_fingerprint(
     depth: usize,
     fingerprint: &mut String,
 ) {
+    use std::fmt::Write as _;
+
     let included = node.is_error()
         || node.is_missing()
         || (node.is_named() && FINGERPRINT_KINDS.contains(&node.kind()));
@@ -97,13 +99,11 @@ fn append_fingerprint(
     }
 
     for child_index in 0..node.child_count() {
-        let child = node
-            .child(child_index as u32)
-            .expect("child index is in range");
+        let child = node.child(child_index).expect("child index is in range");
         append_fingerprint(
             child,
             source,
-            node.field_name_for_child(child_index as u32),
+            node.field_name_for_child(child_index),
             child_depth,
             fingerprint,
         );
@@ -274,5 +274,4 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
       argument: argument @16..21 "wrong"
 "#,
     );
-
 }

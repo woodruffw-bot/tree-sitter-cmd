@@ -3,12 +3,14 @@
 //! Use [`LANGUAGE`] with a Tree-sitter [`Parser`]:
 //!
 //! ```
+//! use tree_sitter::Parser;
+//!
 //! let code = "@echo off\r\nif exist input.txt echo found\r\n";
-//! let mut parser = tree_sitter::Parser::new();
+//! let mut parser = Parser::new();
 //! parser
 //!     .set_language(&tree_sitter_cmd::LANGUAGE.into())
 //!     .expect("loading cmd grammar");
-//! let tree = parser.parse(code, None).unwrap();
+//! let tree = parser.parse(code, None).expect("parser should return a tree");
 //! assert!(!tree.root_node().has_error());
 //! ```
 //!
@@ -22,6 +24,9 @@ extern "C" {
 }
 
 /// The batch grammar entry point.
+// SAFETY: The generated C function uses Tree-sitter's language entry-point ABI
+// and returns its static language descriptor. The build script links that
+// function into this crate. The FFI entry point requires the raw constructor.
 pub const LANGUAGE: LanguageFn = unsafe { LanguageFn::from_raw(tree_sitter_cmd) };
 
 /// Node types and fields in JSON format.
@@ -35,14 +40,14 @@ pub const INJECTIONS_QUERY: &str = include_str!("../../queries/injections.scm");
 
 #[cfg(test)]
 mod tests {
-    use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
+    use tree_sitter::{Language, Node, Parser, Query, QueryCursor, Tree};
 
-    fn language() -> tree_sitter::Language {
+    fn language() -> Language {
         super::LANGUAGE.into()
     }
 
-    fn parse(source: &str) -> tree_sitter::Tree {
-        let mut parser = tree_sitter::Parser::new();
+    fn parse(source: &str) -> Tree {
+        let mut parser = Parser::new();
         parser
             .set_language(&language())
             .expect("Error loading Cmd parser");
@@ -50,6 +55,8 @@ mod tests {
     }
 
     fn capture_texts(source: &str, query: &Query, capture_name: &str) -> Vec<String> {
+        use tree_sitter::StreamingIterator;
+
         let tree = parse(source);
         let capture_index = query
             .capture_index_for_name(capture_name)
@@ -134,10 +141,7 @@ mod tests {
 
         let comments = capture_texts(source, &query, "comment");
         assert_eq!(
-            comments
-                .iter()
-                .map(|text| text.trim())
-                .collect::<Vec<_>>(),
+            comments.iter().map(|text| text.trim()).collect::<Vec<_>>(),
             ["rem", "note"]
         );
         assert!(comments.iter().all(|text| !text.contains(">nul")));
@@ -216,5 +220,4 @@ mod tests {
 
         assert!(query.capture_names().is_empty());
     }
-
 }

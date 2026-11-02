@@ -209,21 +209,6 @@ fn collect_node_kinds(node: Node<'_>, counts: &mut BTreeMap<String, usize>) {
     }
 }
 
-fn assert_no_empty_command_names(node: Node<'_>) {
-    if node.kind() == "command_name" {
-        assert_ne!(
-            node.start_byte(),
-            node.end_byte(),
-            "recovery synthesized an empty command_name",
-        );
-    }
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        assert_no_empty_command_names(child);
-    }
-}
-
 #[test]
 fn script_extensions_are_case_insensitive() {
     assert!(is_script(Path::new("fixture.bat")));
@@ -235,16 +220,13 @@ fn script_extensions_are_case_insensitive() {
 #[test]
 fn recovery_node_diagnostics_include_locations() {
     let cases: &[(&[u8], &str)] = &[
-        (
-            b"echo before >\necho after\n",
-            "1:13 (bytes 12..13): ERROR",
-        ),
+        (b"echo before >\necho after\n", "1:13 (bytes 12..13): ERROR"),
         (b"(\necho before\n", "3:1 (bytes 14..14): MISSING )"),
-        (b"()\necho after\n", "1:2 (bytes 1..1): MISSING command_name"),
         (
-            b"if exist marker\n",
-            "1:16 (bytes 15..15): MISSING command",
+            b"()\necho after\n",
+            "1:2 (bytes 1..1): MISSING command_name",
         ),
+        (b"if exist marker\n", "1:16 (bytes 15..15): MISSING command"),
         (
             b"for %%i in (one) do\n",
             "1:20 (bytes 19..19): MISSING command",
@@ -272,10 +254,12 @@ fn real_world_fixtures_parse_without_recovery() {
     let contracts = structural_contracts(&real_world.join("contracts.tsv"));
     let fixture_files = fixture_files(&fixtures);
 
-    assert!(!fixture_files.is_empty(), "fixture directory has no scripts");
+    assert!(
+        !fixture_files.is_empty(),
+        "fixture directory has no scripts"
+    );
     assert_eq!(
-        listed,
-        fixture_files,
+        listed, fixture_files,
         "sources.tsv and the fixture directory must list the same scripts",
     );
     for name in &names {

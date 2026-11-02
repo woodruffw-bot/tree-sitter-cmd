@@ -18,7 +18,7 @@ mod windows {
     use std::ffi::OsString;
     use std::fs;
     use std::path::Path;
-    use std::process::Command;
+    use std::process::{Command, Output};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use tree_sitter::{Node, Parser};
@@ -58,12 +58,9 @@ mod windows {
         }
     }
 
-    fn run_cmd(comspec: &OsString, path: &Path) -> std::process::Output {
+    fn run_cmd(comspec: &OsString, path: &Path) -> Output {
         Command::new(comspec)
-            .current_dir(
-                path.parent()
-                    .expect("oracle script has a parent directory"),
-            )
+            .current_dir(path.parent().expect("oracle script has a parent directory"))
             .arg("/d")
             .arg("/c")
             .arg(path)
@@ -71,17 +68,21 @@ mod windows {
             .unwrap_or_else(|error| panic!("running {}: {error}", path.display()))
     }
 
-    fn run_script(name: &str, source: &[u8]) -> std::process::Output {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    fn run_script(name: &str, source: &[u8]) -> Output {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after the Unix epoch")
+            .as_nanos();
         let directory = std::env::temp_dir().join(format!(
-            "tree-sitter-cmd-{name}-{}-{nonce}", std::process::id(),
+            "tree-sitter-cmd-{name}-{}-{nonce}",
+            std::process::id(),
         ));
-        fs::create_dir(&directory).unwrap();
+        fs::create_dir(&directory).expect("creating oracle fixture directory");
         let path = directory.join("case.cmd");
-        fs::write(&path, source).unwrap();
+        fs::write(&path, source).expect("writing oracle script");
         let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
         let output = run_cmd(&comspec, &path);
-        fs::remove_dir_all(&directory).unwrap();
+        fs::remove_dir_all(&directory).expect("removing oracle fixture directory");
         output
     }
 
@@ -93,11 +94,17 @@ mod windows {
             "for %%a in (2) do echo marker >&%%~a",
             "echo marker >&%%",
         ] {
-            let source = format!("@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\n{command}\r\n");
+            let source = format!(
+                "@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\n{command}\r\n"
+            );
             let output = run_script("late-duplication-target", source.as_bytes());
             assert!(!output.status.success(), "{command}");
             assert!(!output.stderr.is_empty(), "{command}");
-            assert!(output.stdout.is_empty(), "{command}: {}", escaped(&output.stdout));
+            assert!(
+                output.stdout.is_empty(),
+                "{command}: {}",
+                escaped(&output.stdout)
+            );
         }
     }
 
@@ -106,7 +113,13 @@ mod windows {
         let output = run_script("quoted-set-name", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME_a\"b\"=x\"\r\nset TS_CMD_NAME_\r\nset \"TS_CMD_OTHER_a\"b>nul c\"=x\"\r\nset TS_CMD_OTHER_\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["TS_CMD_NAME_a\"b\"=x", "TS_CMD_OTHER_a\"b c\"=x"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["TS_CMD_NAME_a\"b\"=x", "TS_CMD_OTHER_a\"b c\"=x"]
+        );
     }
 
     #[test]
@@ -114,19 +127,41 @@ mod windows {
         let output = run_script("set-name-fragments", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset TS_CMD_NAME(x)=paren\r\nset TS_CMD_NAME\"x\"=quote\r\nset TS_CMD_NAME\"a&b\"=protected\r\nset TS_CMD_NAME(x)\r\nset TS_CMD_NAME\"x\"\r\nset TS_CMD_NAME\"a&b\"\r\necho reply>input\r\nset /p TS_CMD_NAME(x)=prompt<input\r\necho.\r\nset TS_CMD_NAME(x)\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
-            ["TS_CMD_NAME(x)=paren", "TS_CMD_NAME\"x\"=quote", "TS_CMD_NAME\"a&b\"=protected", "prompt", "TS_CMD_NAME(x)=reply"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "TS_CMD_NAME(x)=paren",
+                "TS_CMD_NAME\"x\"=quote",
+                "TS_CMD_NAME\"a&b\"=protected",
+                "prompt",
+                "TS_CMD_NAME(x)=reply"
+            ]
+        );
     }
 
     #[test]
     fn argument_separators_start_redirection_descriptors() {
         for separator in [",", ";", "="] {
-            let source = format!("@echo off\r\necho before\r\necho a{separator}2>out\r\necho after\r\ntype out\r\n");
+            let source = format!(
+                "@echo off\r\necho before\r\necho a{separator}2>out\r\necho after\r\ntype out\r\n"
+            );
             let output = run_script("argument-descriptor", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
-                ["before".to_owned(), format!("a{separator}"), "after".to_owned()]);
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .lines()
+                    .collect::<Vec<_>>(),
+                [
+                    "before".to_owned(),
+                    format!("a{separator}"),
+                    "after".to_owned()
+                ]
+            );
         }
     }
 
@@ -135,15 +170,32 @@ mod windows {
         let output = run_script("delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\necho !a\"b!&echo hidden\"\r\necho !a\"b!\"&echo visible\r\necho \"!a\"b!&echo visible\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
-            ["!a\"b!&echo hidden\"", "!a\"b!\"", "visible", "\"!a\"b!", "visible"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "!a\"b!&echo hidden\"",
+                "!a\"b!\"",
+                "visible",
+                "\"!a\"b!",
+                "visible"
+            ]
+        );
     }
 
     #[test]
     fn delayed_bangs_do_not_protect_outer_operators() {
         for (mode, expected) in [
-            ("EnableDelayedExpansion", vec!["left", "right", "\"left\"", "\"right\""]),
-            ("DisableDelayedExpansion", vec!["left!", "right!", "\"!left\"", "\"right!\""]),
+            (
+                "EnableDelayedExpansion",
+                vec!["left", "right", "\"left\"", "\"right\""],
+            ),
+            (
+                "DisableDelayedExpansion",
+                vec!["left!", "right!", "\"!left\"", "\"right!\""],
+            ),
         ] {
             let source = format!(
                 "@echo off\r\nsetlocal {mode}\r\necho left! & echo right!\r\necho \"!left\" & echo \"right!\"\r\n",
@@ -151,8 +203,11 @@ mod windows {
             let output = run_script("delayed-boundaries", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            let stdout = String::from_utf8(output.stdout).unwrap();
-            assert_eq!(stdout.lines().map(str::trim_end).collect::<Vec<_>>(), expected);
+            let stdout = String::from_utf8(output.stdout).expect("oracle output should be UTF-8");
+            assert_eq!(
+                stdout.lines().map(str::trim_end).collect::<Vec<_>>(),
+                expected
+            );
         }
     }
 
@@ -161,7 +216,13 @@ mod windows {
         let output = run_script("if-equals", b"@echo off\r\nif not b==b=c echo retained\r\nif b==b=c echo unexpected\r\necho done\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["retained", "done"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["retained", "done"]
+        );
     }
 
     #[test]
@@ -169,7 +230,13 @@ mod windows {
         let output = run_script("set-quotes", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b\"c&d\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b\"c|d\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b\"c>d\"\r\necho !TS_CMD_QUOTE!\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b\"c&d", "a\"b\"c|d", "a\"b\"c>d"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["a\"b\"c&d", "a\"b\"c|d", "a\"b\"c>d"]
+        );
     }
 
     #[test]
@@ -178,8 +245,18 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(
-            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
-            ["operator\"", "TS_CMD_CARET=left", "redirected", "TS_CMD_CARET=left tail", "TS_CMD_CARET=left&right", "TS_CMD_CARET=expanded"],
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "operator\"",
+                "TS_CMD_CARET=left",
+                "redirected",
+                "TS_CMD_CARET=left tail",
+                "TS_CMD_CARET=left&right",
+                "TS_CMD_CARET=expanded"
+            ],
         );
     }
 
@@ -192,23 +269,52 @@ mod windows {
             let output = run_script("set-delayed-quotes", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "done");
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .trim_end(),
+                "done"
+            );
         }
     }
 
     #[test]
     fn quoted_set_names_accept_metacharacters() {
-        for name in ["TS_CMD_NAME(1)", "TS_CMD_NAME&x", "TS_CMD_NAME|x", "TS_CMD_NAME<x", "TS_CMD_NAME>x", "TS_CMD_NAME^x"] {
+        for name in [
+            "TS_CMD_NAME(1)",
+            "TS_CMD_NAME&x",
+            "TS_CMD_NAME|x",
+            "TS_CMD_NAME<x",
+            "TS_CMD_NAME>x",
+            "TS_CMD_NAME^x",
+        ] {
             let source = format!(
                 "@echo off\r\nsetlocal DisableDelayedExpansion\r\n(set \"{name}=assigned\")\r\nset \"{name}\"\r\necho entered>input.txt\r\n<input.txt set /p \"{name}=prompt\" >nul\r\nset \"{name}\"\r\n",
             );
-            let tree = parser().parse(&source, None).unwrap();
-            assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+            let tree = parser()
+                .parse(&source, None)
+                .expect("parser should return a tree");
+            assert!(
+                !tree.root_node().has_error(),
+                "{}",
+                tree.root_node().to_sexp()
+            );
             let output = run_script("set-quoted-names", source.as_bytes());
-            assert!(output.status.success(), "{name}: {}", escaped(&output.stderr));
-            assert!(output.stderr.is_empty(), "{name}: {}", escaped(&output.stderr));
+            assert!(
+                output.status.success(),
+                "{name}: {}",
+                escaped(&output.stderr)
+            );
+            assert!(
+                output.stderr.is_empty(),
+                "{name}: {}",
+                escaped(&output.stderr)
+            );
             assert_eq!(
-                String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .lines()
+                    .collect::<Vec<_>>(),
                 [format!("{name}=assigned"), format!("{name}=entered")],
             );
         }
@@ -219,7 +325,13 @@ mod windows {
         let output = run_script("set-redirect-quotes", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b>out c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"out q\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&2 c\"\r\necho !TS_CMD_QUOTE!\r\n<nul set /p \"TS_CMD_QUOTE=a\"b>prompt c\"\r\ntype prompt\r\necho(\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a", "a\"b c", "a\"b c"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["a\"b c", "a\"b c", "a", "a\"b c", "a\"b c"]
+        );
     }
 
     #[test]
@@ -227,7 +339,13 @@ mod windows {
         let output = run_script("set-redirect-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset v=out\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=% c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>\"%v:\"=%\" c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>%v:\"=%\r\necho !TS_CMD_QUOTE!\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"b c", "a\"b c", "a"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["a\"b c", "a\"b c", "a"]
+        );
     }
 
     #[test]
@@ -235,7 +353,13 @@ mod windows {
         let output = run_script("set-redirect-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b! !c!&echo unexpected^\"\r\nset ^\"TS_CMD_TARGET=ok>!a\"b!\"&echo visible\r\necho done\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["visible", "done"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["visible", "done"]
+        );
     }
 
     #[test]
@@ -243,7 +367,20 @@ mod windows {
         let output = run_script("set-name-delayed-quotes", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME!a=present\"\r\nset \"TS_CMD_NAME!a\"!&echo sequence\r\nset \"TS_CMD_NAME!a\"!>name.out&echo redirected\r\ntype name.out\r\n(set \"TS_CMD_NAME!a\"!)&echo block\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["TS_CMD_NAME!a=present", "sequence", "redirected", "TS_CMD_NAME!a=present", "TS_CMD_NAME!a=present", "block"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            [
+                "TS_CMD_NAME!a=present",
+                "sequence",
+                "redirected",
+                "TS_CMD_NAME!a=present",
+                "TS_CMD_NAME!a=present",
+                "block"
+            ]
+        );
     }
 
     #[test]
@@ -252,7 +389,13 @@ mod windows {
         let output = run_script("set-dup-expansion", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset fd=2\r\nset \"TS_CMD_QUOTE=a\"b>&%fd%c\"\r\necho !TS_CMD_QUOTE!\r\nset fd=1\r\nset \"TS_CMD_QUOTE=a\"2>&%fd:\"=%c\"\r\necho !TS_CMD_QUOTE!\r\ncall :parameter 2\r\nexit /b\r\n:parameter\r\nset \"TS_CMD_QUOTE=a\"b>&%1c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&%~1c\"\r\necho !TS_CMD_QUOTE!\r\nset \"TS_CMD_QUOTE=a\"b>&%*c\"\r\necho !TS_CMD_QUOTE!\r\nexit /b\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["a\"bc", "a\"c", "a\"bc", "a\"bc", "a\"bc"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["a\"bc", "a\"c", "a\"bc", "a\"bc", "a\"bc"]
+        );
     }
 
     #[test]
@@ -260,7 +403,13 @@ mod windows {
         let output = run_script("redirect-separators", b"@echo off\r\necho marker >\"a^\",b\r\nif exist \"a^\" echo quoted\r\nif exist \"a^,b\" echo unexpected\r\necho marker >a^\r\nb,c\r\nif exist ab echo continued\r\nif exist \"ab,c\" echo unexpected\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["quoted", "continued"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["quoted", "continued"]
+        );
     }
 
     #[test]
@@ -270,7 +419,12 @@ mod windows {
             let output = run_script("set-suffix", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "done");
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .trim_end(),
+                "done"
+            );
         }
     }
 
@@ -279,7 +433,12 @@ mod windows {
         let output = run_script("set-open-suffix", b"@echo off\r\nsetlocal EnableDelayedExpansion\r\nset \"TS_CMD_QUOTE=a\"b\"c&d\r\necho !TS_CMD_QUOTE!\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "a\"b");
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .trim_end(),
+            "a\"b"
+        );
     }
 
     #[test]
@@ -287,44 +446,99 @@ mod windows {
         let output = run_script("else-tail", b"@echo off\r\nsetlocal\r\nif 1==1 echo someone else here\r\nif 1==0 echo yes else echo unexpected\r\nif 1==1 set TS_CMD_ELSE=else\r\necho %TS_CMD_ELSE%\r\nif 1==0 (echo unexpected) else echo branch\r\nif 1==0 echo first |(echo last) else echo pipeline-branch\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["someone else here", "else", "branch", "pipeline-branch"]);
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["someone else here", "else", "branch", "pipeline-branch"]
+        );
     }
 
     #[test]
     fn else_does_not_match_a_longer_word() {
-        let invalid = run_script("else-prefix", b"@echo off\r\nif 1==1 (echo yes) elsex echo no\r\n");
+        let invalid = run_script(
+            "else-prefix",
+            b"@echo off\r\nif 1==1 (echo yes) elsex echo no\r\n",
+        );
         assert!(!invalid.status.success());
         assert!(!invalid.stderr.is_empty());
-        let valid = run_script("else-token", b"@echo off\r\nif 1==0 (echo yes) else echo no\r\n");
+        let valid = run_script(
+            "else-token",
+            b"@echo off\r\nif 1==0 (echo yes) else echo no\r\n",
+        );
         assert!(valid.status.success(), "{}", escaped(&valid.stderr));
         assert!(valid.stderr.is_empty());
-        assert_eq!(String::from_utf8(valid.stdout).unwrap().trim_end(), "no");
+        assert_eq!(
+            String::from_utf8(valid.stdout)
+                .expect("oracle output should be UTF-8")
+                .trim_end(),
+            "no"
+        );
     }
 
     #[test]
     fn if_control_words_can_prefix_compound_operands() {
-        for prefix in ["/i", "not", "exist", "defined", "errorlevel", "cmdextversion"] {
+        for prefix in [
+            "/i",
+            "not",
+            "exist",
+            "defined",
+            "errorlevel",
+            "cmdextversion",
+        ] {
             let source = format!(
                 "@echo off\r\nif {prefix}\"x\"=={prefix}\"x\" echo quoted\r\nif {prefix}^x=={prefix}x echo escaped\r\n",
             );
-            let tree = parser().parse(&source, None).unwrap();
-            assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+            let tree = parser()
+                .parse(&source, None)
+                .expect("parser should return a tree");
+            assert!(
+                !tree.root_node().has_error(),
+                "{}",
+                tree.root_node().to_sexp()
+            );
             let output = run_script("if-compound-operands", source.as_bytes());
-            assert!(output.status.success(), "{prefix}: {}", escaped(&output.stderr));
-            assert!(output.stderr.is_empty(), "{prefix}: {}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["quoted", "escaped"]);
+            assert!(
+                output.status.success(),
+                "{prefix}: {}",
+                escaped(&output.stderr)
+            );
+            assert!(
+                output.stderr.is_empty(),
+                "{prefix}: {}",
+                escaped(&output.stderr)
+            );
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .lines()
+                    .collect::<Vec<_>>(),
+                ["quoted", "escaped"]
+            );
         }
     }
 
     #[test]
     fn for_requires_a_delimiter_after_its_binder() {
-        let invalid = run_script("for-binder-prefix", b"@echo off\r\nfor %%ain (x) do echo %%a\r\n");
+        let invalid = run_script(
+            "for-binder-prefix",
+            b"@echo off\r\nfor %%ain (x) do echo %%a\r\n",
+        );
         assert!(!invalid.status.success());
         assert!(!invalid.stderr.is_empty());
-        let valid = run_script("for-binder-token", b"@echo off\r\nfor %%a in (x) do echo %%a\r\n");
+        let valid = run_script(
+            "for-binder-token",
+            b"@echo off\r\nfor %%a in (x) do echo %%a\r\n",
+        );
         assert!(valid.status.success(), "{}", escaped(&valid.stderr));
         assert!(valid.stderr.is_empty());
-        assert_eq!(String::from_utf8(valid.stdout).unwrap().trim_end(), "x");
+        assert_eq!(
+            String::from_utf8(valid.stdout)
+                .expect("oracle output should be UTF-8")
+                .trim_end(),
+            "x"
+        );
     }
 
     #[test]
@@ -341,48 +555,78 @@ mod windows {
             let source = format!("@echo off\r\ngoto TS_CMD_MISSING{suffix}\r\n");
             let output = run_script("goto-tail-descriptor", source.as_bytes());
             assert!(!output.status.success(), "{suffix}");
-            assert_eq!(output.stderr.is_empty(), redirects_stderr, "{suffix}: {}", escaped(&output.stderr));
+            assert_eq!(
+                output.stderr.is_empty(),
+                redirects_stderr,
+                "{suffix}: {}",
+                escaped(&output.stderr)
+            );
         }
     }
 
     #[test]
     fn goto_accepts_text_after_a_redirection() {
-        for target in ["destination>nul tail", "destination 2>nul tail", "destination;ignored>nul more"] {
+        for target in [
+            "destination>nul tail",
+            "destination 2>nul tail",
+            "destination;ignored>nul more",
+        ] {
             let source = format!("@echo off\r\ngoto {target}\r\necho unexpected\r\nexit /b 1\r\n:destination tail\r\n:destination\r\necho reached\r\n");
             let output = run_script("goto-redirect-tail", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), "reached");
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .trim_end(),
+                "reached"
+            );
         }
     }
 
     #[test]
     fn goto_quotes_protect_operators_and_redirections() {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after the Unix epoch")
+            .as_nanos();
         let directory = std::env::temp_dir().join(format!(
-            "tree-sitter-cmd-goto-quotes-{}-{nonce}", std::process::id(),
+            "tree-sitter-cmd-goto-quotes-{}-{nonce}",
+            std::process::id(),
         ));
-        fs::create_dir(&directory).unwrap();
+        fs::create_dir(&directory).expect("creating oracle fixture directory");
         let path = directory.join("case.cmd");
         let comspec = std::env::var_os("COMSPEC").unwrap_or_else(|| OsString::from("cmd.exe"));
         for (target, reported_label) in [
-            ("TS_CMD_MISSING&echo TS_CMD_UNEXPECTED", "TS_CMD_MISSING&echo"),
+            (
+                "TS_CMD_MISSING&echo TS_CMD_UNEXPECTED",
+                "TS_CMD_MISSING&echo",
+            ),
             ("TS_CMD_MISSING>redirected", "TS_CMD_MISSING>redirected"),
         ] {
             let source = format!("@echo off\r\ngoto \"{target}\"\r\n");
-            fs::write(&path, source).unwrap();
+            fs::write(&path, source).expect("writing oracle script");
             let output = run_cmd(&comspec, &path);
             assert!(!output.status.success());
             assert!(output.stdout.is_empty(), "{}", escaped(&output.stdout));
             // GOTO reports only the text before the first space. The protected
             // operator still appears in the label instead of executing.
             assert!(
-                output.stderr.windows(reported_label.len()).any(|part| part == reported_label.as_bytes()),
-                "{}", escaped(&output.stderr),
+                output
+                    .stderr
+                    .windows(reported_label.len())
+                    .any(|part| part == reported_label.as_bytes()),
+                "{}",
+                escaped(&output.stderr),
             );
-            assert_eq!(fs::read_dir(&directory).unwrap().count(), 1);
+            assert_eq!(
+                fs::read_dir(&directory)
+                    .expect("listing oracle fixture directory")
+                    .count(),
+                1
+            );
         }
-        fs::remove_dir_all(&directory).unwrap();
+        fs::remove_dir_all(&directory).expect("removing oracle fixture directory");
     }
 
     #[test]
@@ -401,7 +645,7 @@ mod windows {
             let output = run_script("escaped-descriptor", source.as_bytes());
             assert!(output.status.success(), "{}", escaped(&output.stderr));
             assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-            let stdout = String::from_utf8(output.stdout).unwrap();
+            let stdout = String::from_utf8(output.stdout).expect("oracle output should be UTF-8");
             let expected = if redirects_stderr {
                 ["before", printed, "after"]
             } else {
@@ -422,9 +666,23 @@ mod windows {
                 "@echo off\r\ngoto \"TS_CMD_TARGET{delimiter}ignored&echo unexpected\"\r\necho missed\r\nexit /b 1\r\n:\"TS_CMD_TARGET\r\necho reached\r\n",
             );
             let output = run_script("goto-quoted-delimiters", source.as_bytes());
-            assert!(output.status.success(), "{delimiter:?}: {}", escaped(&output.stderr));
-            assert!(output.stderr.is_empty(), "{delimiter:?}: {}", escaped(&output.stderr));
-            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(), ["reached"]);
+            assert!(
+                output.status.success(),
+                "{delimiter:?}: {}",
+                escaped(&output.stderr)
+            );
+            assert!(
+                output.stderr.is_empty(),
+                "{delimiter:?}: {}",
+                escaped(&output.stderr)
+            );
+            assert_eq!(
+                String::from_utf8(output.stdout)
+                    .expect("oracle output should be UTF-8")
+                    .lines()
+                    .collect::<Vec<_>>(),
+                ["reached"]
+            );
         }
     }
 
@@ -434,7 +692,10 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(
-            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
             ["before", "matched", "after", "captured"],
         );
     }
@@ -448,7 +709,10 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(
-            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
             ["direct", "continued", "expanded"],
         );
     }
@@ -462,7 +726,10 @@ mod windows {
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
         assert_eq!(
-            String::from_utf8(output.stdout).unwrap().lines().collect::<Vec<_>>(),
+            String::from_utf8(output.stdout)
+                .expect("oracle output should be UTF-8")
+                .lines()
+                .collect::<Vec<_>>(),
             ["delayed", "redirected", "done"],
         );
     }
@@ -577,7 +844,8 @@ mod windows {
             },
             OracleCase {
                 name: "for-f-usebackq-unmatched-backtick",
-                source: b"@echo off\r\nfor /f \"usebackq\" %%a in (`echo unfinished) do echo %%a\r\n",
+                source:
+                    b"@echo off\r\nfor /f \"usebackq\" %%a in (`echo unfinished) do echo %%a\r\n",
             },
             OracleCase {
                 name: "set-a-empty",
