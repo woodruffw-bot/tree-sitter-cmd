@@ -8,6 +8,48 @@ fn parser() -> Parser {
     parser
 }
 
+#[test]
+fn unquoted_set_names_keep_post_redirect_whitespace() {
+    for (prefix, field) in [("set ", "value"), ("set /p ", "prompt")] {
+        for ending in ["\n", "\r\n"] {
+            for gap in [" ", "\t", " \t "] {
+                for tail in ["name", "", "%V%tail"] {
+                    let source = format!("{prefix}head>nul{gap}{tail}=value{ending}");
+                    let tree = parser().parse(&source, None).expect("SET tree");
+                    let root = tree.root_node();
+                    assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+                    let binding = root
+                        .named_child(0)
+                        .expect("SET statement")
+                        .named_child(1)
+                        .expect("SET binding");
+                    let mut cursor = binding.walk();
+                    let names: Vec<_> = binding
+                        .children_by_field_name("name", &mut cursor)
+                        .map(|node| &source[node.byte_range()])
+                        .collect();
+                    assert_eq!(names, ["head", &format!("{gap}{tail}")], "{source}");
+                    let redirect = binding
+                        .child_by_field_name("redirect")
+                        .expect("name redirect");
+                    assert_eq!(&source[redirect.byte_range()], ">nul");
+                    let value = binding.child_by_field_name(field).expect("value or prompt");
+                    assert_eq!(&source[value.byte_range()], "value");
+                }
+            }
+        }
+    }
+    for gap in [" ", "\t", " \t "] {
+        let source = format!("set head>nul{gap}tail\n");
+        let tree = parser().parse(&source, None).expect("display tree");
+        assert!(!tree.root_node().has_error());
+        assert_eq!(
+            node_sources(tree.root_node(), "variable_name", &source),
+            ["head", &format!("{gap}tail")]
+        );
+    }
+}
+
 fn node_sources<'a>(node: Node<'_>, kind: &str, source: &'a str) -> Vec<&'a str> {
     let mut result = Vec::new();
     if node.kind() == kind {

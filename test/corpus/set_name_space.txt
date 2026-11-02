@@ -1,0 +1,42 @@
+==================
+SET name segments retain post-redirect whitespace
+==================
+set head>nul tail=value
+set /p head>nul =prompt
+set head>nul	tail
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      (variable_name)
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      (variable_name)
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name)
+      (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_display
+      (variable_name)
+      (redirect_file
+        (redirect_operator)
+        (argument
+          (text)))
+      (variable_name))))

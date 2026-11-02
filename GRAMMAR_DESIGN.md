@@ -105,7 +105,7 @@ payloads use source fragments without inferred binding fields.
 
 A binding name split by redirections has repeated `name: (variable_name)`
 fields with `redirect` siblings. No name node spans removed redirection text.
-Quoted names retain surviving spaces after each redirection. Display forms
+Names retain surviving spaces and tabs after each redirection. Display forms
 keep the same name segments without binding fields.
 SET `/A` requires a payload but does not parse the arithmetic language.
 
