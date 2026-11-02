@@ -91,6 +91,84 @@ fn assert_incremental_matches_fresh(before: &str, needle: &str, replacement: &st
     assert_eq!(incremental.root_node().end_byte(), edited.len());
 }
 
+fn named_scopes_at(tree: &Tree, byte: usize) -> Vec<&str> {
+    let mut scopes = Vec::new();
+    let mut node = tree
+        .root_node()
+        .named_descendant_for_byte_range(byte, byte + 1);
+    while let Some(current) = node {
+        if current.is_named() {
+            scopes.push(current.kind());
+        }
+        node = current.parent();
+    }
+    scopes
+}
+
+#[test]
+fn delayed_set_name_edits_invalidate_changed_scopes() {
+    for newline in ["\n", "\r\n"] {
+        for (prefix, suffix) in [("set x", "=value"), ("set /p x", "=prompt"), ("set x", "")] {
+            for name in ["!a|b!", "!a%V%b!", "!a|b!%V%!next!"] {
+                for inserted in ["!", "! ybtllW"] {
+                    let first_line = format!("set x\"!a&b!\"=v{newline}");
+                    let mut source = format!(
+                        "{first_line}{prefix}\"{name}\"{suffix}{newline}echo !tail!{newline}",
+                    );
+                    let start = first_line.len() + prefix.len();
+                    let mut parser = parser();
+                    let mut tree = parser.parse(&source, None).expect("initial SET parse");
+                    assert!(!tree.root_node().has_error(), "{source}");
+                    let mut old_len = 0;
+
+                    for replacement in [inserted, ""] {
+                        let start_position = point_at(source.as_bytes(), start);
+                        tree.edit(&InputEdit {
+                            start_byte: start,
+                            old_end_byte: start + old_len,
+                            new_end_byte: start + replacement.len(),
+                            start_position,
+                            old_end_position: point_at(source.as_bytes(), start + old_len),
+                            new_end_position: point_after(start_position, replacement.as_bytes()),
+                        });
+                        source.replace_range(start..start + old_len, replacement);
+                        let next = parser
+                            .parse(&source, Some(&tree))
+                            .expect("incremental SET parse");
+                        let fresh = self::parser()
+                            .parse(&source, None)
+                            .expect("fresh SET parse");
+                        assert!(!next.root_node().has_error(), "{source}");
+                        assert_eq!(next.root_node().to_sexp(), fresh.root_node().to_sexp());
+                        assert_eq!(next.root_node().range(), fresh.root_node().range());
+
+                        let ranges: Vec<_> = tree.changed_ranges(&next).collect();
+                        for byte in 0..source.len() {
+                            let scopes = named_scopes_at(&next, byte);
+                            assert_eq!(scopes, named_scopes_at(&fresh, byte), "byte {byte}");
+                            if named_scopes_at(&tree, byte) != scopes {
+                                assert!(
+                                    ranges.iter().any(|range| {
+                                        range.start_byte <= byte && byte < range.end_byte
+                                    }),
+                                    "unreported scope change at byte {byte}: {source:?}, {ranges:?}",
+                                );
+                            }
+                        }
+                        assert_eq!(
+                            named_scopes_at(&next, start + replacement.len() + 2)
+                                .contains(&"delayed_variable"),
+                            replacement.is_empty(),
+                        );
+                        tree = next;
+                        old_len = replacement.len();
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn scanner_sensitive_edits_match_fresh_parses() {
     let cases = [

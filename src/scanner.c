@@ -148,6 +148,10 @@ typedef struct {
     uint8_t body_boundaries;
     bool set_in_quote;
     bool delayed_literal;
+    // Retain literal-bang history until the string ends. Clearing it at the
+    // paired bang or a later expansion can make changed_ranges skip the rest
+    // of an old delayed_variable that overlaps the string's literal suffix.
+    bool delayed_literal_seen;
 } Scanner;
 
 void *tree_sitter_cmd_external_scanner_create(void) {
@@ -166,7 +170,8 @@ unsigned tree_sitter_cmd_external_scanner_serialize(void *payload,
     buffer[sizeof(s->depth)] = (char)s->body_boundaries;
     buffer[sizeof(s->depth) + 1] = (char)s->set_in_quote;
     buffer[sizeof(s->depth) + 2] = (char)s->delayed_literal;
-    return sizeof(s->depth) + 3;
+    buffer[sizeof(s->depth) + 3] = (char)s->delayed_literal_seen;
+    return sizeof(s->depth) + 4;
 }
 
 void tree_sitter_cmd_external_scanner_deserialize(void *payload,
@@ -177,6 +182,7 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
     s->body_boundaries = 0;
     s->set_in_quote = false;
     s->delayed_literal = false;
+    s->delayed_literal_seen = false;
     if (length >= sizeof(s->depth)) {
         memcpy(&s->depth, buffer, sizeof(s->depth));
     }
@@ -188,6 +194,9 @@ void tree_sitter_cmd_external_scanner_deserialize(void *payload,
     }
     if (length > sizeof(s->depth) + 2) {
         s->delayed_literal = buffer[sizeof(s->depth) + 2] != 0;
+    }
+    if (length > sizeof(s->depth) + 3) {
+        s->delayed_literal_seen = buffer[sizeof(s->depth) + 3] != 0;
     }
 }
 
@@ -454,6 +463,7 @@ static bool scan_delayed_variable(Scanner *s, TSLexer *lexer, bool quoted,
                         break;
                 }
                 lexer->mark_end(lexer);
+                s->delayed_literal_seen = true;
                 lexer->result_symbol = DELAYED_QUOTE_TEXT;
                 return true;
             }
@@ -461,6 +471,7 @@ static bool scan_delayed_variable(Scanner *s, TSLexer *lexer, bool quoted,
             // quote ranges. Keep the paired closing bang literal as well.
             if (!set_context && quoted != initially_quoted) {
                 s->delayed_literal = true;
+                s->delayed_literal_seen = true;
                 lexer->result_symbol = DELAYED_LITERAL;
                 return true;
             }
@@ -715,6 +726,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     if (lexer->eof(lexer) || lexer->lookahead == '\r' ||
         lexer->lookahead == '\n') {
         s->delayed_literal = false;
+        s->delayed_literal_seen = false;
     }
 
     if (s->body_boundaries > 0 && !lexer->eof(lexer) &&
@@ -749,6 +761,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         lexer->advance(lexer, false);
         lexer->mark_end(lexer);
         s->delayed_literal = false;
+        s->delayed_literal_seen = true;
         lexer->result_symbol = DELAYED_LITERAL;
         return true;
     }
@@ -1252,16 +1265,19 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // interior string-part tokens.
     if (valid_symbols[STRING_END]) {
         if (lexer->eof(lexer)) {
+            s->delayed_literal_seen = false;
             lexer->result_symbol = STRING_END;
             return true;
         }
         int32_t la = lexer->lookahead;
         if (la == '"') {
             lexer->advance(lexer, false);
+            s->delayed_literal_seen = false;
             lexer->result_symbol = STRING_END;
             return true;
         }
         if (la == '\r' || la == '\n') {
+            s->delayed_literal_seen = false;
             lexer->result_symbol = STRING_END;
             return true;
         }
