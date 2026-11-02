@@ -94,6 +94,10 @@ fn assert_incremental_matches_fresh(before: &str, needle: &str, replacement: &st
 #[test]
 fn scanner_sensitive_edits_match_fresh_parses() {
     let cases = [
+        ("for %%a in (one) do echo %%a\n", "%%a", "%%*"),
+        ("for %%* in (one) do echo %%*\n", "%%*", "%%~"),
+        ("for %%* in (one) do echo %%*\n", "echo %%*", "echo %%~n*"),
+        ("for %%* in (one) do echo %%~n*\n", "%%~n*", "%%*"),
         ("set \"x!a\"!&echo y=z\"\necho tail\n", "!&", "!>out&"),
         ("set \"x!a\"!>out&echo y=z\"\necho tail\n", ">out", ""),
         ("set \"a\"b c\"=x\"\necho tail\n", "b", "b>nul"),

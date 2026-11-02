@@ -109,6 +109,20 @@ mod windows {
     }
 
     #[test]
+    fn for_accepts_star_and_tilde_variable_names() {
+        let output = run_script("for-symbol-names", b"@echo off\r\nfor %%* in (one) do echo [%%*]\r\nfor %%~ in (one) do echo [%%~]\r\nfor %%* in (one) do echo [%%~n*]\r\n");
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(
+            String::from_utf8(output.stdout)
+                .expect("ASCII oracle output")
+                .lines()
+                .collect::<Vec<_>>(),
+            ["[one]", "[one]", "[one]"]
+        );
+    }
+
+    #[test]
     fn quoted_set_names_keep_internal_quotes() {
         let output = run_script("quoted-set-name", b"@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"TS_CMD_NAME_a\"b\"=x\"\r\nset TS_CMD_NAME_\r\nset \"TS_CMD_OTHER_a\"b>nul c\"=x\"\r\nset TS_CMD_OTHER_\r\n");
         assert!(output.status.success(), "{}", escaped(&output.stderr));
