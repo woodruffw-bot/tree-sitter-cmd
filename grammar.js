@@ -131,6 +131,27 @@ function quotedSetName($, text) {
   );
 }
 
+/** A contiguous unquoted SET name segment. */
+function setName($, text) {
+  return choice(
+    text,
+    prec.right(
+      seq(
+        repeat1(alias(text, $.text)),
+        alias($._set_name_string, $.string),
+        repeat($._set_name_fragment),
+      ),
+    ),
+    prec.right(
+      seq(
+        repeat(alias(text, $.text)),
+        $._set_name_special,
+        repeat($._set_name_fragment),
+      ),
+    ),
+  );
+}
+
 /**
  * Percent expansions that run before redirection parsing. Delayed and FOR
  * expansions run too late to supply a handle duplication target.
@@ -1027,7 +1048,7 @@ module.exports = grammar({
           repeat(
             seq(
               repeat1(field('redirect', $._redirection)),
-              alias($._set_name, $.variable_name),
+              alias($._set_name_continuation, $.variable_name),
             ),
           ),
         ),
@@ -1062,7 +1083,7 @@ module.exports = grammar({
     // surviving name segment in a separate source-contiguous `variable_name`,
     // with the redirect as a sibling between them. The assignment form also
     // permits a final redirect immediately before `=`. The zero-width end
-    // token verifies that the next non-horizontal byte really is `=`, so a
+    // token verifies that the next byte really is `=`, so a
     // display's terminal redirect is not recovered as an assignment with a
     // missing delimiter.
     _set_binding: ($) =>
@@ -1072,7 +1093,7 @@ module.exports = grammar({
           seq(
             repeat1(field('redirect', $._redirection)),
             choice(
-              field('name', alias($._set_name, $.variable_name)),
+              field('name', alias($._set_name_continuation, $.variable_name)),
               $._set_binding_end,
             ),
           ),
@@ -1086,24 +1107,8 @@ module.exports = grammar({
     // after SET from becoming part of the name. Text after a special fragment
     // may begin with whitespace so the complete name range reaches `=`. `/a`
     // and `/p` still win their slot through token precedence.
-    _set_name: ($) =>
-      choice(
-        $._set_name_text,
-        prec.right(
-          seq(
-            repeat1(alias($._set_name_text, $.text)),
-            alias($._set_name_string, $.string),
-            repeat($._set_name_fragment),
-          ),
-        ),
-        prec.right(
-          seq(
-            repeat(alias($._set_name_text, $.text)),
-            $._set_name_special,
-            repeat($._set_name_fragment),
-          ),
-        ),
-      ),
+    _set_name: ($) => setName($, $._set_name_text),
+    _set_name_continuation: ($) => setName($, $._set_name_tail_text),
     _set_name_special: ($) =>
       choice(
         $._escape_fragment,

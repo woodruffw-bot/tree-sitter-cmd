@@ -163,7 +163,7 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
       redirect: redirect_file @6..10 ">out"
         operator: redirect_operator @6..7 ">"
         target: argument @7..10 "out"
-      name: variable_name @11..13 "TH"
+      name: variable_name @10..13 " TH"
       value: argument @14..19 "value"
 "#,
     );
@@ -179,7 +179,7 @@ fn selected_cst_contracts_have_exact_source_fingerprints() {
       redirect: redirect_file @9..13 ">out"
         operator: redirect_operator @9..10 ">"
         target: argument @10..13 "out"
-      name: variable_name @14..16 "me"
+      name: variable_name @13..16 " me"
       prompt: argument @17..23 "prompt"
 "#,
     );

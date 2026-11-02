@@ -32,6 +32,7 @@ set PATH >value.txt EXTRA=one
         operator: (redirect_operator)
         target: (argument
           (text)))
+      name: (variable_name)
       value: (argument
         (text))))
   (set_statement

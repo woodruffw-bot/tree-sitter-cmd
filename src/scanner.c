@@ -62,7 +62,7 @@
 //                  when a valid label-name byte follows. This keeps a `:` line
 //                  containing only whitespace on the colon-comment path.
 //   SET_BINDING_END
-//                - zero-width confirmation that the next non-horizontal byte
+//                - zero-width confirmation that the next byte
 //                  after a redirected unquoted SET name is its `=` delimiter.
 //   SET_NAME_REDIRECT
 //                - zero-width confirmation that a redirect in a quoted name
@@ -891,7 +891,6 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     // terminal redirect must remain on the statement rather than inducing a
     // recovered, missing `=`.
     if (valid_symbols[SET_BINDING_END]) {
-        skip_ws(lexer);
         if (lexer->lookahead == '=') {
             lexer->mark_end(lexer);
             lexer->result_symbol = SET_BINDING_END;

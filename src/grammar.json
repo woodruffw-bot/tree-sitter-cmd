@@ -3530,7 +3530,7 @@
                     "type": "ALIAS",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "_set_name"
+                      "name": "_set_name_continuation"
                     },
                     "named": true,
                     "value": "variable_name"
@@ -3800,7 +3800,7 @@
                       "type": "ALIAS",
                       "content": {
                         "type": "SYMBOL",
-                        "name": "_set_name"
+                        "name": "_set_name_continuation"
                       },
                       "named": true,
                       "value": "variable_name"
@@ -3874,6 +3874,84 @@
                   "content": {
                     "type": "SYMBOL",
                     "name": "_set_name_text"
+                  },
+                  "named": true,
+                  "value": "text"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_set_name_special"
+              },
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_set_name_fragment"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "_set_name_continuation": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_set_name_tail_text"
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 0,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "REPEAT1",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_set_name_tail_text"
+                  },
+                  "named": true,
+                  "value": "text"
+                }
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_set_name_string"
+                },
+                "named": true,
+                "value": "string"
+              },
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_set_name_fragment"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 0,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "REPEAT",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_set_name_tail_text"
                   },
                   "named": true,
                   "value": "text"
