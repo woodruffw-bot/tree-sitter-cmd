@@ -459,30 +459,14 @@ for %%A in (file.txt) do echo %%~fA %%~nxA
 
 ========================================
 modified loop variable declaration errors
+:error
 ========================================
 
 for %%~fA in (file.txt) do echo %%A
 
 ---
 
-(program
-  (ERROR
-    (keyword))
-  (command
-    name: (command_name
-      (loop_variable))
-    argument: (argument
-      (text))
-    argument: (argument
-      (text)
-      (text)
-      (text))
-    argument: (argument
-      (text))
-    argument: (argument
-      (text))
-    argument: (argument
-      (loop_variable))))
+(program)
 
 =========================================
 loop references outside a FOR are not declarations

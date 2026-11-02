@@ -54,8 +54,11 @@ separators are skipped instead.
 an optional `option`, an optional `set`, and a `body`. The body includes its
 following command-operator expression.
 
-The grammar uses batch declarations such as `%%a`. It accepts the structural
-switches `/D`, `/R`, `/L`, and `/F`. `/R` can take a root path. `/F` can take an
+The grammar uses batch declarations such as `%%a`. Variable names include
+`%%*` and `%%~` as well as letters, digits, and punctuation. Modified references
+such as `%%~n*` remain `loop_variable` nodes.
+
+It accepts the structural switches `/D`, `/R`, `/L`, and `/F`. `/R` can take a root path. `/F` can take an
 opaque option argument. Other option contents remain text.
 
 The supported `/D` and `/R` combinations are `/D /R [path]`, `/R /D`, and

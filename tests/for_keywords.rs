@@ -51,6 +51,29 @@ fn complete_keywords_preserve_body_and_redirect_ranges() {
     );
 }
 
+#[test]
+fn symbol_named_for_variables_keep_declaration_and_reference_ranges() {
+    for (variable, reference) in [("%%*", "%%*"), ("%%~", "%%~"), ("%%*", "%%~n*")] {
+        for ending in ["\n", "\r\n"] {
+            let source = format!("for {variable} in (one) do echo {reference}{ending}");
+            let tree = parse(&source);
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            let statement = root.named_child(0).expect("FOR statement");
+            let declaration = statement
+                .child_by_field_name("variable")
+                .expect("FOR declaration");
+            assert_eq!(declaration.kind(), "loop_variable_declaration");
+            assert_eq!(&source[declaration.byte_range()], variable);
+            let body = statement.child_by_field_name("body").expect("FOR body");
+            let argument = body.child_by_field_name("argument").expect("echo argument");
+            let reference_node = argument.named_child(0).expect("FOR reference");
+            assert_eq!(reference_node.kind(), "loop_variable");
+            assert_eq!(&source[reference_node.byte_range()], reference);
+        }
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn cmd_requires_complete_for_keywords() {

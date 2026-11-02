@@ -48,8 +48,8 @@ const TILDE_MODS = '[dpnxfsatzDPNXFSATZ]*';
 const PATH_SEARCH = '(?:\\$[A-Za-z_][^:\\r\\n]*:)?';
 // A FOR loop variable name is a single character — cmd accepts almost anything,
 // not just letters (e.g. `%%#`, `%%1`/`%%2` from `tokens=1,2`, `%%@`). Exclude
-// only whitespace, `%`, the modifier sigils `~`/`*`, operators, `=` and quotes.
-const FOR_VAR = '[^ \\t\\r\\n%~*&|<>()="]';
+// only whitespace, `%`, operators, `=` and quotes. `*` and `~` are valid names.
+const FOR_VAR = '[^ \\t\\r\\n%&|<>()="]';
 
 /** Build a case-insensitive regexp source for a literal word. */
 function ciSource(word) {

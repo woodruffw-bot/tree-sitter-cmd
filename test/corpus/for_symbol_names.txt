@@ -1,0 +1,59 @@
+==================
+FOR accepts star and tilde variable names
+==================
+for %%* in (one) do echo %%*
+for %%~ in (one) do echo %%~
+for %%* in (one) do echo %%~n*
+echo %* %% %%* %%~ %%~n*
+
+---
+
+(program
+  (for_statement
+    (keyword)
+    (loop_variable_declaration)
+    (keyword)
+    (for_set
+      (argument
+        (text)))
+    (keyword)
+    (command
+      (command_name)
+      (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    (loop_variable_declaration)
+    (keyword)
+    (for_set
+      (argument
+        (text)))
+    (keyword)
+    (command
+      (command_name)
+      (argument
+        (loop_variable))))
+  (for_statement
+    (keyword)
+    (loop_variable_declaration)
+    (keyword)
+    (for_set
+      (argument
+        (text)))
+    (keyword)
+    (command
+      (command_name)
+      (argument
+        (loop_variable))))
+  (command
+    (command_name)
+    (argument
+      (all_arguments))
+    (argument
+      (percent_literal))
+    (argument
+      (loop_variable))
+    (argument
+      (loop_variable))
+    (argument
+      (loop_variable))))

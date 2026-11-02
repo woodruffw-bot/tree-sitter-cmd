@@ -4974,14 +4974,14 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "%%[^ \\t\\r\\n%~*&|<>()=\"]"
+        "value": "%%[^ \\t\\r\\n%&|<>()=\"]"
       }
     },
     "_loop_variable_modified": {
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "%%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[^ \\t\\r\\n%~*&|<>()=\"]"
+        "value": "%%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[^ \\t\\r\\n%&|<>()=\"]"
       }
     },
     "percent_literal": {
