@@ -220,6 +220,7 @@ module.exports = grammar({
     $._set_ignored_suffix,
     $._label_leading_space,
     $._set_binding_end,
+    $._set_escaped_equals,
     $._set_name_redirect,
     $.body_boundary,
     $.body_boundary_again,
@@ -883,7 +884,7 @@ module.exports = grammar({
     set_assignment: ($) =>
       seq(
         $._set_binding,
-        '=',
+        $._set_binding_operator,
         repeat(
           choice(
             field('value', $.argument),
@@ -911,7 +912,7 @@ module.exports = grammar({
       choice(
         seq(
           optional($._set_binding),
-          '=',
+          $._set_binding_operator,
           repeat(
             choice(
               field('prompt', $.argument),
@@ -936,7 +937,7 @@ module.exports = grammar({
               ),
             ),
           ),
-          '=',
+          $._set_binding_operator,
           optional(field('prompt', alias($._set_quoted_value, $.argument))),
           repeat(
             seq(
@@ -984,7 +985,7 @@ module.exports = grammar({
               ),
             ),
           ),
-          '=',
+          $._set_binding_operator,
           optional(field('value', alias($._set_quoted_value, $.argument))),
           repeat(
             seq(
@@ -1111,7 +1112,7 @@ module.exports = grammar({
     _set_name_continuation: ($) => setName($, $._set_name_tail_text),
     _set_name_special: ($) =>
       choice(
-        $._escape_fragment,
+        $._set_name_escape_fragment,
         alias($._caret_escape, $.escape_sequence),
         $._expansion,
         alias($._stray_sigil, $.text),
@@ -1133,6 +1134,20 @@ module.exports = grammar({
         repeat(choice(token.immediate(/[^"%!\r\n=]+/), $._expansion, $._string_sigil)),
         $._string_end,
       ),
+    _set_binding_operator: ($) =>
+      choice('=', alias($._set_escaped_equals, $.escape_sequence)),
+    // An active escaped equals sign belongs to the binding delimiter. Other
+    // escapes keep the same nodes as ordinary argument fragments.
+    _set_name_escape_fragment: ($) =>
+      choice(
+        seq(
+          alias($._text_escape, $.escape_sequence),
+          optional(alias($._escaped_redirect_digit, $.text)),
+        ),
+        alias($._set_name_escape_sequence, $.escape_sequence),
+      ),
+    _set_name_escape_sequence: ($) =>
+      token(choice(/\^[^\r\n%!=]/, /\^\r?\n(?:[^\r\n%!=]|\r?\n)/)),
     _set_name_text: ($) =>
       token(/[^ \t\r\n&|<>()^"%!=][^\r\n&|<>()^"%!=]*/),
     // Once a special fragment has established that this is a compound name,

@@ -105,6 +105,10 @@ closes in its value is not supported.
 A caret-escaped opening quote does not protect later operators. Such SET
 payloads use source fragments without inferred binding fields.
 
+An active caret escape can expose the binding delimiter in `set name^=value`.
+The delimiter remains an `escape_sequence` sibling of the name and value.
+Carets inside protected quotes remain literal name text.
+
 A binding name split by redirections has repeated `name: (variable_name)`
 fields with `redirect` siblings. No name node spans removed redirection text.
 Names retain surviving spaces and tabs after each redirection. Display forms

@@ -79,6 +79,92 @@ fn quoted_set_names_trim_initial_horizontal_space() {
     }
 }
 
+#[test]
+fn active_escaped_equals_delimit_set_bindings() {
+    for (prefix, kind, field) in [
+        ("set ", "set_assignment", "value"),
+        ("set /p ", "set_prompt", "prompt"),
+    ] {
+        for operator in ["^=", "^\n=", "^\r\n="] {
+            for ending in ["\n", "\r\n"] {
+                let source = format!("{prefix}name{operator}value=tail{ending}");
+                let tree = parser().parse(&source, None).expect("SET tree");
+                let root = tree.root_node();
+                assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+                let binding = root
+                    .named_child(0)
+                    .expect("SET statement")
+                    .named_child(1)
+                    .expect("SET binding");
+                assert_eq!(binding.kind(), kind);
+                assert_eq!(
+                    &source[binding
+                        .child_by_field_name("name")
+                        .expect("binding name")
+                        .byte_range()],
+                    "name"
+                );
+                let values: Vec<_> = binding
+                    .children_by_field_name(field, &mut binding.walk())
+                    .map(|node| &source[node.byte_range()])
+                    .collect();
+                assert_eq!(values.concat(), "value=tail");
+                assert_eq!(
+                    node_sources(binding, "escape_sequence", &source),
+                    [operator]
+                );
+            }
+        }
+    }
+    for (source, name) in [
+        ("set \"a^=x\"\n", "a^"),
+        ("set \"a\"b^=x\"\n", "a\"b"),
+        ("set name^^=x\n", "name^^"),
+    ] {
+        let tree = parser().parse(source, None).expect("quoted SET tree");
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "variable_name", source), [name]);
+        let binding = root
+            .named_child(0)
+            .expect("SET statement")
+            .named_child(1)
+            .expect("quoted assignment");
+        assert_eq!(
+            &source[binding
+                .child_by_field_name("value")
+                .expect("quoted value")
+                .byte_range()],
+            "x"
+        );
+    }
+    for (source, gap, field) in [
+        ("set head>nul ^=value\n", " ", "value"),
+        ("set /p head>nul\t^=value\n", "\t", "prompt"),
+    ] {
+        let tree = parser().parse(source, None).expect("redirected SET tree");
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+        let binding = root
+            .named_child(0)
+            .expect("SET statement")
+            .named_child(1)
+            .expect("SET binding");
+        let names: Vec<_> = binding
+            .children_by_field_name("name", &mut binding.walk())
+            .map(|node| &source[node.byte_range()])
+            .collect();
+        assert_eq!(names, ["head", gap]);
+        assert_eq!(
+            &source[binding
+                .child_by_field_name(field)
+                .expect("value or prompt")
+                .byte_range()],
+            "value"
+        );
+    }
+}
+
 fn node_sources<'a>(node: Node<'_>, kind: &str, source: &'a str) -> Vec<&'a str> {
     let mut result = Vec::new();
     if node.kind() == kind {
