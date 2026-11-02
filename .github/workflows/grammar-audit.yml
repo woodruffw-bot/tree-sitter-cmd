@@ -17,7 +17,7 @@ jobs:
         shell: python
         run: |
           import json, pathlib, subprocess, tempfile
-          cases = json.loads(r'''[["quoted_leading_space_assignment","@echo off\nsetlocal EnableDelayedExpansion\nset \" TS_AUDIT=value\"\necho spaced:[! TS_AUDIT!]\necho trimmed:[!TS_AUDIT!]\n"],["quoted_leading_space_prompt","@echo off\nsetlocal EnableDelayedExpansion\necho reply>input\nset /p \" TS_PROMPT=\"<input\necho spaced:[! TS_PROMPT!]\necho trimmed:[!TS_PROMPT!]\n"],["quoted_space_only_name","@echo off\nset \" =blank\"\n"],["quoted_tab_name","@echo off\nsetlocal EnableDelayedExpansion\nset \"\tTS_AUDIT=value\"\necho trimmed:[!TS_AUDIT!]\n"],["for_tilde_variable","@echo off\nfor %%~ in (one) do echo [%%~]\n"],["for_modified_star_variable","@echo off\nfor %%* in (one) do echo [%%~n*]\n"],["for_star_reference","@echo off\nfor %%* in (one) do echo %%*\n"]]''')
+          cases = json.loads(r'''[["quoted_literal_caret","@echo off\nsetlocal DisableDelayedExpansion\nset \"TS_EQ_LITERAL^=value\"\nset TS_EQ_LITERAL\n"],["quoted_active_equals","@echo off\nsetlocal DisableDelayedExpansion\nset \"TS_EQ_ACTIVE\"tail^=value\"\nset TS_EQ_ACTIVE\n"],["quoted_active_prompt","@echo off\nsetlocal DisableDelayedExpansion\necho reply>input\nset /p \"TS_EQ_ACTIVE\"tail^=prompt\"<input\nset TS_EQ_ACTIVE\n"],["redirected_active_equals","@echo off\nset TS_REDIRECT>nul ^=value\nset TS_REDIRECT\n"],["doubled_caret","@echo off\nset TS_DOUBLE^^=value\nset TS_DOUBLE\n"],["unnamed_prompt","@echo off\nset /p ^=prompt<nul\n"]]''')
           for name, source in cases:
               with tempfile.TemporaryDirectory(prefix='cmd-grammar-audit-') as directory:
                   path = pathlib.Path(directory) / 'case.cmd'
