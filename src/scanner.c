@@ -1042,6 +1042,10 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         skip_ws(lexer);
         if (lexer->lookahead == '"') {
             lexer->advance(lexer, false);
+            // SET trims initial horizontal space after removing its wrapper.
+            // Keep that source in the opening token, outside the name field.
+            while (lexer->lookahead == ' ' || lexer->lookahead == '\t')
+                lexer->advance(lexer, false);
             s->set_in_quote = true;
             lexer->result_symbol = SET_STRING_START;
             return true;
