@@ -1,5 +1,7 @@
+use cc::Build;
+
 fn main() {
-    let mut config = cc::Build::new();
+    let mut config = Build::new();
     config.std("c11").include("src");
 
     #[cfg(target_env = "msvc")]

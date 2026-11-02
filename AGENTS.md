@@ -102,6 +102,11 @@ Rust assertions when a grammar change implements confirmed behavior.
 
 ## Code conventions
 
+- Follow [Google's Rust style guide](https://google.github.io/styleguide/rustguide.html)
+  for Rust code. Use stable rustfmt with `cargo fmt --all` and check with
+  `cargo fmt --all -- --check`. Run `cargo clippy --all-targets -- -D warnings`.
+  Include a `SAFETY:` justification for unsafe code and prefer contextual
+  `expect` messages to `unwrap` in tests.
 - Follow `.editorconfig`: 2 spaces for JavaScript, Scheme, JSON, and YAML, and
   4 spaces for C. Do not reformat unrelated lines.
 - Format hand-written C with `clang-format-18 -i src/scanner.c`. Check with

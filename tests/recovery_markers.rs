@@ -4,7 +4,7 @@ fn parser() -> Parser {
     let mut parser = Parser::new();
     parser
         .set_language(&tree_sitter_cmd::LANGUAGE.into())
-        .unwrap();
+        .expect("loading Cmd grammar");
     parser
 }
 
@@ -17,15 +17,18 @@ fn markers<'tree>(node: Node<'tree>) -> Vec<Node<'tree>> {
         assert!(!node.has_error());
         assert!(node.byte_range().is_empty());
         assert_eq!(node.start_position(), node.end_position());
-        assert!(node.parent().unwrap().has_error());
+        assert!(node
+            .parent()
+            .expect("recovery node should have a parent")
+            .has_error());
         result.push(node);
     } else if node.byte_range().is_empty() {
         assert!(node.is_missing(), "unexpected empty node: {}", node.kind());
     }
     for index in 0..node.child_count() {
-        let child = node.child(index as u32).unwrap();
+        let child = node.child(index).expect("child index should be in range");
         if child.kind() == "_body_boundary" {
-            assert_eq!(node.field_name_for_child(index as u32), None);
+            assert_eq!(node.field_name_for_child(index), None);
         }
         result.extend(markers(child));
     }
@@ -55,14 +58,20 @@ fn missing_bodies_expose_only_anonymous_boundary_markers() {
             "\n(echo tail)\n",
         ] {
             let source = format!("{prefix}{ending}");
-            let tree = parser().parse(&source, None).unwrap();
+            let tree = parser()
+                .parse(&source, None)
+                .expect("parser should return a tree");
             let root = tree.root_node();
             assert!(root.has_error(), "{source}");
-            let controller = root.named_child(0).unwrap();
+            let controller = root
+                .named_child(0)
+                .expect("fixture should have this named child");
             assert_eq!(controller.kind(), kind);
             assert!(controller.has_error());
             assert_eq!(controller.end_position().row, 0);
-            let missing = controller.child_by_field_name(field).unwrap();
+            let missing = controller
+                .child_by_field_name(field)
+                .expect("fixture should have the requested field");
             assert_eq!(missing.kind(), "command");
             assert!(!missing.is_named());
             assert!(missing.is_missing());
@@ -73,11 +82,18 @@ fn missing_bodies_expose_only_anonymous_boundary_markers() {
             assert_eq!(boundaries.len(), 2, "{source}");
             for boundary in boundaries {
                 assert_eq!(boundary.byte_range(), missing.byte_range());
-                assert_eq!(boundary.parent().unwrap(), controller);
+                assert_eq!(
+                    boundary
+                        .parent()
+                        .expect("recovery node should have a parent"),
+                    controller
+                );
             }
             if let Some(tail_source) = ending.lines().nth(1) {
                 assert_eq!(root.named_child_count(), 2);
-                let tail = root.named_child(1).unwrap();
+                let tail = root
+                    .named_child(1)
+                    .expect("fixture should have this named child");
                 assert_eq!(&source[tail.byte_range()], tail_source);
                 let tail_kind = if tail_source.starts_with("goto") {
                     "goto_statement"
@@ -102,29 +118,52 @@ fn empty_block_marker_retains_a_missing_name_and_outer_scope() {
         ("(() & echo right)\necho tail\n", 2, Some("echo right")),
         ("(() & echo x)\n", 2, Some("echo x")),
     ] {
-        let tree = parser().parse(source, None).unwrap();
+        let tree = parser()
+            .parse(source, None)
+            .expect("parser should return a tree");
         let root = tree.root_node();
         assert!(root.has_error());
         let boundaries = markers(root);
         assert_eq!(boundaries.len(), 1);
         let boundary = boundaries[0];
         assert_eq!(boundary.byte_range(), boundary_byte..boundary_byte);
-        let block = boundary.parent().unwrap();
+        let block = boundary
+            .parent()
+            .expect("recovery node should have a parent");
         assert_eq!(block.kind(), "block");
         assert_eq!(block.named_child_count(), 1);
-        let name = block.named_child(0).unwrap();
+        let name = block
+            .named_child(0)
+            .expect("fixture should have this named child");
         assert_eq!(name.kind(), "command_name");
         assert!(name.is_missing());
         assert_eq!(name.byte_range(), boundary.byte_range());
         assert_eq!(root.named_child_count(), source.lines().count());
-        let outer = root.named_child(0).unwrap();
+        let outer = root
+            .named_child(0)
+            .expect("fixture should have this named child");
         assert_eq!(outer.kind(), "block");
-        assert_eq!(&source[outer.byte_range()], source.lines().next().unwrap());
+        assert_eq!(
+            &source[outer.byte_range()],
+            source
+                .lines()
+                .next()
+                .expect("fixture should contain a first line")
+        );
         if let Some(right_source) = right_source {
-            let sequence = outer.named_child(0).unwrap();
+            let sequence = outer
+                .named_child(0)
+                .expect("fixture should have this named child");
             assert_eq!(sequence.kind(), "seq_list");
-            assert_eq!(sequence.child_by_field_name("left").unwrap(), block);
-            let right = sequence.child_by_field_name("right").unwrap();
+            assert_eq!(
+                sequence
+                    .child_by_field_name("left")
+                    .expect("fixture should have a left field"),
+                block
+            );
+            let right = sequence
+                .child_by_field_name("right")
+                .expect("fixture should have a right field");
             assert_eq!(right.kind(), "command");
             assert_eq!(&source[right.byte_range()], right_source);
             assert!(!right.has_error());
@@ -145,14 +184,16 @@ fn assert_same_children(incremental: Node<'_>, fresh: Node<'_>) {
     assert_eq!(incremental.has_error(), fresh.has_error());
     assert_eq!(incremental.range(), fresh.range());
     assert_eq!(incremental.child_count(), fresh.child_count());
-    for index in 0..fresh.child_count() as u32 {
+    for index in 0..fresh.child_count() {
         assert_eq!(
             incremental.field_name_for_child(index),
             fresh.field_name_for_child(index)
         );
         assert_same_children(
-            incremental.child(index).unwrap(),
-            fresh.child(index).unwrap(),
+            incremental
+                .child(index)
+                .expect("child index should be in range"),
+            fresh.child(index).expect("child index should be in range"),
         );
     }
 }
@@ -184,7 +225,9 @@ fn deleting_and_restoring_bodies_preserves_the_complete_cst() {
     ] {
         let mut parser = parser();
         let mut source = format!("{prefix}{body}{suffix}");
-        let mut tree = parser.parse(&source, None).unwrap();
+        let mut tree = parser
+            .parse(&source, None)
+            .expect("parser should return a tree");
         assert!(!tree.root_node().has_error());
         let mut body_len = body.len();
         for replacement in ["", body] {
@@ -198,8 +241,12 @@ fn deleting_and_restoring_bodies_preserves_the_complete_cst() {
                 new_end_position: Point::new(0, start + replacement.len()),
             });
             source.replace_range(start..start + body_len, replacement);
-            tree = parser.parse(&source, Some(&tree)).unwrap();
-            let fresh = self::parser().parse(&source, None).unwrap();
+            tree = parser
+                .parse(&source, Some(&tree))
+                .expect("parser should return a tree");
+            let fresh = self::parser()
+                .parse(&source, None)
+                .expect("parser should return a tree");
             assert_same_children(tree.root_node(), fresh.root_node());
             assert_eq!(tree.root_node().has_error(), replacement.is_empty());
             assert_eq!(
@@ -208,11 +255,15 @@ fn deleting_and_restoring_bodies_preserves_the_complete_cst() {
             );
             let root = tree.root_node();
             assert_eq!(root.named_child_count(), 2);
-            let controller = root.named_child(0).unwrap();
+            let controller = root
+                .named_child(0)
+                .expect("fixture should have this named child");
             assert_eq!(controller.kind(), kind);
             assert_eq!(controller.has_error(), replacement.is_empty());
             assert_eq!(controller.end_position().row, 0);
-            let tail = root.named_child(1).unwrap();
+            let tail = root
+                .named_child(1)
+                .expect("fixture should have this named child");
             assert_eq!(tail.kind(), "command");
             assert_eq!(tail.start_position().row, 1);
             assert!(!tail.has_error());
