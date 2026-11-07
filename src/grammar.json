@@ -4485,7 +4485,7 @@
                 "type": "IMMEDIATE_TOKEN",
                 "content": {
                   "type": "PATTERN",
-                  "value": "%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[0-9]"
+                  "value": "%~[dpnxfsatzDPNXFSATZ]*(?:\\$[^:\\r\\n]+:)?[0-9]"
                 }
               },
               "named": true,
@@ -5115,7 +5115,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[0-9]"
+        "value": "%~[dpnxfsatzDPNXFSATZ]*(?:\\$[^:\\r\\n]+:)?[0-9]"
       }
     },
     "_loop_variable_declaration": {
@@ -5138,7 +5138,7 @@
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "%%~[dpnxfsatzDPNXFSATZ]*(?:\\$[A-Za-z_][^:\\r\\n]*:)?[^ \\t\\r\\n%&|<>()=\"]"
+        "value": "%%~[dpnxfsatzDPNXFSATZ]*(?:\\$[^:\\r\\n]+:)?[^ \\t\\r\\n%&|<>()=\"]"
       }
     },
     "percent_literal": {

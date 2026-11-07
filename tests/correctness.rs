@@ -1568,6 +1568,10 @@ fn set_values_resume_after_expanded_duplication_targets() {
         "%~1",
         "%~dp1",
         "%~$PATH:1",
+        "%~$1PATH:1",
+        "%~$-PATH:1",
+        "%~$1\"PATH:1",
+        "%~$\"PATH:1",
         "%~$P\"Q:1",
         "%*",
     ] {
@@ -1773,5 +1777,24 @@ fn quoted_set_names_keep_segments_around_redirections() {
             node_sources(root, "set_quoted", source).is_empty(),
             "{source}"
         );
+    }
+}
+
+#[test]
+fn path_search_references_keep_non_identifier_environment_names() {
+    for name in ["1PATH", "-PATH", "path name", "[PATH]", "éPATH"] {
+        for newline in ["\n", "\r\n"] {
+            let parameter = format!("%~dp${name}:1");
+            let loop_reference = format!("%%~${name}:a");
+            let source = format!("echo {parameter} {loop_reference}{newline}");
+            let tree = parser().parse(&source, None).expect("path-search tree");
+            let root = tree.root_node();
+            assert!(!root.has_error(), "{source}: {}", root.to_sexp());
+            assert_eq!(node_sources(root, "parameter_tilde", &source), [parameter]);
+            assert_eq!(
+                node_sources(root, "loop_variable", &source),
+                [loop_reference]
+            );
+        }
     }
 }
