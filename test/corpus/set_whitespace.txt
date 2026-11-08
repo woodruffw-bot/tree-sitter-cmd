@@ -1,0 +1,76 @@
+============================================================
+unquoted SET whitespace is payload text
+============================================================
+
+set x= 
+set x= foo 
+set /p x= prompt 
+set x= a>nul b 
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text)
+        (text)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      value: (argument
+        (text)
+        (text)
+        (text)))))
+
+============================================================
+escaped SET text retains ordinary digits
+============================================================
+
+set x=^a2
+set /p x=^a22
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (escape_sequence)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (escape_sequence)
+        (text)))))

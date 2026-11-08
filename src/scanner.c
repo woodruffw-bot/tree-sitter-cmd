@@ -115,6 +115,7 @@ enum TokenType {
     ESCAPED_REDIRECT_DIGIT,
     ARGUMENT_TEXT,
     ARGUMENT_EQUALS_TEXT,
+    SET_UNQUOTED_SPACE,
     EMPTY_BLOCK_OPEN,
     BLOCK_OPEN,
     BLOCK_CLOSE,
@@ -569,9 +570,10 @@ static bool scan_set_escaped_equals(TSLexer *lexer) {
 // separator. An internal text token would consume that digit before the
 // scanner could recognize its redirection.
 static bool scan_argument_text(TSLexer *lexer, const bool *valid_symbols,
-                               enum TokenType symbol) {
-    bool has_content = false;
-    bool descriptor_boundary = true;
+                               enum TokenType symbol,
+                               bool after_escaped_digit) {
+    bool has_content = after_escaped_digit;
+    bool descriptor_boundary = !after_escaped_digit;
     while (!lexer->eof(lexer)) {
         int32_t c = lexer->lookahead;
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '&' ||
@@ -765,8 +767,21 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         return true;
     }
 
+    // Whitespace is part of an unquoted SET value or prompt. Emit it before
+    // any argument scanner can skip it as an ordinary command separator.
+    if (valid_symbols[SET_UNQUOTED_SPACE] &&
+        (lexer->lookahead == ' ' || lexer->lookahead == '\t')) {
+        do {
+            lexer->advance(lexer, false);
+        } while (lexer->lookahead == ' ' || lexer->lookahead == '\t');
+        lexer->mark_end(lexer);
+        lexer->result_symbol = SET_UNQUOTED_SPACE;
+        return true;
+    }
+
     if (valid_symbols[ARGUMENT_EQUALS_TEXT] && lexer->lookahead == '=') {
-        return scan_argument_text(lexer, valid_symbols, ARGUMENT_EQUALS_TEXT);
+        return scan_argument_text(lexer, valid_symbols, ARGUMENT_EQUALS_TEXT,
+                                  false);
     }
 
     // Check immediately after an ordinary escape, before any branch can skip
@@ -787,6 +802,14 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
                 : valid_symbols[STANDARD_CONCAT] ? STANDARD_CONCAT
                                                  : CONCAT;
             return true;
+        }
+        // SET payloads repeat fragments without a CONCAT token. Continue the
+        // ordinary word after its first digit, which is literal after an escape.
+        // Keep later digits in that same word unless a separator intervenes.
+        if (valid_symbols[ARGUMENT_TEXT]) {
+            lexer->mark_end(lexer);
+            return scan_argument_text(lexer, valid_symbols, ARGUMENT_TEXT,
+                                      true);
         }
         return false;
     }
@@ -1333,7 +1356,7 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
     }
 
     if (want_text && c != '^' && c != '(' && c != ')') {
-        return scan_argument_text(lexer, valid_symbols, ARGUMENT_TEXT);
+        return scan_argument_text(lexer, valid_symbols, ARGUMENT_TEXT, false);
     }
 
     // A source file descriptor is one digit directly adjacent to `<` or `>`.

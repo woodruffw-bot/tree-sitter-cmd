@@ -336,10 +336,11 @@ set /p=Press any key...
     (set_prompt
       (set_flag)
       prompt: (argument
-        (text))
-      prompt: (argument
-        (text))
-      prompt: (argument
+        (text)
+        (text)
+        (text)
+        (text)
+        (text)
         (text)))))
 
 ===========================

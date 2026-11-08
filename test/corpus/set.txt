@@ -197,8 +197,8 @@ set msg=hello world
     (set_assignment
       name: (variable_name)
       value: (argument
-        (text))
-      value: (argument
+        (text)
+        (text)
         (text)))))
 
 ====================
@@ -447,8 +447,8 @@ set /p name=Enter name:
       (set_flag)
       name: (variable_name)
       prompt: (argument
-        (text))
-      prompt: (argument
+        (text)
+        (text)
         (text)))))
 
 ====================
@@ -799,12 +799,15 @@ assignment preserves redirections in source order
     (set_assignment
       name: (variable_name)
       value: (argument
+        (text)
         (text))
       redirect: (redirect_file
         operator: (redirect_operator)
         target: (argument
           (text)))
       value: (argument
+        (text)
+        (text)
         (text)))
     redirect: (redirect_file
       operator: (redirect_operator)
@@ -830,12 +833,15 @@ set /p >prompt.txt name=one <input.txt two >post.txt
           (text)))
       name: (variable_name)
       prompt: (argument
+        (text)
         (text))
       redirect: (redirect_file
         operator: (redirect_operator)
         target: (argument
           (text)))
       prompt: (argument
+        (text)
+        (text)
         (text)))
     redirect: (redirect_file
       operator: (redirect_operator)
