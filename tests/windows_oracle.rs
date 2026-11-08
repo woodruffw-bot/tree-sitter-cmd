@@ -87,6 +87,29 @@ mod windows {
     }
 
     #[test]
+    fn path_search_accepts_non_identifier_environment_names() {
+        for name in ["1PATH", "-PATH", "[PATH]"] {
+            let source = format!(
+                "@echo off\r\nsetlocal\r\nset \"{name}=%CD%\"\r\nfor %%a in (case.cmd) do if not \"%%~${name}:a\"==\"%~f0\" exit /b 1\r\ncall :check case.cmd\r\nexit /b %errorlevel%\r\n:check\r\nif not \"%~${name}:1\"==\"%~f0\" exit /b 1\r\necho found\r\nexit /b 0\r\n"
+            );
+            let tree = parser().parse(&source, None).expect("path-search tree");
+            assert!(!tree.root_node().has_error(), "{source}");
+            let output = run_script("path-search-names", source.as_bytes());
+            assert!(
+                output.status.success(),
+                "{name}: {}",
+                escaped(&output.stderr)
+            );
+            assert!(
+                output.stderr.is_empty(),
+                "{name}: {}",
+                escaped(&output.stderr)
+            );
+            assert_eq!(output.stdout, b"found\r\n", "{name}");
+        }
+    }
+
+    #[test]
     fn late_expansions_cannot_supply_duplication_targets() {
         for command in [
             "echo marker >&!fd!",

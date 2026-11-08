@@ -147,3 +147,19 @@ echo %ProgramFiles(x86)%
     name: (command_name)
     argument: (argument
       (variable))))
+
+============================================================
+path-search environment names need not be identifiers
+============================================================
+
+echo %~$1PATH:1 %%~$-PATH:a
+
+---
+
+(program
+  (command
+    name: (command_name)
+    argument: (argument
+      (parameter_tilde))
+    argument: (argument
+      (loop_variable))))
