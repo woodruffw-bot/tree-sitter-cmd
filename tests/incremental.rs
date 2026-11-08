@@ -503,3 +503,35 @@ fn chunked_input_matches_contiguous_input() {
         );
     }
 }
+
+#[test]
+fn unquoted_set_whitespace_edits_preserve_value_ranges() {
+    for prefix in ["set ", "set /p "] {
+        for newline in ["\n", "\r\n"] {
+            for replacement in [" ", "\t", " foo ", " %V% ", " a>nul b "] {
+                let before = format!("{prefix}x=VALUE{newline}echo tail{newline}");
+                assert_incremental_matches_fresh(&before, "VALUE", replacement);
+                let start = before.find("VALUE").expect("value offset");
+                let (tree, edited) =
+                    edited_tree(before.as_bytes(), start..start + 5, replacement.as_bytes());
+                let binding = tree
+                    .root_node()
+                    .named_child(0)
+                    .expect("SET")
+                    .named_child(1)
+                    .expect("binding");
+                let field = if prefix == "set " { "value" } else { "prompt" };
+                let values: Vec<_> = binding
+                    .children_by_field_name(field, &mut binding.walk())
+                    .map(|node| source_slice(node, &edited))
+                    .collect();
+                let expected: Vec<&[u8]> = if replacement.contains('>') {
+                    vec![b" a", b" b "]
+                } else {
+                    vec![replacement.as_bytes()]
+                };
+                assert_eq!(values, expected);
+            }
+        }
+    }
+}

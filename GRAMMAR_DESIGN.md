@@ -88,7 +88,9 @@ The tree does not resolve labels or account for CALL's runtime reparsing.
 
 `set_statement` distinguishes assignment, prompt, arithmetic, quoted, and
 display forms. Names retain expansion children. Values and prompts retain
-source fragments in repeated fields when redirections interrupt them.
+source fragments in repeated fields when redirections interrupt them. Unquoted
+values and prompts include surviving spaces and tabs, including leading,
+trailing, and whitespace-only payloads.
 
 In `set "name=value"` and `set /p "name=prompt"`, the final surviving quote
 closes the wrapper. Earlier quotes remain payload text and still affect outer

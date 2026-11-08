@@ -201,6 +201,7 @@ module.exports = grammar({
     $._escaped_redirect_digit,
     $._argument_text,
     $._argument_equals_text,
+    $._set_unquoted_space,
     $._empty_block_open,
     $._block_open,
     $._block_close,
@@ -885,13 +886,11 @@ module.exports = grammar({
       seq(
         $._set_binding,
         $._set_binding_operator,
+        optional(field('value', alias($._set_unquoted_value, $.argument))),
         repeat(
-          choice(
-            field('value', $.argument),
-            seq(
-              repeat1(field('redirect', $._redirection)),
-              field('value', $.argument),
-            ),
+          seq(
+            repeat1(field('redirect', $._redirection)),
+            field('value', alias($._set_unquoted_value, $.argument)),
           ),
         ),
       ),
@@ -913,13 +912,11 @@ module.exports = grammar({
         seq(
           optional($._set_binding),
           $._set_binding_operator,
+          optional(field('prompt', alias($._set_unquoted_value, $.argument))),
           repeat(
-            choice(
-              field('prompt', $.argument),
-              seq(
-                repeat1(field('redirect', $._redirection)),
-                field('prompt', $.argument),
-              ),
+            seq(
+              repeat1(field('redirect', $._redirection)),
+              field('prompt', alias($._set_unquoted_value, $.argument)),
             ),
           ),
         ),
@@ -949,6 +946,19 @@ module.exports = grammar({
           optional($._set_ignored_tail),
         ),
       ),
+    // Unquoted values retain all surviving horizontal whitespace. Redirections
+    // split the payload into contiguous fields without removing their gaps.
+    _set_unquoted_value: ($) =>
+      prec.right(
+        1,
+        repeat1(
+          choice(
+            $._fragment,
+            alias($._set_unquoted_space, $.text),
+          ),
+        ),
+      ),
+
     // SET /A expression. Keep the arithmetic language opaque, but require at
     // least one expression. cmd rejects an empty payload after redirections are
     // removed.

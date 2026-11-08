@@ -115,6 +115,7 @@ enum TokenType {
     ESCAPED_REDIRECT_DIGIT,
     ARGUMENT_TEXT,
     ARGUMENT_EQUALS_TEXT,
+    SET_UNQUOTED_SPACE,
     EMPTY_BLOCK_OPEN,
     BLOCK_OPEN,
     BLOCK_CLOSE,
@@ -763,6 +764,18 @@ bool tree_sitter_cmd_external_scanner_scan(void *payload, TSLexer *lexer,
         s->delayed_literal = false;
         s->delayed_literal_seen = true;
         lexer->result_symbol = DELAYED_LITERAL;
+        return true;
+    }
+
+    // Whitespace is part of an unquoted SET value or prompt. Emit it before
+    // any argument scanner can skip it as an ordinary command separator.
+    if (valid_symbols[SET_UNQUOTED_SPACE] &&
+        (lexer->lookahead == ' ' || lexer->lookahead == '\t')) {
+        do {
+            lexer->advance(lexer, false);
+        } while (lexer->lookahead == ' ' || lexer->lookahead == '\t');
+        lexer->mark_end(lexer);
+        lexer->result_symbol = SET_UNQUOTED_SPACE;
         return true;
     }
 

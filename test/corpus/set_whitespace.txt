@@ -1,0 +1,50 @@
+============================================================
+unquoted SET whitespace is payload text
+============================================================
+
+set x= 
+set x= foo 
+set /p x= prompt 
+set x= a>nul b 
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (text)
+        (text)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (text)
+        (text))
+      redirect: (redirect_file
+        operator: (redirect_operator)
+        target: (argument
+          (text)))
+      value: (argument
+        (text)
+        (text)
+        (text)))))

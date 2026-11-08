@@ -1775,3 +1775,53 @@ fn quoted_set_names_keep_segments_around_redirections() {
         );
     }
 }
+
+#[test]
+fn unquoted_set_values_and_prompts_preserve_whitespace() {
+    for (prefix, field) in [("set ", "value"), ("set /p ", "prompt")] {
+        for newline in ["\n", "\r\n"] {
+            for (payload, values, redirects) in [
+                ("", vec![], vec![]),
+                (" ", vec![" "], vec![]),
+                ("\t", vec!["\t"], vec![]),
+                (" foo ", vec![" foo "], vec![]),
+                ("\tfoo \t bar\t", vec!["\tfoo \t bar\t"], vec![]),
+                (" %V% !D! ", vec![" %V% !D! "], vec![]),
+                (" a^b2>nul c ", vec![" a^b2", " c "], vec![">nul"]),
+                (" a 2>nul b ", vec![" a ", " b "], vec!["2>nul"]),
+                (" a>nul ", vec![" a", " "], vec![">nul"]),
+                (" >nul", vec![" "], vec![">nul"]),
+                ("a= b", vec!["a= b"], vec![]),
+                (" a^&b ", vec![" a^&b "], vec![]),
+                (" \"a&b\" ", vec![" \"a&b\" "], vec![]),
+            ] {
+                let source = format!("{prefix}x={payload}{newline}");
+                let tree = parser().parse(&source, None).expect("unquoted SET tree");
+                let root = tree.root_node();
+                assert!(!root.has_error(), "{source:?}: {}", root.to_sexp());
+                let binding = root
+                    .named_child(0)
+                    .expect("SET")
+                    .named_child(1)
+                    .expect("binding");
+                let actual: Vec<_> = binding
+                    .children_by_field_name(field, &mut binding.walk())
+                    .map(|node| &source[node.byte_range()])
+                    .collect();
+                assert_eq!(actual, values, "{source:?}");
+                assert_eq!(
+                    node_sources(root, "redirect_file", &source),
+                    redirects,
+                    "{source:?}"
+                );
+            }
+        }
+    }
+    for source in ["(set x= foo )&echo tail\n", "set x= foo &echo tail\n"] {
+        let tree = parser().parse(source, None).expect("bounded SET tree");
+        let root = tree.root_node();
+        assert!(!root.has_error(), "{source:?}: {}", root.to_sexp());
+        assert_eq!(node_sources(root, "command_name", source), ["echo"]);
+        assert_eq!(node_sources(root, "set_assignment", source), ["x= foo "]);
+    }
+}

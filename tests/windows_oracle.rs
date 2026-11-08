@@ -87,6 +87,25 @@ mod windows {
     }
 
     #[test]
+    fn unquoted_set_payload_whitespace_survives() {
+        let source = concat!(
+            "@echo off\r\nsetlocal EnableDelayedExpansion\r\n",
+            "set TS_SPACE= \r\necho space:[!TS_SPACE!]\r\n",
+            "set TS_EDGES= foo \r\necho edges:[!TS_EDGES!]\r\n",
+            "set TS_TABS=\tfoo\t\r\necho tabs:[!TS_TABS!]\r\n",
+            "set TS_SPLIT= a>nul b \r\necho split:[!TS_SPLIT!]\r\n",
+            "echo reply>input\r\nset /p TS_PROMPT= prompt <input\r\n",
+            "echo value:[!TS_PROMPT!]\r\n",
+        );
+        let tree = parser().parse(source, None).expect("unquoted SET tree");
+        assert!(!tree.root_node().has_error());
+        let output = run_script("set-payload-space", source.as_bytes());
+        assert!(output.status.success(), "{}", escaped(&output.stderr));
+        assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
+        assert_eq!(output.stdout, b"space:[ ]\r\nedges:[ foo ]\r\ntabs:[\tfoo\t]\r\nsplit:[ a b ]\r\n prompt value:[reply]\r\n");
+    }
+
+    #[test]
     fn late_expansions_cannot_supply_duplication_targets() {
         for command in [
             "echo marker >&!fd!",
