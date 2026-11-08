@@ -102,7 +102,7 @@ mod windows {
         let output = run_script("set-payload-space", source.as_bytes());
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(output.stdout, b"space:[ ]\r\nedges:[ foo ]\r\ntabs:[\tfoo\t]\r\nsplit:[ a b ]\r\n prompt value:[reply]\r\n");
+        assert_eq!(output.stdout, b"space:[ ]\r\nedges:[ foo ]\r\ntabs:[\tfoo\t]\r\nsplit:[ a b ]\r\nprompt value:[reply]\r\n");
     }
 
     #[test]
