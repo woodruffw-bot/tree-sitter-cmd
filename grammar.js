@@ -45,7 +45,7 @@ const PREC = {
 // Modifier letters for %~ / %%~ expansions (case-insensitive).
 const TILDE_MODS = '[dpnxfsatzDPNXFSATZ]*';
 // An optional `$ENV:` PATH-search clause inside a %~ expansion.
-const PATH_SEARCH = '(?:\\$[A-Za-z_][^:\\r\\n]*:)?';
+const PATH_SEARCH = '(?:\\$[^:\\r\\n]+:)?';
 // A FOR loop variable name is a single character — cmd accepts almost anything,
 // not just letters (e.g. `%%#`, `%%1`/`%%2` from `tokens=1,2`, `%%@`). Exclude
 // only whitespace, `%`, operators, `=` and quotes. `*` and `~` are valid names.

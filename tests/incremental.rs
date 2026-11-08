@@ -505,6 +505,18 @@ fn chunked_input_matches_contiguous_input() {
 }
 
 #[test]
+fn path_search_environment_name_edits_match_fresh_parses() {
+    for name in ["1PATH", "-PATH", "path name", "\"PATH"] {
+        for newline in ["\n", "\r\n"] {
+            let source = format!("set \"x=a\"b>&%~$PATH:1c\"{newline}echo %%~$PATH:a{newline}");
+            assert_incremental_matches_fresh(&source, "PATH", name);
+            let source = format!("echo %~$PATH:1 %%~$PATH:a{newline}");
+            assert_incremental_matches_fresh(&source, "PATH", name);
+        }
+    }
+}
+
+#[test]
 fn unquoted_set_whitespace_edits_preserve_value_ranges() {
     for prefix in ["set ", "set /p "] {
         for newline in ["\n", "\r\n"] {

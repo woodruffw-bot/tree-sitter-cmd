@@ -369,9 +369,8 @@ static bool has_later_set_quote(const Scanner *s, TSLexer *lexer, bool quoted) {
                     percent = PARAMETER_PATH_START;
                     continue;
                 }
-                if (percent == PARAMETER_PATH_START &&
-                    ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                     c == '_')) {
+                if (percent == PARAMETER_PATH_START && c != ':' && c != '\r' &&
+                    c != '\n') {
                     percent = PARAMETER_PATH;
                     continue;
                 }
