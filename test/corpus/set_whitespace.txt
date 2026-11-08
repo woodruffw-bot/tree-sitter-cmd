@@ -48,3 +48,29 @@ set x= a>nul b
         (text)
         (text)
         (text)))))
+
+============================================================
+escaped SET text retains ordinary digits
+============================================================
+
+set x=^a2
+set /p x=^a22
+
+---
+
+(program
+  (set_statement
+    (keyword)
+    (set_assignment
+      name: (variable_name)
+      value: (argument
+        (escape_sequence)
+        (text))))
+  (set_statement
+    (keyword)
+    (set_prompt
+      (set_flag)
+      name: (variable_name)
+      prompt: (argument
+        (escape_sequence)
+        (text)))))

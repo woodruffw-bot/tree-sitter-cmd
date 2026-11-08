@@ -117,6 +117,7 @@ mod windows {
             "set TS_EDGES= foo \r\necho edges:[!TS_EDGES!]\r\n",
             "set TS_TABS=\tfoo\t\r\necho tabs:[!TS_TABS!]\r\n",
             "set TS_SPLIT= a>nul b \r\necho split:[!TS_SPLIT!]\r\n",
+            "set TS_ESCAPE=^a22>nul\r\necho escaped:[!TS_ESCAPE!]\r\n",
             "echo reply>input\r\nset /p TS_PROMPT= prompt <input\r\n",
             "echo value:[!TS_PROMPT!]\r\n",
         );
@@ -125,7 +126,7 @@ mod windows {
         let output = run_script("set-payload-space", source.as_bytes());
         assert!(output.status.success(), "{}", escaped(&output.stderr));
         assert!(output.stderr.is_empty(), "{}", escaped(&output.stderr));
-        assert_eq!(output.stdout, b"space:[ ]\r\nedges:[ foo ]\r\ntabs:[\tfoo\t]\r\nsplit:[ a b ]\r\nprompt value:[reply]\r\n");
+        assert_eq!(output.stdout, b"space:[ ]\r\nedges:[ foo ]\r\ntabs:[\tfoo\t]\r\nsplit:[ a b ]\r\nescaped:[a22]\r\nprompt value:[reply]\r\n");
     }
 
     #[test]

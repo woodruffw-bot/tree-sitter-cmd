@@ -1815,6 +1815,12 @@ fn unquoted_set_values_and_prompts_preserve_whitespace() {
                 (" a>nul ", vec![" a", " "], vec![">nul"]),
                 (" >nul", vec![" "], vec![">nul"]),
                 ("a= b", vec!["a= b"], vec![]),
+                ("^a2", vec!["^a2"], vec![]),
+                ("a^b2", vec!["a^b2"], vec![]),
+                ("^a2x", vec!["^a2x"], vec![]),
+                ("^a22>nul", vec!["^a22"], vec![">nul"]),
+                ("^a2,2>nul c ", vec!["^a2,", " c "], vec!["2>nul"]),
+                ("^a2 2>nul c ", vec!["^a2 ", " c "], vec!["2>nul"]),
                 (" a^&b ", vec![" a^&b "], vec![]),
                 (" \"a&b\" ", vec![" \"a&b\" "], vec![]),
             ] {

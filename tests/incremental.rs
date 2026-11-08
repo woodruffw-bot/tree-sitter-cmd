@@ -520,7 +520,7 @@ fn path_search_environment_name_edits_match_fresh_parses() {
 fn unquoted_set_whitespace_edits_preserve_value_ranges() {
     for prefix in ["set ", "set /p "] {
         for newline in ["\n", "\r\n"] {
-            for replacement in [" ", "\t", " foo ", " %V% ", " a>nul b "] {
+            for replacement in [" ", "\t", " foo ", " %V% ", "^a2", "^a22", " a>nul b "] {
                 let before = format!("{prefix}x=VALUE{newline}echo tail{newline}");
                 assert_incremental_matches_fresh(&before, "VALUE", replacement);
                 let start = before.find("VALUE").expect("value offset");
